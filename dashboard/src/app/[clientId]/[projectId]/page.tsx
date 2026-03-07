@@ -11,7 +11,6 @@ import { BudgetsTab } from "@/components/tabs/BudgetsTab";
 import {
   getClient,
   getProject,
-  PROJECT_TYPE_ICON,
   PROJECT_TYPE_LABEL,
   PROJECT_STATUS_CONFIG,
 } from "@/lib/mock";
@@ -77,15 +76,14 @@ export default function ProjectPage({
 
           {/* Right info */}
           <div className="flex items-center gap-4 shrink-0">
-            <span
-              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${statusCfg.class}`}
-            >
-              {statusCfg.label}
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`} />
+              <span className="text-xs text-zinc-500">{statusCfg.label}</span>
+            </div>
             <div className="text-right hidden sm:block">
               <p className="text-[11px] text-zinc-600">Type</p>
               <p className="text-xs text-zinc-400">
-                {PROJECT_TYPE_ICON[project.type]} {PROJECT_TYPE_LABEL[project.type]}
+                {PROJECT_TYPE_LABEL[project.type]}
               </p>
             </div>
             <div className="text-right">

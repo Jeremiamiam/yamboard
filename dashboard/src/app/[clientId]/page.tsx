@@ -8,11 +8,13 @@ import { ClientSidebar } from "@/components/ClientSidebar";
 import {
   getClient,
   getClientProjects,
-  getClientStats,
-  PROJECT_TYPE_ICON,
+  getClientDocs,
   PROJECT_TYPE_LABEL,
   PROJECT_STATUS_CONFIG,
+  DOC_TYPE_LABEL,
+  DOC_TYPE_COLOR,
   type Project,
+  type Document,
 } from "@/lib/mock";
 
 export default function ClientPage({
@@ -25,7 +27,7 @@ export default function ClientPage({
   if (!client) notFound();
 
   const projects = getClientProjects(clientId);
-  const stats = getClientStats(clientId);
+  const globalDocs = getClientDocs(clientId);
 
   const statusColor = {
     active: "bg-emerald-500",
@@ -71,53 +73,83 @@ export default function ClientPage({
               <p className="text-xs text-zinc-600">Contact</p>
               <p className="text-xs text-zinc-400">{client.contact.name}</p>
             </div>
-            <div className="text-right">
-              <p className="text-xs text-zinc-600">Budget total</p>
-              <p className="text-xs text-zinc-400">
-                {stats.budget.toLocaleString("fr-FR")} €
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs text-zinc-600">Missions</p>
-              <p className="text-xs text-zinc-400">
-                {stats.activeCount} active{stats.activeCount !== 1 ? "s" : ""} /{" "}
-                {stats.projectCount}
-              </p>
-            </div>
+            {client.since && (
+              <div className="text-right">
+                <p className="text-xs text-zinc-600">Client depuis</p>
+                <p className="text-xs text-zinc-400">{client.since}</p>
+              </div>
+            )}
           </div>
         </header>
 
-        {/* ── Projects grid ── */}
-        <div className="flex-1 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-sm font-semibold text-white">Missions</h2>
-              <p className="text-xs text-zinc-500 mt-0.5">
-                {projects.length} projet{projects.length !== 1 ? "s" : ""}
-              </p>
-            </div>
-            <button className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs text-zinc-400 hover:border-zinc-700 hover:text-zinc-200 transition-colors">
-              + Nouvelle mission
-            </button>
-          </div>
-
-          {projects.length === 0 ? (
-            <EmptyProjects />
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-              {projects.map((project) => (
-                <ProjectCard
-                  key={project.id}
-                  project={project}
-                  clientId={clientId}
-                  clientColor={client.color}
-                />
-              ))}
-            </div>
+        <div className="flex-1 p-6 space-y-8">
+          {/* ── Docs globaux (plateforme de marque, brandbook…) ── */}
+          {globalDocs.length > 0 && (
+            <section>
+              <h2 className="text-[11px] font-semibold uppercase tracking-widest text-zinc-600 mb-3">
+                Documents de marque
+              </h2>
+              <div className="flex flex-wrap gap-2">
+                {globalDocs.map((doc) => (
+                  <GlobalDocChip key={doc.id} doc={doc} />
+                ))}
+              </div>
+            </section>
           )}
+
+          {/* ── Missions ── */}
+          <section>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-[11px] font-semibold uppercase tracking-widest text-zinc-600">
+                Missions · {projects.length}
+              </h2>
+              <button className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs text-zinc-400 hover:border-zinc-700 hover:text-zinc-200 transition-colors">
+                + Nouvelle mission
+              </button>
+            </div>
+
+            {projects.length === 0 ? (
+              <EmptyProjects />
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                {projects.map((project) => (
+                  <ProjectCard
+                    key={project.id}
+                    project={project}
+                    clientId={clientId}
+                    clientColor={client.color}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
         </div>
       </div>
     </>
+  );
+}
+
+function GlobalDocChip({ doc }: { doc: Document }) {
+  const icons: Record<string, string> = {
+    brief: "📋",
+    platform: "🏗",
+    campaign: "📣",
+    site: "🌐",
+    other: "📄",
+  };
+
+  return (
+    <button className="flex items-center gap-2 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition-colors group">
+      <span className="text-sm">{icons[doc.type] ?? "📄"}</span>
+      <div className="text-left">
+        <p className="text-xs font-medium text-zinc-300 group-hover:text-white transition-colors">
+          {doc.name}
+        </p>
+        <p className={`text-[10px] ${DOC_TYPE_COLOR[doc.type]}`}>
+          {DOC_TYPE_LABEL[doc.type]} · {doc.updatedAt}
+        </p>
+      </div>
+    </button>
   );
 }
 
@@ -135,7 +167,6 @@ function ProjectCard({
     project.totalPhases > 0
       ? Math.round((project.progress / project.totalPhases) * 100)
       : 0;
-  const remaining = project.budget - project.spent;
 
   const barColor =
     project.status === "done"
@@ -147,28 +178,19 @@ function ProjectCard({
   return (
     <Link
       href={`/${clientId}/${project.id}`}
-      className="group flex flex-col p-5 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition-all hover:bg-zinc-900/80 cursor-pointer"
+      className="group flex flex-col p-5 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition-all"
     >
       {/* Top row */}
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-2.5">
-          <span className="text-lg leading-none">
-            {PROJECT_TYPE_ICON[project.type]}
-          </span>
-          <div>
-            <p className="text-sm font-semibold text-zinc-100 group-hover:text-white transition-colors leading-tight">
-              {project.name}
-            </p>
-            <p className="text-[11px] text-zinc-600 mt-0.5">
-              {PROJECT_TYPE_LABEL[project.type]}
-            </p>
-          </div>
+      <div className="flex items-start justify-between mb-2">
+        <div>
+          <p className="text-sm font-semibold text-zinc-100 group-hover:text-white transition-colors leading-tight">
+            {project.name}
+          </p>
+          <p className="text-[11px] text-zinc-600 mt-0.5">
+            {PROJECT_TYPE_LABEL[project.type]}
+          </p>
         </div>
-        <span
-          className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border shrink-0 ${statusCfg.class}`}
-        >
-          {statusCfg.label}
-        </span>
+        <span className={`w-1.5 h-1.5 rounded-full shrink-0 mt-1.5 ${statusCfg.dot}`} />
       </div>
 
       {/* Description */}
@@ -176,37 +198,23 @@ function ProjectCard({
         {project.description}
       </p>
 
-      {/* Progress bar */}
+      {/* Progress */}
       <div className="mb-4">
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[11px] text-zinc-600">
-            {project.progress}/{project.totalPhases} phases
-          </span>
-          <span className="text-[11px] font-medium text-zinc-500">{pct}%</span>
-        </div>
         <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">
           <div
             className="h-full rounded-full transition-all"
             style={{ width: `${pct}%`, background: barColor }}
           />
         </div>
+        <p className="text-[11px] text-zinc-700 mt-1.5">
+          {project.progress}/{project.totalPhases} phases
+        </p>
       </div>
 
-      {/* Budget + last activity */}
-      <div className="flex items-end justify-between mt-auto">
-        <div>
-          <p className="text-[11px] text-zinc-600">Budget</p>
-          <p className="text-xs font-medium text-zinc-400">
-            {project.spent.toLocaleString("fr-FR")} €
-            <span className="text-zinc-600 font-normal">
-              {" "}/ {project.budget.toLocaleString("fr-FR")} €
-            </span>
-          </p>
-        </div>
-        <div className="text-right">
-          <p className="text-[11px] text-zinc-600">Dernière activité</p>
-          <p className="text-xs text-zinc-500">{project.lastActivity}</p>
-        </div>
+      {/* Last activity */}
+      <div className="flex items-center justify-between mt-auto">
+        <p className="text-[11px] text-zinc-700">{project.startDate}</p>
+        <p className="text-[11px] text-zinc-600">{project.lastActivity}</p>
       </div>
     </Link>
   );
@@ -214,14 +222,12 @@ function ProjectCard({
 
 function EmptyProjects() {
   return (
-    <div className="flex flex-col items-center justify-center py-24 text-center">
+    <div className="flex flex-col items-center justify-center py-20 text-center">
       <div className="w-12 h-12 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mb-4">
         <span className="text-xl">📁</span>
       </div>
       <p className="text-sm font-medium text-zinc-400">Aucune mission</p>
-      <p className="text-xs text-zinc-600 mt-1">
-        Crée la première mission pour commencer.
-      </p>
+      <p className="text-xs text-zinc-600 mt-1">Crée la première mission pour commencer.</p>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { getDocuments, DOC_TYPE_LABEL, DOC_TYPE_COLOR, type Project } from "@/lib/mock";
+import { getProjectDocs, DOC_TYPE_LABEL, DOC_TYPE_COLOR, type Project } from "@/lib/mock";
 
 export function DocumentsTab({
   project,
@@ -9,7 +9,7 @@ export function DocumentsTab({
   project: Project;
   clientColor: string;
 }) {
-  const docs = getDocuments(project.id);
+  const docs = getProjectDocs(project.id);
 
   return (
     <div className="flex-1 overflow-y-auto p-6">

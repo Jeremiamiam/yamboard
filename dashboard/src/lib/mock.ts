@@ -1,3 +1,6 @@
+// ─── Types ───────────────────────────────────────────────────
+
+export type ClientCategory = "client" | "prospect" | "archived";
 export type ClientStatus = "active" | "draft" | "paused";
 export type ProjectType = "brand" | "site" | "campaign" | "social" | "other";
 export type ProjectStatus = "active" | "done" | "paused" | "draft";
@@ -6,9 +9,11 @@ export type Client = {
   id: string;
   name: string;
   industry: string;
+  category: ClientCategory;
   status: ClientStatus;
   contact: { name: string; role: string; email: string; phone?: string };
   color: string;
+  since?: string;   // date début relation
 };
 
 export type Project = {
@@ -18,17 +23,17 @@ export type Project = {
   type: ProjectType;
   status: ProjectStatus;
   description: string;
-  progress: number;      // phases done
+  progress: number;     // phases terminées
   totalPhases: number;
-  budget: number;
-  spent: number;
-  lastActivity: string;  // human-readable date
+  lastActivity: string;
   startDate: string;
 };
 
+// Documents — clientId toujours présent, projectId optionnel (absent = doc "global" client)
 export type Document = {
   id: string;
-  projectId: string;
+  clientId: string;
+  projectId?: string;  // absent = doc niveau client (plateforme de marque, etc.)
   name: string;
   type: "brief" | "platform" | "campaign" | "site" | "other";
   updatedAt: string;
@@ -51,52 +56,104 @@ export type Message = {
   timestamp: string;
 };
 
-export type BudgetPhase = {
-  name: string;
-  allocated: number;
-  spent: number;
-  status: "done" | "active" | "pending";
+// Budget — produits/phases par projet avec suivi des paiements
+export type PaymentStage = {
+  amount?: number;
+  date?: string;
+  status: "pending" | "sent" | "paid";
 };
 
-// ─── Clients ────────────────────────────────────────────────
+export type BudgetProduct = {
+  id: string;
+  projectId: string;
+  name: string;
+  totalAmount: number;
+  devis?: PaymentStage;
+  acompte?: PaymentStage;
+  avancement?: PaymentStage;
+  solde?: PaymentStage;
+};
+
+// ─── Clients ─────────────────────────────────────────────────
 export const CLIENTS: Client[] = [
+  // ── Clients actifs
   {
     id: "brutus",
     name: "Brutus.club",
     industry: "E-commerce · Pet",
+    category: "client",
     status: "active",
     contact: { name: "Thomas Marin", role: "Fondateur", email: "thomas@brutus.club", phone: "+33 6 12 34 56 78" },
     color: "#f97316",
+    since: "Oct 2024",
   },
   {
     id: "bloo-conseil",
     name: "Bloo Conseil",
     industry: "Conseil · Cyber",
+    category: "client",
     status: "active",
     contact: { name: "Aurélien Bloo", role: "CEO", email: "a.bloo@bloo-conseil.fr" },
     color: "#3b82f6",
+    since: "Sep 2024",
   },
   {
     id: "forge",
     name: "Forge",
     industry: "Wellness · Recovery",
+    category: "client",
     status: "active",
     contact: { name: "Marine Leroy", role: "Co-fondatrice", email: "marine@forge-smalo.fr", phone: "+33 6 98 76 54 32" },
     color: "#10b981",
+    since: "Nov 2024",
   },
   {
     id: "ornanza",
     name: "Ornanza",
     industry: "Retail · Bijoux",
+    category: "client",
     status: "draft",
     contact: { name: "Clara Fontaine", role: "Gérante", email: "clara@ornanza.fr" },
     color: "#a855f7",
+    since: "Mar 2025",
+  },
+
+  // ── Prospects
+  {
+    id: "solstice",
+    name: "Solstice Studio",
+    industry: "Architecture · Intérieur",
+    category: "prospect",
+    status: "draft",
+    contact: { name: "Emma Duval", role: "Directrice", email: "emma@solstice-studio.fr" },
+    color: "#eab308",
+  },
+  {
+    id: "kaia",
+    name: "Kaïa Foods",
+    industry: "Agroalimentaire · Bio",
+    category: "prospect",
+    status: "draft",
+    contact: { name: "Romain Salis", role: "Co-fondateur", email: "r.salis@kaia-foods.fr" },
+    color: "#84cc16",
+  },
+
+  // ── Archives
+  {
+    id: "novu",
+    name: "Novu Paris",
+    industry: "Mode · Prêt-à-porter",
+    category: "archived",
+    status: "paused",
+    contact: { name: "Léa Chen", role: "Directrice artistique", email: "lea@novu-paris.fr" },
+    color: "#ec4899",
+    since: "Jan 2024",
   },
 ];
 
-// ─── Projects ───────────────────────────────────────────────
+// ─── Projects ────────────────────────────────────────────────
 export const PROJECTS: Project[] = [
-  // Brutus — 3 missions
+  // Brutus
   {
     id: "identite-de-marque",
     clientId: "brutus",
@@ -106,8 +163,6 @@ export const PROJECTS: Project[] = [
     description: "Contre-brief, plateforme de marque, système verbal et brandbook.",
     progress: 5,
     totalPhases: 5,
-    budget: 5500,
-    spent: 5500,
     lastActivity: "28 nov 2024",
     startDate: "Oct 2024",
   },
@@ -120,8 +175,6 @@ export const PROJECTS: Project[] = [
     description: "Architecture, contenus, maquettes et intégration Webflow.",
     progress: 2,
     totalPhases: 4,
-    budget: 4000,
-    spent: 1200,
     lastActivity: "3 mars 2025",
     startDate: "Jan 2025",
   },
@@ -134,13 +187,11 @@ export const PROJECTS: Project[] = [
     description: "Concept créatif et déclinaisons pour le lancement printemps.",
     progress: 0,
     totalPhases: 3,
-    budget: 2500,
-    spent: 0,
     lastActivity: "—",
     startDate: "À planifier",
   },
 
-  // Bloo Conseil — 1 mission en cours
+  // Bloo Conseil
   {
     id: "refonte-marque",
     clientId: "bloo-conseil",
@@ -150,13 +201,11 @@ export const PROJECTS: Project[] = [
     description: "10 ans d'existence — repositionnement, plateforme et refonte visuelle.",
     progress: 3,
     totalPhases: 5,
-    budget: 5000,
-    spent: 3000,
     lastActivity: "22 oct 2024",
     startDate: "Sep 2024",
   },
 
-  // Forge — 2 missions
+  // Forge
   {
     id: "plateforme-marque",
     clientId: "forge",
@@ -166,8 +215,6 @@ export const PROJECTS: Project[] = [
     description: "L'Atelier de la Durée — positionnement, essence et manifeste.",
     progress: 2,
     totalPhases: 5,
-    budget: 4500,
-    spent: 1800,
     lastActivity: "12 déc 2024",
     startDate: "Nov 2024",
   },
@@ -180,13 +227,11 @@ export const PROJECTS: Project[] = [
     description: "Campagne d'activation autour de la Route du Rhum 2026.",
     progress: 0,
     totalPhases: 3,
-    budget: 1500,
-    spent: 0,
     lastActivity: "—",
     startDate: "2026",
   },
 
-  // Ornanza — démarrage
+  // Ornanza
   {
     id: "kickoff-marque",
     clientId: "ornanza",
@@ -196,54 +241,76 @@ export const PROJECTS: Project[] = [
     description: "Kick-off et brief stratégique — bijoux intemporels haut de gamme.",
     progress: 0,
     totalPhases: 5,
-    budget: 3500,
-    spent: 0,
     lastActivity: "—",
     startDate: "À planifier",
   },
 ];
 
-// ─── Documents ──────────────────────────────────────────────
+// ─── Documents ───────────────────────────────────────────────
+// Docs sans projectId = docs "globaux" du client (plateforme de marque, brandbook)
 export const DOCUMENTS: Document[] = [
-  // Brutus — identité
-  { id: "d1", projectId: "identite-de-marque", name: "Contre-brief", type: "brief", updatedAt: "10 nov 2024", size: "24 Ko" },
-  { id: "d2", projectId: "identite-de-marque", name: "Plateforme de marque", type: "platform", updatedAt: "18 nov 2024", size: "87 Ko" },
-  { id: "d3", projectId: "identite-de-marque", name: "Brandbook", type: "other", updatedAt: "28 nov 2024", size: "2.1 Mo" },
+  // ── Docs globaux clients (plateforme de marque = intouchable)
+  {
+    id: "g1",
+    clientId: "brutus",
+    name: "Plateforme de marque",
+    type: "platform",
+    updatedAt: "18 nov 2024",
+    size: "87 Ko",
+  },
+  {
+    id: "g2",
+    clientId: "brutus",
+    name: "Brandbook",
+    type: "other",
+    updatedAt: "28 nov 2024",
+    size: "2.1 Mo",
+  },
+  {
+    id: "g3",
+    clientId: "bloo-conseil",
+    name: "Plateforme de marque",
+    type: "platform",
+    updatedAt: "20 oct 2024",
+    size: "92 Ko",
+  },
+  {
+    id: "g4",
+    clientId: "forge",
+    name: "Plateforme de marque v1",
+    type: "platform",
+    updatedAt: "12 déc 2024",
+    size: "79 Ko",
+  },
 
-  // Brutus — site
-  { id: "d4", projectId: "site-web", name: "Architecture du site", type: "site", updatedAt: "20 jan 2025", size: "52 Ko" },
-  { id: "d5", projectId: "site-web", name: "Contenus Home + Boutique", type: "other", updatedAt: "3 mars 2025", size: "38 Ko" },
+  // ── Docs projets (livrables spécifiques à une mission)
+  { id: "d1", clientId: "brutus", projectId: "identite-de-marque", name: "Contre-brief", type: "brief", updatedAt: "10 nov 2024", size: "24 Ko" },
 
-  // Bloo
-  { id: "d6", projectId: "refonte-marque", name: "Brief stratégique", type: "brief", updatedAt: "5 oct 2024", size: "31 Ko" },
-  { id: "d7", projectId: "refonte-marque", name: "Plateforme de marque", type: "platform", updatedAt: "20 oct 2024", size: "92 Ko" },
+  { id: "d2", clientId: "brutus", projectId: "site-web", name: "Architecture du site", type: "site", updatedAt: "20 jan 2025", size: "52 Ko" },
+  { id: "d3", clientId: "brutus", projectId: "site-web", name: "Contenus Home + Boutique", type: "other", updatedAt: "3 mars 2025", size: "38 Ko" },
 
-  // Forge
-  { id: "d8", projectId: "plateforme-marque", name: "Contre-brief", type: "brief", updatedAt: "1 déc 2024", size: "28 Ko" },
-  { id: "d9", projectId: "plateforme-marque", name: "Plateforme de marque v1", type: "platform", updatedAt: "12 déc 2024", size: "79 Ko" },
+  { id: "d4", clientId: "bloo-conseil", projectId: "refonte-marque", name: "Brief stratégique", type: "brief", updatedAt: "5 oct 2024", size: "31 Ko" },
+
+  { id: "d5", clientId: "forge", projectId: "plateforme-marque", name: "Contre-brief", type: "brief", updatedAt: "1 déc 2024", size: "28 Ko" },
 ];
 
-// ─── Conversations ───────────────────────────────────────────
+// ─── Conversations ────────────────────────────────────────────
 export const CONVERSATIONS: Conversation[] = [
-  // Brutus identité
   { id: "c1", projectId: "identite-de-marque", title: "Session brief stratégique", preview: "On a discuté du positionnement premium vs accessible...", date: "10 nov", messageCount: 24 },
   { id: "c2", projectId: "identite-de-marque", title: "Plateforme — itération 1", preview: "L'essence « Caractère » validée, on affine le manifeste...", date: "18 nov", messageCount: 47 },
   { id: "c3", projectId: "identite-de-marque", title: "Brandbook — révisions finales", preview: "Dernières corrections typographiques avant envoi...", date: "28 nov", messageCount: 12 },
 
-  // Brutus site
   { id: "c4", projectId: "site-web", title: "Architecture du site", preview: "5 pages, la home met en avant la box du mois...", date: "20 jan", messageCount: 31 },
   { id: "c5", projectId: "site-web", title: "Contenus et copywriting", preview: "On travaille les titres de la page boutique...", date: "3 mars", messageCount: 19 },
 
-  // Bloo
   { id: "c6", projectId: "refonte-marque", title: "Kick-off projet", preview: "10 ans d'existence, refonte de l'image...", date: "5 oct", messageCount: 18 },
   { id: "c7", projectId: "refonte-marque", title: "Plateforme — angle éthique structurelle", preview: "L'éthique comme contrainte, pas comme valeur...", date: "20 oct", messageCount: 52 },
 
-  // Forge
   { id: "c8", projectId: "plateforme-marque", title: "Brief — L'Atelier de la Durée", preview: "Route du Rhum 2026 comme fenêtre de lancement...", date: "1 déc", messageCount: 29 },
   { id: "c9", projectId: "plateforme-marque", title: "Plateforme v1 — retours client", preview: "Marine valide l'essence mais demande plus de...", date: "12 déc", messageCount: 34 },
 ];
 
-// ─── Mock messages ───────────────────────────────────────────
+// ─── Mock messages ────────────────────────────────────────────
 export const MOCK_MESSAGES: Message[] = [
   { id: "m1", role: "user", content: "On reprend sur la plateforme. J'hésite encore sur l'essence — entre 'Caractère' et 'Mordant'.", timestamp: "14:32" },
   { id: "m2", role: "assistant", content: "Les deux ont une énergie différente. 'Caractère' est plus large, il inclut la sélectivité sans l'agressivité. 'Mordant' est plus tranchant mais risque d'intimider les nouveaux propriétaires. Est-ce que Brutus.club veut être intimidant ou simplement exigeant ?", timestamp: "14:32" },
@@ -253,51 +320,115 @@ export const MOCK_MESSAGES: Message[] = [
   { id: "m6", role: "assistant", content: "Oui. Le manifeste doit incarner cette voix — exigeante mais bienveillante. Je te propose une première version :\n\n*Il y a des chiens qui s'assument. Et des propriétaires qui les méritent.*\n*Brutus.club, c'est pour eux.*\n*Pas pour les indécis. Pas pour ceux qui cherchent à faire bonne figure.*\n*Pour ceux qui ont fait un choix — et qui l'assument jusqu'au bout.*", timestamp: "14:35" },
 ];
 
-// ─── Budget data ─────────────────────────────────────────────
-export const BUDGET_PHASES: Record<string, BudgetPhase[]> = {
-  "identite-de-marque": [
-    { name: "Contre-brief", allocated: 1000, spent: 1000, status: "done" },
-    { name: "Plateforme de marque", allocated: 2500, spent: 2500, status: "done" },
-    { name: "Système verbal", allocated: 500, spent: 500, status: "done" },
-    { name: "Brandbook", allocated: 1000, spent: 1000, status: "done" },
-    { name: "Livraison & révisions", allocated: 500, spent: 500, status: "done" },
-  ],
-  "site-web": [
-    { name: "Architecture", allocated: 1000, spent: 1000, status: "done" },
-    { name: "Contenus & copywriting", allocated: 1200, spent: 200, status: "active" },
-    { name: "Maquettes Webflow", allocated: 1200, spent: 0, status: "pending" },
-    { name: "Intégration & mise en ligne", allocated: 600, spent: 0, status: "pending" },
-  ],
-  "campagne-lancement": [
-    { name: "Concept créatif", allocated: 1000, spent: 0, status: "pending" },
-    { name: "Déclinaisons", allocated: 1000, spent: 0, status: "pending" },
-    { name: "Livraison assets", allocated: 500, spent: 0, status: "pending" },
-  ],
-  "refonte-marque": [
-    { name: "Brief stratégique", allocated: 1000, spent: 1000, status: "done" },
-    { name: "Plateforme de marque", allocated: 2000, spent: 2000, status: "done" },
-    { name: "Système visuel", allocated: 1500, spent: 0, status: "active" },
-    { name: "Brand book", allocated: 500, spent: 0, status: "pending" },
-  ],
-  "plateforme-marque": [
-    { name: "Contre-brief", allocated: 1000, spent: 1000, status: "done" },
-    { name: "Plateforme de marque", allocated: 2500, spent: 800, status: "active" },
-    { name: "Système verbal", allocated: 500, spent: 0, status: "pending" },
-    { name: "Brandbook", allocated: 1000, spent: 0, status: "pending" },
-  ],
-  "campagne-route-du-rhum": [
-    { name: "Concept créatif", allocated: 700, spent: 0, status: "pending" },
-    { name: "Déclinaisons", allocated: 500, spent: 0, status: "pending" },
-    { name: "Activation & RP", allocated: 300, spent: 0, status: "pending" },
-  ],
-  "kickoff-marque": [
-    { name: "Brief stratégique", allocated: 1000, spent: 0, status: "pending" },
-    { name: "Plateforme de marque", allocated: 2000, spent: 0, status: "pending" },
-    { name: "Système visuel", allocated: 500, spent: 0, status: "pending" },
-  ],
-};
+// ─── Budget products ──────────────────────────────────────────
+export const BUDGET_PRODUCTS: BudgetProduct[] = [
+  // Brutus — identité
+  {
+    id: "bp1",
+    projectId: "identite-de-marque",
+    name: "Contre-brief",
+    totalAmount: 1000,
+    devis: { status: "paid", date: "1 oct 2024" },
+    acompte: { amount: 500, date: "5 oct 2024", status: "paid" },
+    solde: { amount: 500, date: "10 nov 2024", status: "paid" },
+  },
+  {
+    id: "bp2",
+    projectId: "identite-de-marque",
+    name: "Plateforme de marque",
+    totalAmount: 3000,
+    devis: { status: "paid", date: "1 oct 2024" },
+    acompte: { amount: 1500, date: "5 oct 2024", status: "paid" },
+    avancement: { amount: 1000, date: "10 nov 2024", status: "paid" },
+    solde: { amount: 500, date: "18 nov 2024", status: "paid" },
+  },
+  {
+    id: "bp3",
+    projectId: "identite-de-marque",
+    name: "Brandbook",
+    totalAmount: 1500,
+    devis: { status: "paid", date: "15 oct 2024" },
+    acompte: { amount: 750, date: "20 oct 2024", status: "paid" },
+    solde: { amount: 750, date: "28 nov 2024", status: "paid" },
+  },
 
-// ─── Helpers ─────────────────────────────────────────────────
+  // Brutus — site web
+  {
+    id: "bp4",
+    projectId: "site-web",
+    name: "Architecture + contenus",
+    totalAmount: 2200,
+    devis: { status: "paid", date: "10 jan 2025" },
+    acompte: { amount: 1100, date: "15 jan 2025", status: "paid" },
+    solde: { amount: 1100, status: "pending" },
+  },
+  {
+    id: "bp5",
+    projectId: "site-web",
+    name: "Maquettes + intégration Webflow",
+    totalAmount: 1800,
+    devis: { status: "sent", date: "1 mars 2025" },
+    acompte: { amount: 900, status: "pending" },
+    solde: { amount: 900, status: "pending" },
+  },
+
+  // Bloo
+  {
+    id: "bp6",
+    projectId: "refonte-marque",
+    name: "Brief stratégique",
+    totalAmount: 1000,
+    devis: { status: "paid", date: "1 sep 2024" },
+    acompte: { amount: 500, date: "5 sep 2024", status: "paid" },
+    solde: { amount: 500, date: "10 oct 2024", status: "paid" },
+  },
+  {
+    id: "bp7",
+    projectId: "refonte-marque",
+    name: "Plateforme de marque",
+    totalAmount: 2500,
+    devis: { status: "paid", date: "1 sep 2024" },
+    acompte: { amount: 1250, date: "5 sep 2024", status: "paid" },
+    avancement: { amount: 750, date: "15 oct 2024", status: "paid" },
+    solde: { amount: 500, status: "pending" },
+  },
+  {
+    id: "bp8",
+    projectId: "refonte-marque",
+    name: "Système visuel",
+    totalAmount: 1500,
+    devis: { status: "sent", date: "20 oct 2024" },
+    acompte: { amount: 750, status: "pending" },
+    solde: { amount: 750, status: "pending" },
+  },
+
+  // Forge
+  {
+    id: "bp9",
+    projectId: "plateforme-marque",
+    name: "Contre-brief",
+    totalAmount: 1000,
+    devis: { status: "paid", date: "1 nov 2024" },
+    acompte: { amount: 500, date: "5 nov 2024", status: "paid" },
+    solde: { amount: 500, date: "1 déc 2024", status: "paid" },
+  },
+  {
+    id: "bp10",
+    projectId: "plateforme-marque",
+    name: "Plateforme de marque",
+    totalAmount: 3500,
+    devis: { status: "paid", date: "5 nov 2024" },
+    acompte: { amount: 1750, date: "10 nov 2024", status: "paid" },
+    avancement: { amount: 1000, status: "pending" },
+    solde: { amount: 750, status: "pending" },
+  },
+];
+
+// ─── Helpers ──────────────────────────────────────────────────
+export function getClients(category: ClientCategory = "client") {
+  return CLIENTS.filter((c) => c.category === category);
+}
+
 export function getClient(id: string) {
   return CLIENTS.find((c) => c.id === id) ?? null;
 }
@@ -310,7 +441,13 @@ export function getProject(projectId: string) {
   return PROJECTS.find((p) => p.id === projectId) ?? null;
 }
 
-export function getDocuments(projectId: string) {
+// Docs globaux du client (pas liés à un projet)
+export function getClientDocs(clientId: string) {
+  return DOCUMENTS.filter((d) => d.clientId === clientId && !d.projectId);
+}
+
+// Docs spécifiques à un projet
+export function getProjectDocs(projectId: string) {
   return DOCUMENTS.filter((d) => d.projectId === projectId);
 }
 
@@ -318,19 +455,24 @@ export function getConversations(projectId: string) {
   return CONVERSATIONS.filter((c) => c.projectId === projectId);
 }
 
-export function getBudgetPhases(projectId: string): BudgetPhase[] {
-  return BUDGET_PHASES[projectId] ?? [];
+export function getBudgetProducts(projectId: string) {
+  return BUDGET_PRODUCTS.filter((p) => p.projectId === projectId);
 }
 
-export function getClientStats(clientId: string) {
-  const projects = getClientProjects(clientId);
-  const budget = projects.reduce((sum, p) => sum + p.budget, 0);
-  const spent = projects.reduce((sum, p) => sum + p.spent, 0);
-  const activeCount = projects.filter((p) => p.status === "active").length;
-  return { budget, spent, activeCount, projectCount: projects.length };
+export function getProjectBudgetSummary(projectId: string) {
+  const products = getBudgetProducts(projectId);
+  const total = products.reduce((s, p) => s + p.totalAmount, 0);
+  const paid = products.reduce((s, p) => {
+    let amt = 0;
+    if (p.acompte?.status === "paid") amt += p.acompte.amount ?? 0;
+    if (p.avancement?.status === "paid") amt += p.avancement.amount ?? 0;
+    if (p.solde?.status === "paid") amt += p.solde.amount ?? 0;
+    return s + amt;
+  }, 0);
+  return { total, paid, remaining: total - paid };
 }
 
-// ─── Label & color maps ───────────────────────────────────────
+// ─── Label maps ───────────────────────────────────────────────
 export const PROJECT_TYPE_LABEL: Record<ProjectType, string> = {
   brand: "Marque",
   site: "Site web",
@@ -339,22 +481,14 @@ export const PROJECT_TYPE_LABEL: Record<ProjectType, string> = {
   other: "Autre",
 };
 
-export const PROJECT_TYPE_ICON: Record<ProjectType, string> = {
-  brand: "💎",
-  site: "🌐",
-  campaign: "📣",
-  social: "📱",
-  other: "📁",
-};
-
 export const PROJECT_STATUS_CONFIG: Record<
   ProjectStatus,
-  { label: string; class: string }
+  { label: string; dot: string }
 > = {
-  active: { label: "En cours", class: "text-blue-400 bg-blue-500/10 border-blue-500/20" },
-  done: { label: "Terminé", class: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20" },
-  paused: { label: "En pause", class: "text-yellow-500 bg-yellow-500/10 border-yellow-500/20" },
-  draft: { label: "À démarrer", class: "text-zinc-500 bg-zinc-800 border-zinc-700" },
+  active: { label: "En cours", dot: "bg-blue-500" },
+  done: { label: "Terminé", dot: "bg-emerald-500" },
+  paused: { label: "En pause", dot: "bg-yellow-500" },
+  draft: { label: "À démarrer", dot: "bg-zinc-600" },
 };
 
 export const DOC_TYPE_LABEL: Record<Document["type"], string> = {
@@ -371,4 +505,11 @@ export const DOC_TYPE_COLOR: Record<Document["type"], string> = {
   campaign: "text-purple-400",
   site: "text-cyan-400",
   other: "text-zinc-400",
+};
+
+export const PAYMENT_STAGE_LABEL: Record<"devis" | "acompte" | "avancement" | "solde", string> = {
+  devis: "Devis",
+  acompte: "Acompte",
+  avancement: "Avancement",
+  solde: "Solde",
 };
