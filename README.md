@@ -42,6 +42,19 @@ bash install.sh
 
 ---
 
+## Dashboard
+
+La vue clients + wikis est intégrée dans la **webapp** (dossier au-dessus). Les clés Supabase sont dans `webapp/.env.local`.
+
+```bash
+npm run sync-dashboard   # Sync clients → Supabase (lit webapp/.env.local)
+cd ../webapp && npm run dev
+```
+
+Puis : Dashboard → lien « Clients (CLI) »
+
+---
+
 ## How it works
 
 Every command is a markdown file that Claude Code reads and executes as a workflow. The intelligence is in the prompts — not in the code. `gbd-tools.cjs` (553 lines) handles file management. Everything else is strategy.

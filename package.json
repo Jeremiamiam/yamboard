@@ -1,0 +1,11 @@
+{
+  "name": "getbrandon",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sync-dashboard": "node scripts/sync-dashboard.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.98.0"
+  }
+}

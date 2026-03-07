@@ -2,3 +2,12 @@ clients/
 JSON/
 PLATEFORME/
 .DS_Store
+
+# Webapp build
+webapp/node_modules/
+webapp/.next/
+webapp/.netlify/
+
+# Secrets — ne jamais committer
+.env
+.env.local
