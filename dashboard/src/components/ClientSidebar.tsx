@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CLIENTS, type Client } from "@/lib/mock";
+import { CLIENTS, getClientStats, type Client } from "@/lib/mock";
 
 export function ClientSidebar() {
   const pathname = usePathname();
@@ -60,7 +60,7 @@ function ClientItem({ client, active }: { client: Client; active: boolean }) {
     .map((w) => w[0].toUpperCase())
     .join("");
 
-  const progressWidth = `${(client.progress / 5) * 100}%`;
+  const stats = getClientStats(client.id);
 
   return (
     <Link
@@ -93,13 +93,13 @@ function ClientItem({ client, active }: { client: Client; active: boolean }) {
             </span>
           )}
         </div>
-        {/* Progress bar */}
-        <div className="mt-1 h-1 bg-zinc-800 rounded-full overflow-hidden w-full">
-          <div
-            className="h-full rounded-full transition-all"
-            style={{ width: progressWidth, background: client.color }}
-          />
-        </div>
+        <p className="text-[11px] text-zinc-600 mt-0.5 truncate">
+          {stats.activeCount > 0
+            ? `${stats.activeCount} mission${stats.activeCount > 1 ? "s" : ""} active${stats.activeCount > 1 ? "s" : ""}`
+            : stats.projectCount > 0
+            ? `${stats.projectCount} projet${stats.projectCount > 1 ? "s" : ""}`
+            : client.industry}
+        </p>
       </div>
     </Link>
   );

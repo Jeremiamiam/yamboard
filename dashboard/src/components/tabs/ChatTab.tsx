@@ -1,13 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { MOCK_MESSAGES, getConversations, type Client, type Message } from "@/lib/mock";
+import { MOCK_MESSAGES, getConversations, type Project, type Message } from "@/lib/mock";
 
-export function ChatTab({ client }: { client: Client }) {
-  const conversations = getConversations(client.id);
+export function ChatTab({
+  project,
+  clientColor,
+}: {
+  project: Project;
+  clientColor: string;
+}) {
+  const conversations = getConversations(project.id);
   const [messages] = useState<Message[]>(MOCK_MESSAGES);
   const [input, setInput] = useState("");
-  const [activeConvId, setActiveConvId] = useState(conversations[conversations.length - 1]?.id ?? null);
+  const [activeConvId, setActiveConvId] = useState(
+    conversations[conversations.length - 1]?.id ?? null
+  );
 
   return (
     <div className="flex h-full">
@@ -16,7 +24,7 @@ export function ChatTab({ client }: { client: Client }) {
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
           {messages.map((msg) => (
-            <ChatMessage key={msg.id} msg={msg} client={client} />
+            <ChatMessage key={msg.id} msg={msg} clientColor={clientColor} />
           ))}
         </div>
 
@@ -26,7 +34,7 @@ export function ChatTab({ client }: { client: Client }) {
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={`Message sur ${client.name}…`}
+              placeholder={`Message — ${project.name}…`}
               rows={1}
               className="flex-1 bg-transparent text-sm text-zinc-200 placeholder-zinc-600 outline-none resize-none leading-relaxed"
               style={{ minHeight: "24px", maxHeight: "160px" }}
@@ -38,7 +46,8 @@ export function ChatTab({ client }: { client: Client }) {
             />
             <button
               disabled={!input.trim()}
-              className="shrink-0 w-8 h-8 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-800 disabled:text-zinc-600 flex items-center justify-center transition-colors"
+              className="shrink-0 w-8 h-8 rounded-lg disabled:bg-zinc-800 disabled:text-zinc-600 flex items-center justify-center transition-colors"
+              style={{ background: input.trim() ? clientColor : undefined }}
             >
               <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M12 5l7 7-7 7" />
@@ -46,7 +55,7 @@ export function ChatTab({ client }: { client: Client }) {
             </button>
           </div>
           <p className="mt-1.5 text-[11px] text-zinc-700 text-center">
-            GBD — contexte chargé : {client.name}
+            GBD — contexte chargé : {project.name}
           </p>
         </div>
       </div>
@@ -97,14 +106,20 @@ export function ChatTab({ client }: { client: Client }) {
   );
 }
 
-function ChatMessage({ msg, client }: { msg: Message; client: Client }) {
+function ChatMessage({
+  msg,
+  clientColor,
+}: {
+  msg: Message;
+  clientColor: string;
+}) {
   const isUser = msg.role === "user";
 
   return (
     <div className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}>
       {!isUser && (
-        <div className="w-7 h-7 rounded-full bg-emerald-900 border border-emerald-800 flex items-center justify-center shrink-0 mt-0.5">
-          <span className="text-[10px] font-bold text-emerald-400">G</span>
+        <div className="w-7 h-7 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center shrink-0 mt-0.5">
+          <span className="text-[10px] font-bold text-zinc-400">✦</span>
         </div>
       )}
       <div
@@ -120,9 +135,13 @@ function ChatMessage({ msg, client }: { msg: Message; client: Client }) {
       {isUser && (
         <div
           className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-[10px] font-bold"
-          style={{ background: client.color + "30", color: client.color, border: `1px solid ${client.color}40` }}
+          style={{
+            background: clientColor + "30",
+            color: clientColor,
+            border: `1px solid ${clientColor}40`,
+          }}
         >
-          {client.name[0].toUpperCase()}
+          Y
         </div>
       )}
     </div>

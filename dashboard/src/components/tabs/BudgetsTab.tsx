@@ -1,11 +1,17 @@
 "use client";
 
-import { getBudgetPhases, type Client, type BudgetPhase } from "@/lib/mock";
+import { getBudgetPhases, type Project, type BudgetPhase } from "@/lib/mock";
 
-export function BudgetsTab({ client }: { client: Client }) {
-  const phases = getBudgetPhases(client.id);
-  const pct = Math.round((client.spent / client.budget) * 100);
-  const remaining = client.budget - client.spent;
+export function BudgetsTab({
+  project,
+  clientColor,
+}: {
+  project: Project;
+  clientColor: string;
+}) {
+  const phases = getBudgetPhases(project.id);
+  const pct = project.budget > 0 ? Math.round((project.spent / project.budget) * 100) : 0;
+  const remaining = project.budget - project.spent;
 
   return (
     <div className="flex-1 overflow-y-auto p-6">
@@ -13,13 +19,13 @@ export function BudgetsTab({ client }: { client: Client }) {
         {/* Header */}
         <div className="mb-6">
           <h2 className="text-base font-semibold text-white">Budget</h2>
-          <p className="text-sm text-zinc-500 mt-0.5">{client.name}</p>
+          <p className="text-sm text-zinc-500 mt-0.5">{project.name}</p>
         </div>
 
         {/* Summary cards */}
         <div className="grid grid-cols-3 gap-3 mb-8">
-          <StatCard label="Budget total" value={`${client.budget.toLocaleString("fr-FR")} €`} />
-          <StatCard label="Consommé" value={`${client.spent.toLocaleString("fr-FR")} €`} accent />
+          <StatCard label="Budget total" value={`${project.budget.toLocaleString("fr-FR")} €`} />
+          <StatCard label="Consommé" value={`${project.spent.toLocaleString("fr-FR")} €`} accent />
           <StatCard label="Restant" value={`${remaining.toLocaleString("fr-FR")} €`} />
         </div>
 
@@ -32,7 +38,7 @@ export function BudgetsTab({ client }: { client: Client }) {
           <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
             <div
               className="h-full rounded-full transition-all"
-              style={{ width: `${pct}%`, background: client.color }}
+              style={{ width: `${pct}%`, background: clientColor }}
             />
           </div>
         </div>
@@ -44,7 +50,7 @@ export function BudgetsTab({ client }: { client: Client }) {
           </h3>
           <div className="space-y-2">
             {phases.map((phase, i) => (
-              <PhaseRow key={i} phase={phase} color={client.color} />
+              <PhaseRow key={i} phase={phase} color={clientColor} />
             ))}
           </div>
         </div>

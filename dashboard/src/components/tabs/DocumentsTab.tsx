@@ -1,9 +1,15 @@
 "use client";
 
-import { getDocuments, DOC_TYPE_LABEL, DOC_TYPE_COLOR, type Client } from "@/lib/mock";
+import { getDocuments, DOC_TYPE_LABEL, DOC_TYPE_COLOR, type Project } from "@/lib/mock";
 
-export function DocumentsTab({ client }: { client: Client }) {
-  const docs = getDocuments(client.id);
+export function DocumentsTab({
+  project,
+  clientColor: _clientColor,
+}: {
+  project: Project;
+  clientColor: string;
+}) {
+  const docs = getDocuments(project.id);
 
   return (
     <div className="flex-1 overflow-y-auto p-6">
@@ -11,7 +17,7 @@ export function DocumentsTab({ client }: { client: Client }) {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-base font-semibold text-white">Documents</h2>
-          <p className="text-sm text-zinc-500 mt-0.5">{docs.length} livrable{docs.length !== 1 ? "s" : ""}</p>
+          <p className="text-sm text-zinc-500 mt-0.5">{docs.length} livrable{docs.length !== 1 ? "s" : ""} · {project.name}</p>
         </div>
         <button className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs text-zinc-400 hover:border-zinc-700 hover:text-zinc-200 transition-colors">
           + Générer un livrable
@@ -19,7 +25,7 @@ export function DocumentsTab({ client }: { client: Client }) {
       </div>
 
       {docs.length === 0 ? (
-        <EmptyState clientName={client.name} />
+        <EmptyState projectName={project.name} />
       ) : (
         <div className="space-y-2">
           {docs.map((doc) => (
@@ -83,13 +89,13 @@ function ActionBtn({ label, title }: { label: string; title?: string }) {
   );
 }
 
-function EmptyState({ clientName }: { clientName: string }) {
+function EmptyState({ projectName }: { projectName: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center">
       <div className="w-12 h-12 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mb-4">
         <span className="text-xl">📂</span>
       </div>
-      <p className="text-sm font-medium text-zinc-400">Aucun document pour {clientName}</p>
+      <p className="text-sm font-medium text-zinc-400">Aucun document pour {projectName}</p>
       <p className="text-xs text-zinc-600 mt-1">Génère ton premier livrable pour commencer.</p>
     </div>
   );
