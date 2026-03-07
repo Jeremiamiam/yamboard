@@ -153,7 +153,7 @@ export default function ProjectPage({
             />
           )}
           {tab === "chat" && (
-            <ChatTab project={project} clientColor={client.color} />
+            <ChatTab project={project} clientId={clientId} clientColor={client.color} />
           )}
           {tab === "documents" && (
             <DocumentsTab project={project} clientId={clientId} clientColor={client.color} />
