@@ -15,10 +15,15 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.join(__dirname, '..');
 
 function loadEnv() {
-  // Clés dans webapp/ (dossier au-dessus de getBrandon)
-  const webappEnv = path.join(rootDir, '..', 'webapp', '.env.local');
+  // Clés dans webapp/.env.local (même repo) ou ../webapp (legacy)
+  const webappEnv = path.join(rootDir, 'webapp', '.env.local');
+  const legacyEnv = path.join(rootDir, '..', 'webapp', '.env.local');
   const localEnv = path.join(rootDir, '.env');
-  const envPath = fs.existsSync(webappEnv) ? webappEnv : localEnv;
+  const envPath = fs.existsSync(webappEnv)
+    ? webappEnv
+    : fs.existsSync(legacyEnv)
+      ? legacyEnv
+      : localEnv;
   if (!fs.existsSync(envPath)) return {};
   const vars = {};
   fs.readFileSync(envPath, 'utf8').split('\n').forEach((line) => {
