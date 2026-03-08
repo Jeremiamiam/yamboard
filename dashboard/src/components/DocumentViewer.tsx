@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { DOC_TYPE_LABEL, DOC_TYPE_COLOR, type Document } from "@/lib/mock";
 import { PLATFORM_CONTENT, BRIEF_CONTENT, type PlatformDoc, type BriefDoc } from "@/lib/doc-content";
+import { getDocumentSignedUrl } from "@/app/(dashboard)/actions/documents";
 
 // ─── Component ───────────────────────────────────────────────
 export function DocumentViewer({
@@ -12,6 +13,8 @@ export function DocumentViewer({
   doc: Document | null;
   onClose: () => void;
 }) {
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -20,13 +23,27 @@ export function DocumentViewer({
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
+  useEffect(() => {
+    // Reset pdfUrl when doc changes
+    setPdfUrl(null);
+
+    if (doc?.storagePath) {
+      getDocumentSignedUrl(doc.storagePath).then((result) => {
+        if ("signedUrl" in result) {
+          setPdfUrl(result.signedUrl);
+        }
+      });
+    }
+  }, [doc?.storagePath]);
+
   if (!doc) return null;
 
   const typeLabel = DOC_TYPE_LABEL[doc.type];
   const typeColor = DOC_TYPE_COLOR[doc.type];
 
-  const platformContent = doc.type === "platform" ? PLATFORM_CONTENT[doc.id] : null;
-  const briefContent = doc.type === "brief" ? BRIEF_CONTENT[doc.id] : null;
+  const hasNote = !!doc.content?.trim();
+  const platformContent = !hasNote && doc.type === "platform" ? PLATFORM_CONTENT[doc.id] : null;
+  const briefContent = !hasNote && doc.type === "brief" ? BRIEF_CONTENT[doc.id] : null;
 
   return (
     <>
@@ -62,7 +79,15 @@ export function DocumentViewer({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-6 py-6">
-          {platformContent ? (
+          {pdfUrl ? (
+            <iframe
+              src={pdfUrl}
+              className="w-full h-full min-h-[600px]"
+              title={doc.name}
+            />
+          ) : hasNote ? (
+            <NoteContent content={doc.content!} />
+          ) : platformContent ? (
             <PlatformContent content={platformContent} />
           ) : briefContent ? (
             <BriefContent content={briefContent} />
@@ -72,6 +97,26 @@ export function DocumentViewer({
         </div>
       </div>
     </>
+  );
+}
+
+// ─── Note content (free-text) ─────────────────────────────────
+function NoteContent({ content }: { content: string }) {
+  const wordCount = content.trim().split(/\s+/).filter(Boolean).length;
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-600">
+          Note · contenu injecté dans le contexte agent
+        </p>
+        <span className="text-[11px] text-zinc-400 dark:text-zinc-600">{wordCount} mots</span>
+      </div>
+      <div className="p-5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+        <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-loose whitespace-pre-wrap">
+          {content}
+        </p>
+      </div>
+    </div>
   );
 }
 

@@ -39,6 +39,8 @@ export type Document = {
   type: "brief" | "platform" | "campaign" | "site" | "other";
   updatedAt: string;
   size: string;
+  content?: string;    // note libre — texte collé/tapé directement, injecté dans le contexte agent
+  storagePath?: string; // chemin Storage Supabase — défini uniquement pour les PDFs uploadés
 };
 
 export type Conversation = {
