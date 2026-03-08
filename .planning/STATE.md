@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-03-08T11:14:38.475Z"
+last_updated: "2026-03-08T11:17:03.794Z"
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 9
-  completed_plans: 7
+  completed_plans: 8
 ---
 
 # Project State
@@ -50,6 +50,8 @@ Phase 01 complete (5/5 plans). Security audit (01-05) passed all checks via stat
 - [Phase 02-live-reads-server-components]: getClient() and getProject() return null (not undefined) — aligns with Supabase query result pattern for plan 02-02/03/04 swap-in
 - [Phase 02-live-reads-server-components]: ClientSidebar refactored to accept all three category arrays as props — avoids async calls inside Client Component, enables parallel fetching by parent Server Component
 - [Phase 02-live-reads-server-components]: toClient() row mapper extracts is_primary contact from Supabase join result — normalises into flat Client.contact shape
+- [Phase 02-live-reads-server-components]: ClientPageShell receives clients/prospects/archived from Server Component — sidebar data parallel-fetched server-side
+- [Phase 02-live-reads-server-components]: localProjects merge kept in Phase 02 ClientPageShell — propProjects from Supabase + local context, persisted in Phase 03
 
 ## Blockers
 Aucun

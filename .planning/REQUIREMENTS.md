@@ -33,7 +33,7 @@ L'UI v2 (Next.js 16 + Tailwind v4) est entièrement construite avec des données
 - [ ] **PROJECT-2** — Éditer un projet existant
 - [ ] **PROJECT-3** — Fermer / archiver un projet
 - [ ] **PROJECT-4** — Supprimer un projet
-- [ ] **PROJECT-5** — Voir tous les projets d'un client
+- [x] **PROJECT-5** — Voir tous les projets d'un client
 
 ### Produits (Budget)
 - [ ] **PRODUCT-1** — Ajouter un produit dans un projet (nom, montant total)
