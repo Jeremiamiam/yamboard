@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-03-08T12:42:00.411Z"
+last_updated: "2026-03-08T13:42:29.564Z"
 progress:
   total_phases: 4
   completed_phases: 2
@@ -21,10 +21,10 @@ progress:
 Phase 03 — Live Writes: Server Actions + File Upload
 
 ## Current Position
-Plan 03-01 complete. Storage bucket 'documents' migration created (manual execution in Supabase Studio required). Client Server Actions (createClient, updateClient, archiveClient, deleteClient, convertProspect) implemented with auth gates, owner_id enforcement, and revalidatePath. Plans 03-02 through 03-05 pending.
+Plans 03-01 through 03-04 complete. Storage bucket 'documents' ready (manual SQL execution required). Client, project, budget, document, and contact Server Actions all implemented. Document CRUD (createNote, createLink, upload, delete, pin) confirmed working via human-verify checkpoint. createNote wired into DocumentsTab.tsx. Plan 03-05 pending.
 
 ## Status
-Phase 03 in progress (1/5 plans). Write layer foundation established — client mutations ready, Storage infrastructure prepared for document upload (03-03). TypeScript compiles clean.
+Phase 03 in progress (4/5 plans). Write layer fully functional for clients, projects, budgets, documents, and contacts. PDF upload/view/delete flow confirmed working. iframe PDF viewer is a placeholder — Phase 04 must add text extraction + vision pipeline. TypeScript compiles clean.
 
 ## Decisions
 
@@ -66,6 +66,8 @@ Phase 03 in progress (1/5 plans). Write layer foundation established — client 
 - [Phase 03-live-writes-server-actions-file-upload]: deleteContact fetches client_id before deletion to preserve FK reference for cache invalidation via revalidatePath
 - [Phase 03-live-writes-server-actions-file-upload]: 2-step PDF upload: Server Action generates signed URL only — browser uploads directly to Supabase Storage (PERF-3 + SEC-5 compliant)
 - [Phase 03-live-writes-server-actions-file-upload]: deleteDocument order: Storage remove before DB delete prevents orphaned files in bucket
+- [Phase 03-live-writes-server-actions-file-upload]: iframe PDF viewer in DocumentViewer is a placeholder — Phase 04 must replace with text extraction + Claude vision pipeline for AI context injection
+- [Phase 03-live-writes-server-actions-file-upload]: createNote wired into DocumentsTab.tsx post-checkpoint via useTransition — confirms Server Action → UI loop works end-to-end
 
 ## Blockers
 Aucun
