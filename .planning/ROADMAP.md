@@ -41,13 +41,15 @@ Plans:
 
 **Goal:** Toutes les pages fetchent depuis Supabase. L'UI est identique visuellement mais les données persistent entre sessions.
 
-**Plans:** 4/4 plans complete
+**Plans:** 6 plans (4 complete + 2 gap closure)
 
 Plans:
 - [ ] 02-01-PLAN.md — DAL layer : créer lib/data/clients.ts, projects.ts, documents.ts (server-only wrappers)
 - [ ] 02-02-PLAN.md — Migrer app/page.tsx + ClientSidebar : clients Supabase, sidebar prop-based
 - [ ] 02-03-PLAN.md — Migrer app/[clientId]/page.tsx : client + projets + docs depuis Supabase
 - [ ] 02-04-PLAN.md — Migrer app/[clientId]/[projectId]/page.tsx : projet + docs + shell extraction
+- [ ] 02-05-PLAN.md — Gap closure : migrer compta/page.tsx + étendre DAL (getAllProjects, getAllBudgetProducts)
+- [ ] 02-06-PLAN.md — Gap closure : wirer BudgetsTab + ChatTab via props depuis le Server Component
 
 **Success criteria:**
 - [ ] Créer un client dans Supabase Studio → visible dans la sidebar sans code deploy
@@ -107,11 +109,11 @@ Plans:
 | Phase | Goal | Plans | Status |
 |-------|------|-------|--------|
 | 01 — Foundation | 5/5 | Complete    | 2026-03-08 |
-| 02 — Live Reads | 4/4 | Complete   | 2026-03-08 |
+| 02 — Live Reads | 4/6 (2 gap closure pending) | In progress | 2026-03-08 |
 | 03 — Live Writes | CRUD + File Upload | 5 | planned |
 | 04 — AI on Real Data | Context builders + mock.ts delete | 4 | planned |
 
-**Total:** 18 plans
+**Total:** 20 plans
 
 ---
 
