@@ -12,6 +12,7 @@ import {
   getClient,
   getClients,
   getProject,
+  DOCUMENTS,
   PROJECT_TYPE_LABEL,
   PROJECT_STATUS_CONFIG,
 } from "@/lib/mock";
@@ -161,7 +162,13 @@ export default function ProjectPage({
             <ChatTab project={project} clientId={clientId} clientColor={client.color} />
           )}
           {tab === "documents" && (
-            <DocumentsTab project={project} clientId={clientId} clientColor={client.color} />
+            <DocumentsTab
+              project={project}
+              clientId={clientId}
+              clientColor={client.color}
+              projectDocs={DOCUMENTS.filter((d) => d.projectId === projectId)}
+              clientDocs={DOCUMENTS.filter((d) => d.clientId === clientId && !d.projectId)}
+            />
           )}
         </div>
       </div>
