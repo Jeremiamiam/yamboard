@@ -41,7 +41,7 @@ Plans:
 
 **Goal:** Toutes les pages fetchent depuis Supabase. L'UI est identique visuellement mais les données persistent entre sessions.
 
-**Plans:** 4 plans
+**Plans:** 4/4 plans complete
 
 Plans:
 - [ ] 02-01-PLAN.md — DAL layer : créer lib/data/clients.ts, projects.ts, documents.ts (server-only wrappers)
@@ -107,7 +107,7 @@ Plans:
 | Phase | Goal | Plans | Status |
 |-------|------|-------|--------|
 | 01 — Foundation | 5/5 | Complete    | 2026-03-08 |
-| 02 — Live Reads | Server Components | 4 | planned |
+| 02 — Live Reads | 4/4 | Complete   | 2026-03-08 |
 | 03 — Live Writes | CRUD + File Upload | 5 | planned |
 | 04 — AI on Real Data | Context builders + mock.ts delete | 4 | planned |
 

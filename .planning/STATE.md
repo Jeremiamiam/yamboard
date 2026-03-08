@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-03-08T11:17:03.794Z"
+last_updated: "2026-03-08T11:18:16.963Z"
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 9
-  completed_plans: 8
+  completed_plans: 9
 ---
 
 # Project State
@@ -18,13 +18,13 @@ progress:
 **Last updated:** 2026-03-08
 
 ## Current Phase
-Phase 01 — Foundation: Auth + Infrastructure + Schema
+Phase 02 — Live Reads: Server Components
 
 ## Current Position
-All plans 01-01 through 01-05 complete. Phase 01 awaiting final human checkpoint: SQL pg_policies validation in Supabase Studio (see 01-05-SUMMARY.md). Next phase: 02 (Data Access Layer / DAL).
+All plans 02-01 through 02-04 complete. Phase 02 complete. All three app/(dashboard)/ pages are now async Server Components with Supabase data fetching. Awaiting human verify checkpoint: dev server smoke test (login, sidebar, client detail, project detail, reload).
 
 ## Status
-Phase 01 complete (5/5 plans). Security audit (01-05) passed all checks via static grep analysis: SEC-1/2/3/4 green. Awaiting human verify checkpoint — SQL validation queries in Supabase Studio. Once approved, Phase 02 (DAL) is unblocked.
+Phase 02 complete (4/4 plans). All dashboard pages migrated to Server Components. Zero lib/mock data imports in any page file. Build passes. Manual browser verification required before Phase 03 (write operations) is unblocked.
 
 ## Decisions
 
@@ -52,6 +52,8 @@ Phase 01 complete (5/5 plans). Security audit (01-05) passed all checks via stat
 - [Phase 02-live-reads-server-components]: toClient() row mapper extracts is_primary contact from Supabase join result — normalises into flat Client.contact shape
 - [Phase 02-live-reads-server-components]: ClientPageShell receives clients/prospects/archived from Server Component — sidebar data parallel-fetched server-side
 - [Phase 02-live-reads-server-components]: localProjects merge kept in Phase 02 ClientPageShell — propProjects from Supabase + local context, persisted in Phase 03
+- [Phase 02-live-reads-server-components]: ProjectPageShell keeps useLocalProjects fallback for locally-created projects (Phase 02 acceptable — Phase 03 will persist)
+- [Phase 02-live-reads-server-components]: project.clientId !== clientId guard ensures UUID-level consistency — invalid URL combos return 404
 
 ## Blockers
 Aucun
