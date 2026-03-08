@@ -29,18 +29,18 @@ L'UI v2 (Next.js 16 + Tailwind v4) est entièrement construite avec des données
 - [x] **CLIENT-6** — Liste clients persistée et rechargée depuis Supabase
 
 ### Projets
-- [ ] **PROJECT-1** — Créer un projet (nom, type, statut, description)
-- [ ] **PROJECT-2** — Éditer un projet existant
-- [ ] **PROJECT-3** — Fermer / archiver un projet
-- [ ] **PROJECT-4** — Supprimer un projet
+- [x] **PROJECT-1** — Créer un projet (nom, type, statut, description)
+- [x] **PROJECT-2** — Éditer un projet existant
+- [x] **PROJECT-3** — Fermer / archiver un projet
+- [x] **PROJECT-4** — Supprimer un projet
 - [x] **PROJECT-5** — Voir tous les projets d'un client
 
 ### Produits (Budget)
-- [ ] **PRODUCT-1** — Ajouter un produit dans un projet (nom, montant total)
-- [ ] **PRODUCT-2** — Éditer un produit
-- [ ] **PRODUCT-3** — Supprimer un produit
-- [ ] **PRODUCT-4** — Étapes de paiement par produit : Devis / Acompte / Avancement / Solde
-- [ ] **PRODUCT-5** — Chaque étape a un montant et un état (pending / paid)
+- [x] **PRODUCT-1** — Ajouter un produit dans un projet (nom, montant total)
+- [x] **PRODUCT-2** — Éditer un produit
+- [x] **PRODUCT-3** — Supprimer un produit
+- [x] **PRODUCT-4** — Étapes de paiement par produit : Devis / Acompte / Avancement / Solde
+- [x] **PRODUCT-5** — Chaque étape a un montant et un état (pending / paid)
 
 ### Documents
 - [ ] **DOC-1** — Ajouter un document note (texte libre) au niveau projet ou client
