@@ -13,6 +13,7 @@ import {
   type Client,
   type Project,
   type Document,
+  type BudgetProduct,
 } from "@/lib/mock";
 import { useLocalProjects } from "@/context/LocalProjects";
 import { useClientChatDrawer } from "@/context/ClientChatDrawer";
@@ -30,6 +31,7 @@ type Props = {
   project: Project
   projectDocs: Document[]
   clientDocs: Document[]
+  budgetProducts: BudgetProduct[]
   clientId: string
   projectId: string
   clients: Client[]
@@ -42,6 +44,7 @@ export function ProjectPageShell({
   project,
   projectDocs,
   clientDocs,
+  budgetProducts,
   clientId,
   projectId,
   clients,
@@ -165,12 +168,19 @@ export function ProjectPageShell({
             <BudgetsTab
               project={resolvedProject}
               clientColor={client.color}
+              budgetProducts={budgetProducts}
               localProducts={localProducts}
               onAddProduct={handleAddProduct}
             />
           )}
           {tab === "chat" && (
-            <ChatTab project={resolvedProject} clientId={clientId} clientColor={client.color} />
+            <ChatTab
+              project={resolvedProject}
+              clientId={clientId}
+              clientColor={client.color}
+              clientDocs={clientDocs}
+              projectDocs={projectDocs}
+            />
           )}
           {tab === "documents" && (
             <DocumentsTab
