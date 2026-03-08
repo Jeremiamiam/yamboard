@@ -44,24 +44,29 @@ export default function ClientPage({
   const [showAddDoc, setShowAddDoc] = useState(false);
   const [newDocName, setNewDocName] = useState("");
   const [newDocType, setNewDocType] = useState<"brief" | "platform" | "campaign" | "site" | "other">("brief");
+  const [newDocContent, setNewDocContent] = useState("");
 
   const allClientDocs = [...globalDocs, ...localDocs];
 
   function handleAddDoc() {
     const name = newDocName.trim();
     if (!name) return;
+    const content = newDocContent.trim();
+    const wordCount = content ? content.split(/\s+/).filter(Boolean).length : 0;
     const doc: Document = {
       id: `local-doc-${Date.now()}-${Math.random().toString(36).slice(2)}`,
       clientId,
       name,
       type: newDocType,
       updatedAt: new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }),
-      size: "—",
+      size: content ? `~${wordCount} mots` : "—",
+      content: content || undefined,
     };
     setLocalDocs((prev) => [...prev, doc]);
     setShowAddDoc(false);
     setNewDocName("");
     setNewDocType("brief");
+    setNewDocContent("");
   }
 
   function handleAddMission() {
@@ -168,8 +173,9 @@ export default function ClientPage({
             </div>
 
             {showAddDoc && (
-              <div className="mb-3 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 border-dashed">
-                <div className="flex gap-2 items-end flex-wrap">
+              <div className="mb-3 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 border-dashed space-y-3">
+                {/* Ligne 1 : nom + type + bouton */}
+                <div className="flex gap-2 items-center flex-wrap">
                   <input
                     type="text"
                     value={newDocName}
@@ -177,7 +183,6 @@ export default function ClientPage({
                     placeholder="Nom du document…"
                     autoFocus
                     className="flex-1 min-w-[160px] bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 outline-none focus:border-zinc-400 dark:focus:border-zinc-500 transition-colors"
-                    onKeyDown={(e) => e.key === "Enter" && handleAddDoc()}
                   />
                   <select
                     value={newDocType}
@@ -193,12 +198,31 @@ export default function ClientPage({
                   <button
                     onClick={handleAddDoc}
                     disabled={!newDocName.trim()}
-                    className="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors disabled:bg-zinc-300 dark:disabled:bg-zinc-800"
+                    className="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors disabled:bg-zinc-300 dark:disabled:bg-zinc-800 shrink-0"
                     style={{ background: newDocName.trim() ? client.color : undefined }}
                   >
                     Ajouter
                   </button>
                 </div>
+
+                {/* Ligne 2 : note libre (contexte agent) */}
+                <div className="relative">
+                  <textarea
+                    value={newDocContent}
+                    onChange={(e) => setNewDocContent(e.target.value)}
+                    placeholder="Note / contenu — colle ou écris le texte du document. Ce contenu sera injecté directement dans le contexte de l'agent."
+                    rows={6}
+                    className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 outline-none focus:border-zinc-400 dark:focus:border-zinc-500 transition-colors resize-y leading-relaxed"
+                  />
+                  {newDocContent.trim() && (
+                    <span className="absolute bottom-2.5 right-3 text-[11px] text-zinc-400 dark:text-zinc-600 pointer-events-none">
+                      {newDocContent.trim().split(/\s+/).filter(Boolean).length} mots
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-zinc-400 dark:text-zinc-600">
+                  La note est facultative — un doc sans contenu apparaît quand même dans la liste.
+                </p>
               </div>
             )}
 
