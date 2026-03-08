@@ -39,3 +39,13 @@ export async function getProject(projectId: string): Promise<Project | null> {
   if (error) return null
   return toProject(data as Record<string, unknown>)
 }
+
+export async function getAllProjects(): Promise<Project[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('projects')
+    .select('*')
+    .order('created_at', { ascending: true })
+  if (error) throw new Error(error.message)
+  return (data ?? []).map(toProject)
+}

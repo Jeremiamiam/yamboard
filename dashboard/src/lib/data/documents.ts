@@ -64,3 +64,22 @@ export async function getBudgetProducts(projectId: string): Promise<BudgetProduc
     solde: row.solde as PaymentStage | undefined,
   }))
 }
+
+export async function getAllBudgetProducts(): Promise<BudgetProduct[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('budget_products')
+    .select('*')
+    .order('created_at', { ascending: true })
+  if (error) throw new Error(error.message)
+  return (data ?? []).map((row) => ({
+    id: row.id as string,
+    projectId: row.project_id as string,
+    name: row.name as string,
+    totalAmount: Number(row.total_amount),
+    devis: row.devis as PaymentStage | undefined,
+    acompte: row.acompte as PaymentStage | undefined,
+    avancement: row.avancement as PaymentStage | undefined,
+    solde: row.solde as PaymentStage | undefined,
+  }))
+}
