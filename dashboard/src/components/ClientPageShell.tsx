@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { GlobalNav } from "@/components/GlobalNav";
 import { ClientSidebar } from "@/components/ClientSidebar";
@@ -14,8 +14,9 @@ import {
   type Project,
   type Document,
 } from "@/lib/mock";
-import { useLocalProjects } from "@/context/LocalProjects";
 import { useClientChatDrawer } from "@/context/ClientChatDrawer";
+import { createProject } from "@/app/(dashboard)/actions/projects";
+import { createNote } from "@/app/(dashboard)/actions/documents";
 
 type Props = {
   client: Client
@@ -29,70 +30,65 @@ type Props = {
 
 export function ClientPageShell({
   client,
-  projects: propProjects,
+  projects,
   globalDocs,
   clientId,
   clients,
   prospects,
   archived,
 }: Props) {
-  const { addProject, getProjectsForClient } = useLocalProjects();
   const { open: openChat } = useClientChatDrawer();
-  const localProjects = getProjectsForClient(clientId);
-  const projects = [...propProjects, ...localProjects];
   const [viewerDoc, setViewerDoc] = useState<Document | null>(null);
   const [showAddMission, setShowAddMission] = useState(false);
   const [newMissionName, setNewMissionName] = useState("");
+  const [missionError, setMissionError] = useState<string | null>(null);
+  const [isPendingMission, startMissionTransition] = useTransition();
 
-  // Local docs (ajout client-side)
-  const [localDocs, setLocalDocs] = useState<Document[]>([]);
   const [showAddDoc, setShowAddDoc] = useState(false);
   const [newDocName, setNewDocName] = useState("");
   const [newDocType, setNewDocType] = useState<"brief" | "platform" | "campaign" | "site" | "other">("brief");
   const [newDocContent, setNewDocContent] = useState("");
-
-  const allClientDocs = [...globalDocs, ...localDocs];
+  const [docError, setDocError] = useState<string | null>(null);
+  const [isPendingDoc, startDocTransition] = useTransition();
 
   function handleAddDoc() {
     const name = newDocName.trim();
     if (!name) return;
     const content = newDocContent.trim();
-    const wordCount = content ? content.split(/\s+/).filter(Boolean).length : 0;
-    const doc: Document = {
-      id: `local-doc-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      clientId,
-      name,
-      type: newDocType,
-      updatedAt: new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }),
-      size: content ? `~${wordCount} mots` : "—",
-      content: content || undefined,
-    };
-    setLocalDocs((prev) => [...prev, doc]);
-    setShowAddDoc(false);
-    setNewDocName("");
-    setNewDocType("brief");
-    setNewDocContent("");
+
+    startDocTransition(async () => {
+      setDocError(null);
+      const result = await createNote({
+        clientId,
+        name,
+        type: newDocType,
+        content,
+      });
+      if (result.error) {
+        setDocError(result.error);
+      } else {
+        setShowAddDoc(false);
+        setNewDocName("");
+        setNewDocType("brief");
+        setNewDocContent("");
+      }
+    });
   }
 
   function handleAddMission() {
     const name = newMissionName.trim();
     if (!name) return;
-    const id = `local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const project: Project = {
-      id,
-      clientId,
-      name,
-      type: "other",
-      status: "draft",
-      description: "Mission créée — à compléter.",
-      progress: 0,
-      totalPhases: 3,
-      lastActivity: "—",
-      startDate: "À planifier",
-    };
-    addProject(project);
-    setShowAddMission(false);
-    setNewMissionName("");
+
+    startMissionTransition(async () => {
+      setMissionError(null);
+      const result = await createProject({ clientId, name });
+      if (result.error) {
+        setMissionError(result.error);
+      } else {
+        setShowAddMission(false);
+        setNewMissionName("");
+      }
+    });
   }
 
   const statusColor = {
@@ -201,11 +197,11 @@ export function ClientPageShell({
                   </select>
                   <button
                     onClick={handleAddDoc}
-                    disabled={!newDocName.trim()}
+                    disabled={!newDocName.trim() || isPendingDoc}
                     className="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors disabled:bg-zinc-300 dark:disabled:bg-zinc-800 shrink-0"
                     style={{ background: newDocName.trim() ? client.color : undefined }}
                   >
-                    Ajouter
+                    {isPendingDoc ? "…" : "Ajouter"}
                   </button>
                 </div>
 
@@ -226,12 +222,15 @@ export function ClientPageShell({
                 <p className="text-[11px] text-zinc-400 dark:text-zinc-600">
                   La note est facultative — un doc sans contenu apparaît quand même dans la liste.
                 </p>
+                {docError && (
+                  <p className="text-[11px] text-red-500">{docError}</p>
+                )}
               </div>
             )}
 
-            {allClientDocs.length > 0 ? (
+            {globalDocs.length > 0 ? (
               <div className="flex flex-wrap gap-2">
-                {allClientDocs.map((doc) => (
+                {globalDocs.map((doc) => (
                   <GlobalDocChip
                     key={doc.id}
                     doc={doc}
@@ -288,15 +287,18 @@ export function ClientPageShell({
                   </div>
                   <button
                     onClick={handleAddMission}
-                    disabled={!newMissionName.trim()}
+                    disabled={!newMissionName.trim() || isPendingMission}
                     className="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors disabled:bg-zinc-300 dark:disabled:bg-zinc-800"
                     style={{
                       background: newMissionName.trim() ? client.color : undefined,
                     }}
                   >
-                    Créer
+                    {isPendingMission ? "…" : "Créer"}
                   </button>
                 </div>
+                {missionError && (
+                  <p className="text-[11px] text-red-500 mt-2">{missionError}</p>
+                )}
               </div>
             )}
 

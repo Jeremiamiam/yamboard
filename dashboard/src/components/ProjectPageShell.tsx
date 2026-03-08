@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { GlobalNav } from "@/components/GlobalNav";
 import { ClientSidebar } from "@/components/ClientSidebar";
@@ -15,7 +16,6 @@ import {
   type Document,
   type BudgetProduct,
 } from "@/lib/mock";
-import { useLocalProjects } from "@/context/LocalProjects";
 import { useClientChatDrawer } from "@/context/ClientChatDrawer";
 
 type Tab = "produits" | "chat" | "documents";
@@ -28,7 +28,7 @@ const TABS: { id: Tab; label: string }[] = [
 
 type Props = {
   client: Client
-  project: Project
+  project: Project | null
   projectDocs: Document[]
   clientDocs: Document[]
   budgetProducts: BudgetProduct[]
@@ -41,7 +41,7 @@ type Props = {
 
 export function ProjectPageShell({
   client,
-  project,
+  project: propProject,
   projectDocs,
   clientDocs,
   budgetProducts,
@@ -51,30 +51,23 @@ export function ProjectPageShell({
   prospects,
   archived,
 }: Props) {
-  const { getProject: getLocalProject } = useLocalProjects();
   const { open: openChat } = useClientChatDrawer();
 
-  // Fallback to local project if not found in server data (Phase 02 acceptable)
-  const resolvedProject = project ?? getLocalProject(projectId, clientId);
+  // If project is null (invalid UUID in URL) → redirect to client page
+  if (!propProject) {
+    redirect(`/${clientId}`)
+  }
+
+  const project = propProject
 
   const [tab, setTab] = useState<Tab>("produits");
-  const [localProducts, setLocalProducts] = useState<{ id: string; name: string; totalAmount: number }[]>([]);
-
-  function handleAddProduct(name: string, amount: number) {
-    setLocalProducts((prev) => [
-      ...prev,
-      { id: `local-${Date.now()}-${Math.random().toString(36).slice(2)}`, name, totalAmount: amount },
-    ]);
-  }
 
   useEffect(() => {
     const hash = typeof window !== "undefined" ? window.location.hash.slice(1) : "";
     if (hash === "produits" || hash === "budgets") setTab("produits");
   }, []);
 
-  if (!resolvedProject) return null;
-
-  const statusCfg = PROJECT_STATUS_CONFIG[resolvedProject.status];
+  const statusCfg = PROJECT_STATUS_CONFIG[project.status];
 
   return (
     <>
@@ -108,7 +101,7 @@ export function ProjectPageShell({
             </Link>
             <span className="text-zinc-400 dark:text-zinc-700 shrink-0">/</span>
             <h1 className="text-lg font-semibold text-zinc-900 dark:text-white truncate min-w-0">
-              {resolvedProject.name}
+              {project.name}
             </h1>
           </div>
 
@@ -130,13 +123,13 @@ export function ProjectPageShell({
             <div className="text-right hidden sm:block">
               <p className="text-xs text-zinc-500 dark:text-zinc-600">Type</p>
               <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                {PROJECT_TYPE_LABEL[resolvedProject.type]}
+                {PROJECT_TYPE_LABEL[project.type]}
               </p>
             </div>
             <div className="text-right">
               <p className="text-xs text-zinc-500 dark:text-zinc-600">Avancement</p>
               <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                {resolvedProject.progress}/{resolvedProject.totalPhases} phases
+                {project.progress}/{project.totalPhases} phases
               </p>
             </div>
             <button className="px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors">
@@ -166,16 +159,14 @@ export function ProjectPageShell({
         <div className="flex-1 overflow-hidden flex">
           {tab === "produits" && (
             <BudgetsTab
-              project={resolvedProject}
+              project={project}
               clientColor={client.color}
               budgetProducts={budgetProducts}
-              localProducts={localProducts}
-              onAddProduct={handleAddProduct}
             />
           )}
           {tab === "chat" && (
             <ChatTab
-              project={resolvedProject}
+              project={project}
               clientId={clientId}
               clientColor={client.color}
               clientDocs={clientDocs}
@@ -184,7 +175,7 @@ export function ProjectPageShell({
           )}
           {tab === "documents" && (
             <DocumentsTab
-              project={resolvedProject}
+              project={project}
               clientId={clientId}
               clientColor={client.color}
               projectDocs={projectDocs}

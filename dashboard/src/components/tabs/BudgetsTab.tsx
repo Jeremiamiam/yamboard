@@ -1,65 +1,26 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useTransition } from "react";
 import {
   PAYMENT_STAGE_LABEL,
   type Project,
   type BudgetProduct,
   type PaymentStage,
 } from "@/lib/mock";
-import { useProjectOverrides } from "@/context/ProjectOverrides";
 import { ProductDrawer } from "@/components/ProductDrawer";
-
-// Produit ajouté localement (mock, state local)
-type LocalProduct = {
-  id: string;
-  name: string;
-  totalAmount: number;
-};
+import { createBudgetProduct, updateProject } from "@/app/(dashboard)/actions/projects";
 
 export function BudgetsTab({
   project,
   clientColor,
   budgetProducts,
-  localProducts: externalProducts = [],
-  onAddProduct: externalAdd,
 }: {
   project: Project;
   clientColor: string;
   budgetProducts: BudgetProduct[];
-  localProducts?: LocalProduct[];
-  onAddProduct?: (name: string, amount: number) => void;
 }) {
-  const [internalProducts, setInternalProducts] = useState<LocalProduct[]>([]);
-  const localProducts = externalAdd ? externalProducts : internalProducts;
-  const handleAdd = externalAdd
-    ? (name: string, amount: number) => {
-        externalAdd(name, amount);
-      }
-    : (name: string, amount: number) => {
-        setInternalProducts((prev) => [
-          ...prev,
-          { id: `local-${Date.now()}-${Math.random().toString(36).slice(2)}`, name, totalAmount: amount },
-        ]);
-      };
-
-  const products = useMemo(() => {
-    return [
-      ...budgetProducts,
-      ...localProducts.map((p) => ({
-        id: p.id,
-        projectId: project.id,
-        name: p.name,
-        totalAmount: p.totalAmount,
-        devis: { amount: p.totalAmount, status: "pending" as const },
-      })),
-    ];
-  }, [budgetProducts, project.id, localProducts]);
-
   const { total, paid, remaining } = useMemo(() => {
-    const t =
-      budgetProducts.reduce((s, p) => s + p.totalAmount, 0) +
-      localProducts.reduce((s, p) => s + p.totalAmount, 0);
+    const t = budgetProducts.reduce((s, p) => s + p.totalAmount, 0);
     const pd = budgetProducts.reduce((s, p) => {
       let amt = 0;
       if (p.acompte?.status === "paid") amt += p.acompte.amount ?? 0;
@@ -68,27 +29,43 @@ export function BudgetsTab({
       return s + amt;
     }, 0);
     return { total: t, paid: pd, remaining: t - pd };
-  }, [budgetProducts, localProducts]);
+  }, [budgetProducts]);
 
   const pct = total > 0 ? Math.round((paid / total) * 100) : 0;
 
   const [showForm, setShowForm] = useState(false);
   const [newName, setNewName] = useState("");
   const [newAmount, setNewAmount] = useState("");
+  const [addError, setAddError] = useState<string | null>(null);
+  const [isPendingAdd, startAddTransition] = useTransition();
+
   const [drawerProduct, setDrawerProduct] = useState<BudgetProduct | null>(null);
 
-  const { getPotentialAmount, setPotentialAmount } = useProjectOverrides();
-  const potentiel = getPotentialAmount(project.id, project.potentialAmount);
+  // potentialAmount: local state for optimistic display, persisted on blur via Server Action
+  const [potentiel, setPotentiel] = useState<number | undefined>(project.potentialAmount);
   const potentielStr = potentiel !== undefined ? String(potentiel) : "";
+
+  async function handlePotentielBlur() {
+    // Fire-and-forget — user doesn't need to see success; revalidatePath will update on next navigation
+    await updateProject(project.id, { potentialAmount: potentiel });
+  }
 
   function handleAddProduct() {
     const name = newName.trim();
     const amount = parseFloat(newAmount);
     if (!name || isNaN(amount) || amount <= 0) return;
-    handleAdd(name, amount);
-    setShowForm(false);
-    setNewName("");
-    setNewAmount("");
+
+    startAddTransition(async () => {
+      setAddError(null);
+      const result = await createBudgetProduct({ projectId: project.id, name, totalAmount: amount });
+      if (result.error) {
+        setAddError(result.error);
+      } else {
+        setShowForm(false);
+        setNewName("");
+        setNewAmount("");
+      }
+    });
   }
 
   return (
@@ -117,8 +94,9 @@ export function BudgetsTab({
                   value={potentielStr}
                   onChange={(e) => {
                     const n = e.target.value === "" ? undefined : parseFloat(e.target.value);
-                    setPotentialAmount(project.id, n !== undefined && !isNaN(n) ? n : undefined);
+                    setPotentiel(n !== undefined && !isNaN(n) ? n : undefined);
                   }}
+                  onBlur={handlePotentielBlur}
                   placeholder="—"
                   className="bg-transparent text-sm text-zinc-800 dark:text-zinc-200 outline-none text-right w-full"
                 />
@@ -165,18 +143,21 @@ export function BudgetsTab({
               </div>
               <button
                 onClick={handleAddProduct}
-                disabled={!newName.trim() || !newAmount}
+                disabled={!newName.trim() || !newAmount || isPendingAdd}
                 className="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors disabled:bg-zinc-300 dark:disabled:bg-zinc-800"
                 style={{
                   background: newName.trim() && newAmount ? clientColor : undefined,
                 }}
               >
-                Créer
+                {isPendingAdd ? "…" : "Créer"}
               </button>
             </div>
             <p className="text-[11px] text-zinc-500 dark:text-zinc-700 mt-2">
               Les étapes de paiement (devis, acompte, avancement, solde) s&apos;ajoutent ensuite.
             </p>
+            {addError && (
+              <p className="text-[11px] text-red-500 mt-1">{addError}</p>
+            )}
           </div>
         )}
 
@@ -199,11 +180,11 @@ export function BudgetsTab({
         )}
 
         {/* Products */}
-        {products.length === 0 && !showForm ? (
+        {budgetProducts.length === 0 && !showForm ? (
           <EmptyBudget onAdd={() => setShowForm(true)} />
         ) : (
           <div className="space-y-3">
-            {products.map((product) => (
+            {budgetProducts.map((product) => (
               <ProductCard
                 key={product.id}
                 product={product}
