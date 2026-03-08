@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-03-08T12:38:10.063Z"
+last_updated: "2026-03-08T12:42:00.411Z"
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 16
-  completed_plans: 14
+  completed_plans: 15
 ---
 
 # Project State
@@ -64,6 +64,8 @@ Phase 03 in progress (1/5 plans). Write layer foundation established — client 
 - [Phase 03]: updatePaymentStage uses { [stage]: value } computed property key for dynamic JSONB column targeting
 - [Phase 03-live-writes-server-actions-file-upload]: updateContact always fetches client_id from DB to build correct revalidatePath regardless of which fields are updated
 - [Phase 03-live-writes-server-actions-file-upload]: deleteContact fetches client_id before deletion to preserve FK reference for cache invalidation via revalidatePath
+- [Phase 03-live-writes-server-actions-file-upload]: 2-step PDF upload: Server Action generates signed URL only — browser uploads directly to Supabase Storage (PERF-3 + SEC-5 compliant)
+- [Phase 03-live-writes-server-actions-file-upload]: deleteDocument order: Storage remove before DB delete prevents orphaned files in bucket
 
 ## Blockers
 Aucun

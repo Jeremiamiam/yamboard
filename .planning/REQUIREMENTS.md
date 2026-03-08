@@ -43,13 +43,13 @@ L'UI v2 (Next.js 16 + Tailwind v4) est entièrement construite avec des données
 - [x] **PRODUCT-5** — Chaque étape a un montant et un état (pending / paid)
 
 ### Documents
-- [ ] **DOC-1** — Ajouter un document note (texte libre) au niveau projet ou client
-- [ ] **DOC-2** — Ajouter un lien externe comme document
-- [ ] **DOC-3** — Uploader un PDF via Supabase Storage (signed URL upload — jamais via Server Action body)
-- [ ] **DOC-4** — Visionner un PDF (signed URL de lecture, TTL 1h)
-- [ ] **DOC-5** — Note libre sur chaque document (injectée dans le contexte agent)
-- [ ] **DOC-6** — Supprimer un document (+ fichier Storage si applicable)
-- [ ] **DOC-7** — Pinner un document projet → niveau client (visible dans contexte client)
+- [x] **DOC-1** — Ajouter un document note (texte libre) au niveau projet ou client
+- [x] **DOC-2** — Ajouter un lien externe comme document
+- [x] **DOC-3** — Uploader un PDF via Supabase Storage (signed URL upload — jamais via Server Action body)
+- [x] **DOC-4** — Visionner un PDF (signed URL de lecture, TTL 1h)
+- [x] **DOC-5** — Note libre sur chaque document (injectée dans le contexte agent)
+- [x] **DOC-6** — Supprimer un document (+ fichier Storage si applicable)
+- [x] **DOC-7** — Pinner un document projet → niveau client (visible dans contexte client)
 
 ### Contacts
 - [x] **CONTACT-1** — Ajouter un contact à un client (nom, rôle, email, téléphone)
@@ -79,7 +79,7 @@ L'UI v2 (Next.js 16 + Tailwind v4) est entièrement construite avec des données
 ### Performance
 - [x] **PERF-1** — Index sur `owner_id`, `client_id`, `project_id` sur toutes les tables
 - [x] **PERF-2** — `revalidatePath()` après chaque Server Action mutation (pas de Realtime)
-- [ ] **PERF-3** — Upload PDF via signed URL (pas de proxy via Next.js)
+- [x] **PERF-3** — Upload PDF via signed URL (pas de proxy via Next.js)
 
 ### Architecture
 - [x] **ARCH-1** — Couche DAL (`lib/data/*.ts`) introduite avant la migration — pas d'import mock direct dans les pages
