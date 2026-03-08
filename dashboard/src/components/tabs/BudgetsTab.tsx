@@ -258,7 +258,7 @@ function ProductCard({
     { key: "solde", stage: product.solde },
   ];
 
-  const definedStages = stages.filter((s) => s.stage !== undefined);
+  const definedStages = stages.filter((s) => s.stage != null);
 
   // Progress: how many stages are paid
   const paidCount = definedStages.filter((s) => s.stage?.status === "paid").length;
@@ -320,7 +320,7 @@ function PaymentRow({
     pending: { dot: "bg-zinc-700", text: "text-zinc-600", label: "En attente" },
     sent: { dot: "bg-yellow-500", text: "text-yellow-500", label: "Envoyé" },
     paid: { dot: "bg-emerald-500", text: "text-emerald-500", label: "Payé ✓" },
-  }[stage.status];
+  }[stage.status ?? "pending"];
 
   return (
     <div className="flex items-center gap-3 px-4 py-2.5">

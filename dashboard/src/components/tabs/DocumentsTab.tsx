@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { DOC_TYPE_LABEL, DOC_TYPE_COLOR, type Project, type Document } from "@/lib/mock";
 import { DocumentViewer } from "@/components/DocumentViewer";
+import { createNote } from "@/app/(dashboard)/actions/documents";
 
 export function DocumentsTab({
   project,
@@ -18,36 +19,37 @@ export function DocumentsTab({
   clientDocs: Document[];
 }) {
   const [viewerDoc, setViewerDoc] = useState<Document | null>(null);
+  const [isPending, startTransition] = useTransition();
 
-  // Local project docs
-  const [localDocs, setLocalDocs] = useState<Document[]>([]);
   const [showAddDoc, setShowAddDoc] = useState(false);
   const [newDocName, setNewDocName] = useState("");
   const [newDocType, setNewDocType] = useState<Document["type"]>("brief");
   const [newDocContent, setNewDocContent] = useState("");
+  const [addError, setAddError] = useState<string | null>(null);
 
-  const allProjectDocs = [...projectDocs, ...localDocs];
+  const allProjectDocs = projectDocs;
 
   function handleAddDoc() {
     const name = newDocName.trim();
     if (!name) return;
-    const content = newDocContent.trim();
-    const wordCount = content ? content.split(/\s+/).filter(Boolean).length : 0;
-    const doc: Document = {
-      id: `local-pdoc-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      clientId,
-      projectId: project.id,
-      name,
-      type: newDocType,
-      updatedAt: new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }),
-      size: content ? `~${wordCount} mots` : "—",
-      content: content || undefined,
-    };
-    setLocalDocs((prev) => [...prev, doc]);
-    setShowAddDoc(false);
-    setNewDocName("");
-    setNewDocType("brief");
-    setNewDocContent("");
+    setAddError(null);
+    startTransition(async () => {
+      const result = await createNote({
+        clientId,
+        projectId: project.id,
+        name,
+        type: newDocType,
+        content: newDocContent.trim(),
+      });
+      if (result.error) {
+        setAddError(result.error);
+        return;
+      }
+      setShowAddDoc(false);
+      setNewDocName("");
+      setNewDocType("brief");
+      setNewDocContent("");
+    });
   }
 
   return (
@@ -100,11 +102,11 @@ export function DocumentsTab({
               </select>
               <button
                 onClick={handleAddDoc}
-                disabled={!newDocName.trim()}
+                disabled={!newDocName.trim() || isPending}
                 className="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors disabled:bg-zinc-300 dark:disabled:bg-zinc-800 shrink-0"
                 style={{ background: newDocName.trim() ? clientColor : undefined }}
               >
-                Ajouter
+                {isPending ? "Enregistrement…" : "Ajouter"}
               </button>
             </div>
             <div className="relative">
@@ -121,6 +123,9 @@ export function DocumentsTab({
                 </span>
               )}
             </div>
+            {addError && (
+              <p className="text-xs text-red-500">{addError}</p>
+            )}
             <p className="text-[11px] text-zinc-400 dark:text-zinc-600">
               La note est facultative — un doc sans contenu apparaît quand même dans la liste.
             </p>
