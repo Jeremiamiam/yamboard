@@ -85,7 +85,7 @@ L'UI v2 (Next.js 16 + Tailwind v4) est entièrement construite avec des données
 - [x] **ARCH-1** — Couche DAL (`lib/data/*.ts`) introduite avant la migration — pas d'import mock direct dans les pages
 - [x] **ARCH-2** — Pages converties en Server Components async (data fetching côté serveur)
 - [x] **ARCH-3** — Composants UI (`'use client'`) restent inchangés — reçoivent les données via props
-- [ ] **ARCH-4** — Supprimer `LocalProjects` et `ProjectOverrides` context providers après Phase 3
+- [x] **ARCH-4** — Supprimer `LocalProjects` et `ProjectOverrides` context providers après Phase 3
 - [ ] **ARCH-5** — Supprimer `mock.ts` en fin de Phase 4
 - [x] **ARCH-6** — Tous les scripts SQL (schéma, RLS, indexes, seed) rangés dans `dashboard/supabase/migrations/` avec nommage séquentiel (`001_schema.sql`, `002_rls.sql`, `003_seed.sql`, etc.) — exécution manuelle dans Supabase Studio SQL Editor dans l'ordre numérique
 
