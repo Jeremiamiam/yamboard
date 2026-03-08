@@ -1,10 +1,48 @@
 import 'server-only'
-import { CLIENTS, type Client, type ClientCategory } from '@/lib/mock'
+import { createClient } from '@/lib/supabase/server'
+import type { Client, ClientCategory, ClientStatus } from '@/lib/mock'
+
+function toClient(row: Record<string, unknown>): Client {
+  // contacts is a joined array from select('*, contacts(*)')
+  const contacts = (row.contacts as Record<string, unknown>[] | null) ?? []
+  const primaryContact = contacts.find((c) => c.is_primary) ?? contacts[0]
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    industry: (row.industry as string) ?? '',
+    category: row.category as ClientCategory,
+    status: (row.status as ClientStatus) ?? 'active',
+    contact: primaryContact
+      ? {
+          name: (primaryContact.name as string) ?? '—',
+          role: (primaryContact.role as string) ?? '—',
+          email: (primaryContact.email as string) ?? '—',
+          phone: (primaryContact.phone as string | undefined) ?? undefined,
+        }
+      : { name: '—', role: '—', email: '—' },
+    color: (row.color as string) ?? '#71717a',
+    since: (row.since as string | undefined) ?? undefined,
+  }
+}
 
 export async function getClients(category: ClientCategory = 'client'): Promise<Client[]> {
-  return CLIENTS.filter((c) => c.category === category)
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('clients')
+    .select('*, contacts(*)')
+    .eq('category', category)
+    .order('created_at', { ascending: true })
+  if (error) throw new Error(error.message)
+  return (data ?? []).map(toClient)
 }
 
 export async function getClient(id: string): Promise<Client | null> {
-  return CLIENTS.find((c) => c.id === id) ?? null
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('clients')
+    .select('*, contacts(*)')
+    .eq('id', id)
+    .single()
+  if (error) return null
+  return toClient(data as Record<string, unknown>)
 }
