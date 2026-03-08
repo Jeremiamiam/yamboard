@@ -16,19 +16,19 @@ Brancher l'UI v2 existante (`dashboard/`) sur un vrai backend Supabase. Remplace
 
 **Goal:** Supabase fonctionnel avec auth, schéma, RLS et données seed. Aucun changement UI.
 
-**Plans:** 3/5 plans executed
+**Plans:** 4/5 plans executed
 
 Plans:
 - [x] 01-01-PLAN.md — Install Supabase packages + clients browser/server + env vars
 - [x] 01-02-PLAN.md — Schema SQL : 5 tables + RLS + indexes (001_schema.sql, 002_rls.sql, 003_indexes.sql)
-- [ ] 01-03-PLAN.md — Auth gate : login page, protected layout, middleware token refresh
-- [ ] 01-04-PLAN.md — Seed data : toutes les données mock.ts → 004_seed.sql
+- [x] 01-03-PLAN.md — Auth gate : login page, protected layout, middleware token refresh
+- [x] 01-04-PLAN.md — Seed data : toutes les données mock.ts → 004_seed.sql
 - [ ] 01-05-PLAN.md — Validation sécurité : audit getSession→getUser, WITH CHECK, service role key isolation
 
 **Success criteria:**
-- [ ] `npm run dev` fonctionne avec Supabase connecté
-- [ ] Login/logout fonctionne (email + mot de passe)
-- [ ] Toutes les routes redirigent vers `/login` si non authentifié
+- [x] `npm run dev` fonctionne avec Supabase connecté
+- [x] Login/logout fonctionne (email + mot de passe)
+- [x] Toutes les routes redirigent vers `/login` si non authentifié
 - [ ] Toutes les tables existent avec RLS activé et politiques créées
 - [ ] Données seed visibles dans Supabase Studio
 - [ ] Scripts SQL dans `dashboard/supabase/migrations/` exécutables dans l'ordre dans Supabase Studio
@@ -104,7 +104,7 @@ Plans:
 
 | Phase | Goal | Plans | Status |
 |-------|------|-------|--------|
-| 01 — Foundation | 3/5 | In Progress|  |
+| 01 — Foundation | 4/5 | In Progress|  |
 | 02 — Live Reads | Server Components | 4 | planned |
 | 03 — Live Writes | CRUD + File Upload | 5 | planned |
 | 04 — AI on Real Data | Context builders + mock.ts delete | 4 | planned |

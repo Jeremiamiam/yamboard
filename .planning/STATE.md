@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-03-08T11:00:00.000Z"
+last_updated: "2026-03-08T11:30:00.000Z"
 progress:
   total_phases: 1
   completed_phases: 0
   total_plans: 5
-  completed_plans: 3
+  completed_plans: 4
 ---
 
 # Project State
@@ -21,10 +21,10 @@ progress:
 Phase 01 — Foundation: Auth + Infrastructure + Schema
 
 ## Current Position
-Plans 01-01, 01-02, and 01-04 complete. Plan 01-03 paused at checkpoint:human-verify — Tasks 1 & 2 complete, awaiting auth gate verification.
+Plans 01-01, 01-02, 01-03, and 01-04 complete. Next: 01-05 (security audit — getSession→getUser, WITH CHECK, service role key isolation).
 
 ## Status
-Executing Phase 01. Plans 01-01 (Supabase packages + clients + env), 01-02 (schema/RLS/indexes), and 01-04 (seed data) complete. Plan 01-03 in progress: middleware.ts, login/actions.ts, login/page.tsx, (dashboard)/layout.tsx all created and routes moved — awaiting human verification of the auth gate flow.
+Executing Phase 01. Plans 01-01, 01-02, 01-03, and 01-04 complete. Auth gate verified by human: redirect to /login without session, login/logout flows work, UI v2 intact. Plan 01-05 (security audit) is the last plan in this phase.
 
 ## Decisions
 
@@ -41,6 +41,9 @@ Executing Phase 01. Plans 01-01 (Supabase packages + clients + env), 01-02 (sche
 - [01-01]: server.ts createClient() is async (await cookies()) — required by Next.js 15/16 App Router
 - [01-01]: SUPABASE_SERVICE_ROLE_KEY never prefixed NEXT_PUBLIC_ — SEC-4 compliant
 - [Phase 01-foundation-auth-infrastructure-schema]: DO $$ block pattern used in seed SQL for readable FK variable references
+- [01-03]: getUser() used exclusively — validates JWT server-side on every request; getSession() forbidden in all server files (SEC-3)
+- [01-03]: (dashboard)/ route group protects all routes without adding URL segment — layout.tsx as auth gate
+- [01-03]: login() Server Action returns { error } object instead of throwing — Client Component handles error display inline
 
 ## Blockers
 Aucun
