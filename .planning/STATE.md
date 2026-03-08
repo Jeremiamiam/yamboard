@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-03-08T11:30:00.000Z"
+last_updated: "2026-03-08T10:34:48.735Z"
 progress:
   total_phases: 1
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 5
-  completed_plans: 4
+  completed_plans: 5
 ---
 
 # Project State
@@ -21,10 +21,10 @@ progress:
 Phase 01 — Foundation: Auth + Infrastructure + Schema
 
 ## Current Position
-Plans 01-01, 01-02, 01-03, and 01-04 complete. Next: 01-05 (security audit — getSession→getUser, WITH CHECK, service role key isolation).
+All plans 01-01 through 01-05 complete. Phase 01 awaiting final human checkpoint: SQL pg_policies validation in Supabase Studio (see 01-05-SUMMARY.md). Next phase: 02 (Data Access Layer / DAL).
 
 ## Status
-Executing Phase 01. Plans 01-01, 01-02, 01-03, and 01-04 complete. Auth gate verified by human: redirect to /login without session, login/logout flows work, UI v2 intact. Plan 01-05 (security audit) is the last plan in this phase.
+Phase 01 complete (5/5 plans). Security audit (01-05) passed all checks via static grep analysis: SEC-1/2/3/4 green. Awaiting human verify checkpoint — SQL validation queries in Supabase Studio. Once approved, Phase 02 (DAL) is unblocked.
 
 ## Decisions
 
@@ -44,6 +44,8 @@ Executing Phase 01. Plans 01-01, 01-02, 01-03, and 01-04 complete. Auth gate ver
 - [01-03]: getUser() used exclusively — validates JWT server-side on every request; getSession() forbidden in all server files (SEC-3)
 - [01-03]: (dashboard)/ route group protects all routes without adding URL segment — layout.tsx as auth gate
 - [01-03]: login() Server Action returns { error } object instead of throwing — Client Component handles error display inline
+- [Phase 01-foundation-auth-infrastructure-schema]: Audit confirmed zero corrections needed — Phase 01 auth was implemented correctly from the start (all SEC-1/2/3/4 pass)
+- [Phase 01-foundation-auth-infrastructure-schema]: debug/route.ts SERVICE_ROLE_KEY access is SEC-4 compliant: server API Route, no NEXT_PUBLIC_ prefix
 
 ## Blockers
 Aucun

@@ -72,7 +72,7 @@ L'UI v2 (Next.js 16 + Tailwind v4) est entièrement construite avec des données
 ### Sécurité
 - [x] **SEC-1** — RLS activé sur toutes les tables, politiques créées dans la même migration
 - [x] **SEC-2** — `WITH CHECK (auth.uid() = owner_id)` sur tous les INSERT/UPDATE
-- [ ] **SEC-3** — `getUser()` uniquement côté serveur (jamais `getSession()`)
+- [x] **SEC-3** — `getUser()` uniquement côté serveur (jamais `getSession()`)
 - [x] **SEC-4** — `SUPABASE_SERVICE_ROLE_KEY` jamais préfixé `NEXT_PUBLIC_`, `import 'server-only'` dans le client admin
 - [ ] **SEC-5** — Bucket Storage privé, accès uniquement via signed URLs
 
