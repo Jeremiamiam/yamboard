@@ -1,61 +1,64 @@
-"use client";
+// NO "use client"
+import Link from "next/link"
+import { GlobalNav } from "@/components/GlobalNav"
+import { ClientSidebar } from "@/components/ClientSidebar"
+import { getClients } from "@/lib/data/clients"
+import { getAllProjects } from "@/lib/data/projects"
+import { getAllBudgetProducts } from "@/lib/data/documents"
+import type { Client } from "@/lib/mock"
 
-import Link from "next/link";
-import { GlobalNav } from "@/components/GlobalNav";
-import { ClientSidebar } from "@/components/ClientSidebar";
-import {
-  CLIENTS,
-  PROJECTS,
-  getClients,
-  getProjectBudgetSummary,
-  type Client,
-} from "@/lib/mock";
-import { useProjectOverrides } from "@/context/ProjectOverrides";
+export default async function ComptaPage() {
+  const [clients, prospects, archived, allProjects, allBudgetProducts] = await Promise.all([
+    getClients('client'),
+    getClients('prospect'),
+    getClients('archived'),
+    getAllProjects(),
+    getAllBudgetProducts(),
+  ])
 
-export default function ComptaPage() {
-  const { getPotentialAmount } = useProjectOverrides();
+  const clientsAndProspects: Client[] = [...clients, ...prospects]
 
-  // Clients + Prospects (pas les archives)
-  const clientsAndProspects = CLIENTS.filter(
-    (c) => c.category === "client" || c.category === "prospect"
-  );
-
-  let globalTotal = 0;
-  let globalPaid = 0;
-  let globalPotentiel = 0;
+  let globalTotal = 0
+  let globalPaid = 0
+  let globalPotentiel = 0
 
   const rows = clientsAndProspects
     .map((client) => {
-      const projects = PROJECTS.filter((p) => p.clientId === client.id);
+      const projects = allProjects.filter((p) => p.clientId === client.id)
 
-      const total = projects.reduce(
-        (acc, p) => acc + getProjectBudgetSummary(p.id).total,
-        0
-      );
-      const paid = projects.reduce(
-        (acc, p) => acc + getProjectBudgetSummary(p.id).paid,
-        0
-      );
-      const potentiel = projects.reduce((acc, p) => {
-        const v = getPotentialAmount(p.id, p.potentialAmount);
-        return acc + (v ?? 0);
-      }, 0);
+      const total = projects.reduce((acc, p) => {
+        const products = allBudgetProducts.filter((bp) => bp.projectId === p.id)
+        return acc + products.reduce((s, bp) => s + bp.totalAmount, 0)
+      }, 0)
 
-      globalTotal += total;
-      globalPaid += paid;
-      globalPotentiel += potentiel;
+      const paid = projects.reduce((acc, p) => {
+        const products = allBudgetProducts.filter((bp) => bp.projectId === p.id)
+        return acc + products.reduce((s, bp) => {
+          let amt = 0
+          if (bp.acompte?.status === 'paid') amt += bp.acompte.amount ?? 0
+          if (bp.avancement?.status === 'paid') amt += bp.avancement.amount ?? 0
+          if (bp.solde?.status === 'paid') amt += bp.solde.amount ?? 0
+          return s + amt
+        }, 0)
+      }, 0)
 
-      return { client, total, paid, potentiel };
+      const potentiel = projects.reduce((acc, p) => acc + (p.potentialAmount ?? 0), 0)
+
+      globalTotal += total
+      globalPaid += paid
+      globalPotentiel += potentiel
+
+      return { client, total, paid, potentiel }
     })
-    .filter((r) => r.total > 0 || r.potentiel > 0);
+    .filter((r) => r.total > 0 || r.potentiel > 0)
 
   return (
     <>
       <GlobalNav />
       <ClientSidebar
-        clients={getClients('client')}
-        prospects={getClients('prospect')}
-        archived={getClients('archived')}
+        clients={clients}
+        prospects={prospects}
+        archived={archived}
       />
 
       <div
@@ -136,5 +139,5 @@ export default function ComptaPage() {
         </div>
       </div>
     </>
-  );
+  )
 }
