@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-03-08T12:36:12.704Z"
+last_updated: "2026-03-08T12:38:10.063Z"
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 16
-  completed_plans: 13
+  completed_plans: 14
 ---
 
 # Project State
@@ -62,6 +62,8 @@ Phase 03 in progress (1/5 plans). Write layer foundation established — client 
 - [Phase 03-live-writes-server-actions-file-upload]: defense-in-depth: .eq('owner_id', user.id) on all UPDATE/DELETE even with RLS active — explicit ownership enforcement
 - [Phase 03]: Supabase join result cast via unknown before target type to satisfy TS2352 overlap error in projects(client_id) select
 - [Phase 03]: updatePaymentStage uses { [stage]: value } computed property key for dynamic JSONB column targeting
+- [Phase 03-live-writes-server-actions-file-upload]: updateContact always fetches client_id from DB to build correct revalidatePath regardless of which fields are updated
+- [Phase 03-live-writes-server-actions-file-upload]: deleteContact fetches client_id before deletion to preserve FK reference for cache invalidation via revalidatePath
 
 ## Blockers
 Aucun

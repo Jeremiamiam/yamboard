@@ -52,10 +52,10 @@ L'UI v2 (Next.js 16 + Tailwind v4) est entièrement construite avec des données
 - [ ] **DOC-7** — Pinner un document projet → niveau client (visible dans contexte client)
 
 ### Contacts
-- [ ] **CONTACT-1** — Ajouter un contact à un client (nom, rôle, email, téléphone)
-- [ ] **CONTACT-2** — Éditer un contact
-- [ ] **CONTACT-3** — Supprimer un contact
-- [ ] **CONTACT-4** — Marquer un contact comme principal (`is_primary`)
+- [x] **CONTACT-1** — Ajouter un contact à un client (nom, rôle, email, téléphone)
+- [x] **CONTACT-2** — Éditer un contact
+- [x] **CONTACT-3** — Supprimer un contact
+- [x] **CONTACT-4** — Marquer un contact comme principal (`is_primary`)
 
 ### Agents IA
 - [ ] **AI-1** — Contexte `agency` : noms + statuts + résumés projets de tous les clients (pas les docs complets)
