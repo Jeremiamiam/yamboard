@@ -65,12 +65,14 @@ Plans:
 
 **Goal:** CRUD complet (clients, projets, produits, documents, contacts) + upload PDF. Suppression des context providers legacy.
 
-**Plans:**
-- `03-01` — Server Actions clients : createClient, updateClient, archiveClient, deleteClient, convertProspect
-- `03-02` — Server Actions projets + produits : CRUD complet + billing stages (Devis/Acompte/Avancement/Solde)
-- `03-03` — Server Actions documents : createNote, createLink, createSignedUploadUrl + saveDocumentRecord, deleteDocument, pinDocument
-- `03-04` — Server Actions contacts : createContact, updateContact, deleteContact
-- `03-05` — Cleanup : supprimer LocalProjects + ProjectOverrides context providers
+**Plans:** 5 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Storage migration (005_storage.sql) + Server Actions clients (createClient, updateClient, archiveClient, deleteClient, convertProspect)
+- [ ] 03-02-PLAN.md — Server Actions projets + produits : CRUD complet + billing stages (Devis/Acompte/Avancement/Solde) + updatePaymentStage
+- [ ] 03-03-PLAN.md — Server Actions documents : createNote, createLink, createSignedUploadUrl + saveDocumentRecord, getDocumentSignedUrl, deleteDocument, pinDocument + DocumentViewer PDF
+- [ ] 03-04-PLAN.md — Server Actions contacts : createContact, updateContact, deleteContact (avec gestion is_primary)
+- [ ] 03-05-PLAN.md — Cleanup : câbler Server Actions dans ClientPageShell/ProjectPageShell/BudgetsTab + supprimer LocalProjects + ProjectOverrides
 
 **Success criteria:**
 - [ ] Créer un client depuis l'UI → persiste en BDD
