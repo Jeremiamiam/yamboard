@@ -1,6 +1,6 @@
 import 'server-only'
 import { createClient } from '@/lib/supabase/server'
-import type { Client, ClientCategory, ClientStatus } from '@/lib/mock'
+import type { Client, ClientCategory, ClientStatus } from '@/lib/types'
 
 function toClient(row: Record<string, unknown>): Client {
   // contacts is a joined array from select('*, contacts(*)')

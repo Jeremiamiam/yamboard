@@ -4,7 +4,7 @@ import 'server-only'
 
 import { revalidatePath } from 'next/cache'
 import { createClient as createSupabaseClient } from '@/lib/supabase/server'
-import type { ClientCategory, ClientStatus } from '@/lib/mock'
+import type { ClientCategory, ClientStatus } from '@/lib/types'
 
 // ─── createClient ──────────────────────────────────────────────
 // INSERT a new client row owned by the authenticated user.

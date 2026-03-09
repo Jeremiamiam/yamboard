@@ -1,0 +1,152 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import type { Document } from "@/lib/types";
+import { createNote, createSignedUploadUrl, saveDocumentRecord } from "@/app/(dashboard)/actions/documents";
+import { createClient as createBrowserClient } from "@/lib/supabase/client";
+
+export function AddDocForm({
+  clientId,
+  projectId,
+  clientColor,
+  onSuccess,
+}: {
+  clientId: string;
+  projectId?: string;
+  clientColor: string;
+  onSuccess?: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [type, setType] = useState<Document["type"]>("brief");
+  const [content, setContent] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function reset() {
+    setName("");
+    setType("brief");
+    setContent("");
+    setFile(null);
+    setError(null);
+  }
+
+  function handleSubmit() {
+    const trimmedName = name.trim();
+    if (!trimmedName) return;
+    setError(null);
+
+    startTransition(async () => {
+      if (file) {
+        const urlResult = await createSignedUploadUrl(clientId, file.name);
+        if ("error" in urlResult) { setError(urlResult.error); return; }
+
+        const supabase = createBrowserClient();
+        const { error: uploadError } = await supabase.storage
+          .from("documents")
+          .uploadToSignedUrl(urlResult.path, urlResult.token, file, {
+            contentType: file.type || "application/octet-stream",
+          });
+        if (uploadError) { setError(uploadError.message); return; }
+
+        const saveResult = await saveDocumentRecord({
+          clientId,
+          projectId,
+          name: trimmedName,
+          type,
+          storagePath: urlResult.path,
+        });
+        if (saveResult.error) { setError(saveResult.error); return; }
+      } else {
+        const result = await createNote({
+          clientId,
+          projectId,
+          name: trimmedName,
+          type,
+          content: content.trim(),
+        });
+        if (result.error) { setError(result.error); return; }
+      }
+
+      reset();
+      onSuccess?.();
+    });
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Nom + type + bouton */}
+      <div className="flex gap-2 items-center flex-wrap">
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Nom du document…"
+          autoFocus
+          className="flex-1 min-w-[160px] bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 outline-none focus:border-zinc-400 dark:focus:border-zinc-500 transition-colors"
+        />
+        <select
+          value={type}
+          onChange={(e) => setType(e.target.value as Document["type"])}
+          className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-400 dark:focus:border-zinc-500 transition-colors"
+        >
+          <option value="brief">Brief</option>
+          <option value="platform">Plateforme de marque</option>
+          <option value="campaign">Campagne</option>
+          <option value="site">Site</option>
+          <option value="other">Autre</option>
+        </select>
+        <button
+          onClick={handleSubmit}
+          disabled={!name.trim() || isPending}
+          className="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors disabled:bg-zinc-300 dark:disabled:bg-zinc-800 shrink-0"
+          style={{ background: name.trim() ? clientColor : undefined }}
+        >
+          {isPending ? "Enregistrement…" : "Ajouter"}
+        </button>
+      </div>
+
+      {/* Joindre un fichier */}
+      <div className="flex items-center gap-2">
+        <label className="px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs text-zinc-600 dark:text-zinc-400 hover:border-zinc-400 dark:hover:border-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors cursor-pointer shrink-0">
+          + Joindre un fichier
+          <input
+            type="file"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0] ?? null;
+              setFile(f);
+              if (f && !name.trim()) setName(f.name.replace(/\.[^.]+$/, ""));
+            }}
+          />
+        </label>
+        {file && (
+          <>
+            <span className="text-xs text-zinc-600 dark:text-zinc-400 truncate">{file.name}</span>
+            <button onClick={() => setFile(null)} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 text-xs shrink-0">✕</button>
+          </>
+        )}
+      </div>
+
+      {/* Textarea note (masquée si fichier joint) */}
+      {!file && (
+        <div className="relative">
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="Note / contenu — colle ou écris le texte du document."
+            rows={5}
+            className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 outline-none focus:border-zinc-400 dark:focus:border-zinc-500 transition-colors resize-y leading-relaxed"
+          />
+          {content.trim() && (
+            <span className="absolute bottom-2.5 right-3 text-[11px] text-zinc-400 dark:text-zinc-600 pointer-events-none">
+              {content.trim().split(/\s+/).filter(Boolean).length} mots
+            </span>
+          )}
+        </div>
+      )}
+
+      {error && <p className="text-xs text-red-500">{error}</p>}
+    </div>
+  );
+}

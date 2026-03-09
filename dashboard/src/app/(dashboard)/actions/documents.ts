@@ -4,7 +4,7 @@ import 'server-only'
 
 import { revalidatePath } from 'next/cache'
 import { createClient as createSupabaseClient } from '@/lib/supabase/server'
-import type { Document } from '@/lib/mock'
+import type { Document } from '@/lib/types'
 
 // ─── createNote ────────────────────────────────────────────────
 // INSERT document de type texte libre.
@@ -93,7 +93,7 @@ export async function createLink(params: {
 export async function createSignedUploadUrl(
   clientId: string,
   filename: string
-): Promise<{ signedUrl: string; path: string } | { error: string }> {
+): Promise<{ signedUrl: string; path: string; token: string } | { error: string }> {
   const supabase = await createSupabaseClient()
 
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -101,7 +101,12 @@ export async function createSignedUploadUrl(
     return { error: 'Not authenticated' }
   }
 
-  const path = `${user.id}/${clientId}/${Date.now()}-${filename}`
+  const safeFilename = filename
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // strip accents
+    .replace(/\s+/g, '-')                              // spaces → hyphens
+    .replace(/[^a-zA-Z0-9.\-_]/g, '')                 // remove remaining special chars
+
+  const path = `${user.id}/${clientId}/${Date.now()}-${safeFilename}`
 
   const { data, error } = await supabase.storage
     .from('documents')
@@ -111,7 +116,7 @@ export async function createSignedUploadUrl(
     return { error: error?.message ?? 'Failed to create signed upload URL' }
   }
 
-  return { signedUrl: data.signedUrl, path: data.path }
+  return { signedUrl: data.signedUrl, path: data.path, token: data.token }
 }
 
 // ─── saveDocumentRecord ────────────────────────────────────────

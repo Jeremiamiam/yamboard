@@ -1,6 +1,6 @@
 import 'server-only'
 import { createClient } from '@/lib/supabase/server'
-import type { Document, BudgetProduct, PaymentStage } from '@/lib/mock'
+import type { Document, BudgetProduct, PaymentStage } from '@/lib/types'
 
 function toDocument(row: Record<string, unknown>): Document {
   const size = row.content

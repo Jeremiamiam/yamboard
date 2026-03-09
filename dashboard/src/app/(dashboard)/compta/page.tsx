@@ -5,7 +5,7 @@ import { ClientSidebar } from "@/components/ClientSidebar"
 import { getClients } from "@/lib/data/clients"
 import { getAllProjects } from "@/lib/data/projects"
 import { getAllBudgetProducts } from "@/lib/data/documents"
-import type { Client } from "@/lib/mock"
+import type { Client } from "@/lib/types"
 
 export default async function ComptaPage() {
   const [clients, prospects, archived, allProjects, allBudgetProducts] = await Promise.all([

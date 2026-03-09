@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { Client, ClientCategory } from "@/lib/mock";
+import type { Client, ClientCategory } from "@/lib/types";
 import { createClient } from "@/app/(dashboard)/actions/clients";
 
 const TABS: { id: ClientCategory; label: string }[] = [

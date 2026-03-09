@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import type { Message } from "@/lib/mock";
+import type { Message } from "@/lib/types";
 
 type ChatScope =
   | { contextType: "agency" }

@@ -4,7 +4,7 @@ import 'server-only'
 
 import { revalidatePath } from 'next/cache'
 import { createClient as createSupabaseClient } from '@/lib/supabase/server'
-import type { ProjectType, ProjectStatus } from '@/lib/mock'
+import type { ProjectType, ProjectStatus } from '@/lib/types'
 
 // ─── createProject ─────────────────────────────────────────────
 // INSERT a new project row owned by the authenticated user.

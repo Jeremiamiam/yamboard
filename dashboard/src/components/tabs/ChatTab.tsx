@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useChat } from "@/hooks/useChat";
-import { type Project, type Message, type Document } from "@/lib/mock";
+import { type Project, type Message, type Document } from "@/lib/types";
 
 export function ChatTab({
   project,

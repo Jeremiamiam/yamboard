@@ -15,7 +15,7 @@ import {
   type Project,
   type Document,
   type BudgetProduct,
-} from "@/lib/mock";
+} from "@/lib/types";
 import { useClientChatDrawer } from "@/context/ClientChatDrawer";
 
 type Tab = "produits" | "chat" | "documents";

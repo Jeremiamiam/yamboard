@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { PAYMENT_STAGE_LABEL, type BudgetProduct, type PaymentStage } from "@/lib/mock";
+import { PAYMENT_STAGE_LABEL, type BudgetProduct, type PaymentStage } from "@/lib/types";
 
 type ProductForDrawer = BudgetProduct | { id: string; name: string; totalAmount: number };
 

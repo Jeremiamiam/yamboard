@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { DOC_TYPE_LABEL, DOC_TYPE_COLOR, type Document } from "@/lib/mock";
+import { DOC_TYPE_LABEL, DOC_TYPE_COLOR, type Document } from "@/lib/types";
 import { PLATFORM_CONTENT, BRIEF_CONTENT, type PlatformDoc, type BriefDoc } from "@/lib/doc-content";
 import { getDocumentSignedUrl } from "@/app/(dashboard)/actions/documents";
 

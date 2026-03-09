@@ -6,7 +6,7 @@ import {
   type Project,
   type BudgetProduct,
   type PaymentStage,
-} from "@/lib/mock";
+} from "@/lib/types";
 import { ProductDrawer } from "@/components/ProductDrawer";
 import { createBudgetProduct, updateProject } from "@/app/(dashboard)/actions/projects";
 

@@ -1,6 +1,6 @@
 import 'server-only'
 import { createClient } from '@/lib/supabase/server'
-import type { Project, ProjectType, ProjectStatus } from '@/lib/mock'
+import type { Project, ProjectType, ProjectStatus } from '@/lib/types'
 
 function toProject(row: Record<string, unknown>): Project {
   return {

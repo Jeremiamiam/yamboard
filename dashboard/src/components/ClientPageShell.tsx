@@ -13,10 +13,10 @@ import {
   type Client,
   type Project,
   type Document,
-} from "@/lib/mock";
+} from "@/lib/types";
 import { useClientChatDrawer } from "@/context/ClientChatDrawer";
 import { createProject } from "@/app/(dashboard)/actions/projects";
-import { createNote } from "@/app/(dashboard)/actions/documents";
+import { AddDocForm } from "@/components/AddDocForm";
 
 type Props = {
   client: Client
@@ -45,35 +45,6 @@ export function ClientPageShell({
   const [isPendingMission, startMissionTransition] = useTransition();
 
   const [showAddDoc, setShowAddDoc] = useState(false);
-  const [newDocName, setNewDocName] = useState("");
-  const [newDocType, setNewDocType] = useState<"brief" | "platform" | "campaign" | "site" | "other">("brief");
-  const [newDocContent, setNewDocContent] = useState("");
-  const [docError, setDocError] = useState<string | null>(null);
-  const [isPendingDoc, startDocTransition] = useTransition();
-
-  function handleAddDoc() {
-    const name = newDocName.trim();
-    if (!name) return;
-    const content = newDocContent.trim();
-
-    startDocTransition(async () => {
-      setDocError(null);
-      const result = await createNote({
-        clientId,
-        name,
-        type: newDocType,
-        content,
-      });
-      if (result.error) {
-        setDocError(result.error);
-      } else {
-        setShowAddDoc(false);
-        setNewDocName("");
-        setNewDocType("brief");
-        setNewDocContent("");
-      }
-    });
-  }
 
   function handleAddMission() {
     const name = newMissionName.trim();
@@ -174,57 +145,12 @@ export function ClientPageShell({
             </div>
 
             {showAddDoc && (
-              <div className="mb-3 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 border-dashed space-y-3">
-                <div className="flex gap-2 items-center flex-wrap">
-                  <input
-                    type="text"
-                    value={newDocName}
-                    onChange={(e) => setNewDocName(e.target.value)}
-                    placeholder="Nom du document…"
-                    autoFocus
-                    className="flex-1 min-w-[160px] bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 outline-none focus:border-zinc-400 dark:focus:border-zinc-500 transition-colors"
-                  />
-                  <select
-                    value={newDocType}
-                    onChange={(e) => setNewDocType(e.target.value as typeof newDocType)}
-                    className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-400 dark:focus:border-zinc-500 transition-colors"
-                  >
-                    <option value="platform">Plateforme de marque</option>
-                    <option value="brief">Brief</option>
-                    <option value="campaign">Campagne</option>
-                    <option value="site">Site</option>
-                    <option value="other">Autre</option>
-                  </select>
-                  <button
-                    onClick={handleAddDoc}
-                    disabled={!newDocName.trim() || isPendingDoc}
-                    className="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors disabled:bg-zinc-300 dark:disabled:bg-zinc-800 shrink-0"
-                    style={{ background: newDocName.trim() ? client.color : undefined }}
-                  >
-                    {isPendingDoc ? "…" : "Ajouter"}
-                  </button>
-                </div>
-
-                <div className="relative">
-                  <textarea
-                    value={newDocContent}
-                    onChange={(e) => setNewDocContent(e.target.value)}
-                    placeholder="Note / contenu — colle ou écris le texte du document. Ce contenu sera injecté directement dans le contexte de l'agent."
-                    rows={6}
-                    className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 outline-none focus:border-zinc-400 dark:focus:border-zinc-500 transition-colors resize-y leading-relaxed"
-                  />
-                  {newDocContent.trim() && (
-                    <span className="absolute bottom-2.5 right-3 text-[11px] text-zinc-400 dark:text-zinc-600 pointer-events-none">
-                      {newDocContent.trim().split(/\s+/).filter(Boolean).length} mots
-                    </span>
-                  )}
-                </div>
-                <p className="text-[11px] text-zinc-400 dark:text-zinc-600">
-                  La note est facultative — un doc sans contenu apparaît quand même dans la liste.
-                </p>
-                {docError && (
-                  <p className="text-[11px] text-red-500">{docError}</p>
-                )}
+              <div className="mb-3 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 border-dashed">
+                <AddDocForm
+                  clientId={clientId}
+                  clientColor={client.color}
+                  onSuccess={() => setShowAddDoc(false)}
+                />
               </div>
             )}
 

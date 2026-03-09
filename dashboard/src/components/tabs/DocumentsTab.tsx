@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { DOC_TYPE_LABEL, DOC_TYPE_COLOR, type Project, type Document } from "@/lib/mock";
+import { useState } from "react";
+import { DOC_TYPE_LABEL, DOC_TYPE_COLOR, type Project, type Document } from "@/lib/types";
 import { DocumentViewer } from "@/components/DocumentViewer";
-import { createNote } from "@/app/(dashboard)/actions/documents";
+import { AddDocForm } from "@/components/AddDocForm";
 
 export function DocumentsTab({
   project,
@@ -19,38 +19,7 @@ export function DocumentsTab({
   clientDocs: Document[];
 }) {
   const [viewerDoc, setViewerDoc] = useState<Document | null>(null);
-  const [isPending, startTransition] = useTransition();
-
   const [showAddDoc, setShowAddDoc] = useState(false);
-  const [newDocName, setNewDocName] = useState("");
-  const [newDocType, setNewDocType] = useState<Document["type"]>("brief");
-  const [newDocContent, setNewDocContent] = useState("");
-  const [addError, setAddError] = useState<string | null>(null);
-
-  const allProjectDocs = projectDocs;
-
-  function handleAddDoc() {
-    const name = newDocName.trim();
-    if (!name) return;
-    setAddError(null);
-    startTransition(async () => {
-      const result = await createNote({
-        clientId,
-        projectId: project.id,
-        name,
-        type: newDocType,
-        content: newDocContent.trim(),
-      });
-      if (result.error) {
-        setAddError(result.error);
-        return;
-      }
-      setShowAddDoc(false);
-      setNewDocName("");
-      setNewDocType("brief");
-      setNewDocContent("");
-    });
-  }
 
   return (
     <>
@@ -62,7 +31,7 @@ export function DocumentsTab({
           <div>
             <h2 className="text-base font-semibold text-zinc-900 dark:text-white">Documents</h2>
             <p className="text-sm text-zinc-500 mt-0.5">
-              {allProjectDocs.length + clientDocs.length} document{(allProjectDocs.length + clientDocs.length) !== 1 ? "s" : ""} · {project.name}
+              {projectDocs.length + clientDocs.length} document{(projectDocs.length + clientDocs.length) !== 1 ? "s" : ""} · {project.name}
             </p>
           </div>
           <button
@@ -79,56 +48,13 @@ export function DocumentsTab({
 
         {/* Add doc form */}
         {showAddDoc && (
-          <div className="mb-6 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 border-dashed space-y-3">
-            <div className="flex gap-2 items-center flex-wrap">
-              <input
-                type="text"
-                value={newDocName}
-                onChange={(e) => setNewDocName(e.target.value)}
-                placeholder="Nom du document…"
-                autoFocus
-                className="flex-1 min-w-[160px] bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 outline-none focus:border-zinc-400 dark:focus:border-zinc-500 transition-colors"
-              />
-              <select
-                value={newDocType}
-                onChange={(e) => setNewDocType(e.target.value as Document["type"])}
-                className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-400 dark:focus:border-zinc-500 transition-colors"
-              >
-                <option value="brief">Brief</option>
-                <option value="platform">Plateforme de marque</option>
-                <option value="campaign">Campagne</option>
-                <option value="site">Site</option>
-                <option value="other">Autre</option>
-              </select>
-              <button
-                onClick={handleAddDoc}
-                disabled={!newDocName.trim() || isPending}
-                className="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors disabled:bg-zinc-300 dark:disabled:bg-zinc-800 shrink-0"
-                style={{ background: newDocName.trim() ? clientColor : undefined }}
-              >
-                {isPending ? "Enregistrement…" : "Ajouter"}
-              </button>
-            </div>
-            <div className="relative">
-              <textarea
-                value={newDocContent}
-                onChange={(e) => setNewDocContent(e.target.value)}
-                placeholder="Note / contenu — colle ou écris le texte du document. Ce contenu sera injecté directement dans le contexte de l'agent."
-                rows={6}
-                className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 outline-none focus:border-zinc-400 dark:focus:border-zinc-500 transition-colors resize-y leading-relaxed"
-              />
-              {newDocContent.trim() && (
-                <span className="absolute bottom-2.5 right-3 text-[11px] text-zinc-400 dark:text-zinc-600 pointer-events-none">
-                  {newDocContent.trim().split(/\s+/).filter(Boolean).length} mots
-                </span>
-              )}
-            </div>
-            {addError && (
-              <p className="text-xs text-red-500">{addError}</p>
-            )}
-            <p className="text-[11px] text-zinc-400 dark:text-zinc-600">
-              La note est facultative — un doc sans contenu apparaît quand même dans la liste.
-            </p>
+          <div className="mb-6 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 border-dashed">
+            <AddDocForm
+              clientId={clientId}
+              projectId={project.id}
+              clientColor={clientColor}
+              onSuccess={() => setShowAddDoc(false)}
+            />
           </div>
         )}
 
@@ -151,11 +77,11 @@ export function DocumentsTab({
           <h3 className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-600 mb-3">
             Livrables {project.name}
           </h3>
-          {allProjectDocs.length === 0 ? (
+          {projectDocs.length === 0 ? (
             <EmptyState projectName={project.name} onAdd={() => setShowAddDoc(true)} />
           ) : (
             <div className="space-y-2">
-              {allProjectDocs.map((doc) => (
+              {projectDocs.map((doc) => (
                 <DocRow key={doc.id} doc={doc} onClick={() => setViewerDoc(doc)} />
               ))}
             </div>

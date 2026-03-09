@@ -2,7 +2,7 @@
 
 import { useRef, useEffect } from "react";
 import { useChat } from "@/hooks/useChat";
-import type { Client, Message } from "@/lib/mock";
+import type { Client, Message } from "@/lib/types";
 
 export function ClientChatTab({ client }: { client: Client }) {
   const scope = { contextType: "client" as const, clientId: client.id };
