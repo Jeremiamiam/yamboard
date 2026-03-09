@@ -33,11 +33,11 @@ export async function POST(req: Request) {
   // Build the system prompt based on scope
   let systemPrompt: string;
   if (contextType === "agency") {
-    systemPrompt = buildAgencyContext();
+    systemPrompt = await buildAgencyContext();
   } else if (contextType === "client" && clientId) {
-    systemPrompt = buildClientContext(clientId);
+    systemPrompt = await buildClientContext(clientId);
   } else if (contextType === "project" && clientId && projectId) {
-    systemPrompt = buildProjectContext(clientId, projectId);
+    systemPrompt = await buildProjectContext(clientId, projectId);
   } else {
     return new Response("Contexte invalide", { status: 400 });
   }
