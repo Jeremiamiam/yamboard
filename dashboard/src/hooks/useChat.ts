@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import type { Message } from "@/lib/types";
 
 type ChatScope =
@@ -16,11 +16,59 @@ function nowTime() {
   return new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 }
 
+/**
+ * Derive a stable sessionStorage key from the scope.
+ * Agency scope returns null — agency chat is intentionally not persisted (resets on drawer close).
+ */
+function getScopeKey(scope: ChatScope): string | null {
+  if (scope.contextType === "agency") return null;
+  if (scope.contextType === "client") return `chat:client:${scope.clientId}`;
+  if (scope.contextType === "project")
+    return `chat:project:${scope.clientId}:${scope.projectId}`;
+  return null;
+}
+
+function loadFromSession(key: string | null): Message[] {
+  if (!key || typeof window === "undefined") return [];
+  try {
+    const raw = sessionStorage.getItem(key);
+    if (!raw) return [];
+    return JSON.parse(raw) as Message[];
+  } catch {
+    return [];
+  }
+}
+
+function saveToSession(key: string | null, messages: Message[]): void {
+  if (!key || typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(key, JSON.stringify(messages));
+  } catch {
+    // sessionStorage quota exceeded or unavailable — silently ignore
+  }
+}
+
 export function useChat(scope: ChatScope) {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const scopeKey = useMemo(() => getScopeKey(scope), [
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    scope.contextType,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    "clientId" in scope ? scope.clientId : "",
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    "projectId" in scope ? scope.projectId : "",
+  ]);
+
+  const [messages, setMessages] = useState<Message[]>(() => loadFromSession(scopeKey));
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+
+  // Persist messages to sessionStorage whenever they change (client/project only)
+  useEffect(() => {
+    if (scopeKey) {
+      saveToSession(scopeKey, messages);
+    }
+  }, [scopeKey, messages]);
 
   const sendMessage = useCallback(
     async (text?: string) => {
