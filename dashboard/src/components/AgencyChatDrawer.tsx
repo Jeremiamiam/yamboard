@@ -3,6 +3,7 @@
 import { useRef, useEffect } from "react";
 import { useChat } from "@/hooks/useChat";
 import type { Message } from "@/lib/types";
+import { MarkdownContent } from "@/components/MarkdownContent";
 
 export function AgencyChatDrawer({
   open,
@@ -154,11 +155,14 @@ function AgencyChatMessage({ msg }: { msg: Message }) {
             ? "bg-zinc-200 text-zinc-800 rounded-br-sm dark:bg-zinc-800 dark:text-zinc-200"
             : "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-bl-sm"
         }`}
-        style={{ whiteSpace: "pre-wrap" }}
+        style={isUser ? { whiteSpace: "pre-wrap" } : undefined}
       >
-        {msg.content}
-        {!isUser && msg.content === "" && (
+        {isUser ? (
+          msg.content
+        ) : msg.content === "" ? (
           <span className="inline-block w-1 h-4 bg-zinc-400 dark:bg-zinc-500 animate-pulse ml-0.5" />
+        ) : (
+          <MarkdownContent content={msg.content} />
         )}
       </div>
       {isUser && (
