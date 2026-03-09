@@ -6,9 +6,11 @@
 <domain>
 ## Phase Boundary
 
-Convert the 3 context builder functions (`buildAgencyContext`, `buildClientContext`, `buildProjectContext`) from synchronous mock arrays to async Supabase DAL calls. Delete `mock.ts`. The chat API route (`/api/chat/route.ts`) and DocumentsTab upload flow will also be updated — but no UI changes.
+Convert the 3 context builder functions (`buildAgencyContext`, `buildClientContext`, `buildProjectContext`) from synchronous mock arrays to async Supabase DAL calls. Delete `mock.ts`. The chat API route (`/api/chat/route.ts`) and DocumentsTab upload flow will also be updated.
 
-Out of scope: new AI capabilities, new chat features, conversations persistence, UI changes.
+Also includes: building the global Yamboard agency-level chat (new UI — button in GlobalNav → drawer, no persistence, Haiku model).
+
+Out of scope: conversations persistence, new AI capabilities beyond 3 existing scopes.
 
 </domain>
 
@@ -55,6 +57,21 @@ Out of scope: new AI capabilities, new chat features, conversations persistence,
 - Auth check in `route.ts`: verify user via Supabase `getUser()` before building context (SEC-3 pattern already established)
 - Types (`Client`, `Project`, `Document`, `BudgetProduct`, etc.) migrated out of `mock.ts` into a new `lib/types.ts` (or `lib/mock.ts` types-only section) so DAL files don't import from a deleted file
 
+### Model selection per scope
+
+- Agency scope → `claude-haiku-4-5-20251001` (fast, cheap — vue globale budgets/projets/clients)
+- Client scope → `claude-opus-4-6` (deep — travail de marque, briefs, livrables)
+- Project scope → `claude-opus-4-6` (deep — même logique)
+- `route.ts` selects model based on `contextType` before calling `client.messages.stream()`
+
+### Global agency chat — UI
+
+- New chat button in `GlobalNav` (top bar) → opens a slide-over drawer
+- `contextType: "agency"` — uses `buildAgencyContext()` with real Supabase data
+- No persistence: conversation state lives in React `useState` only, reset on drawer close
+- Reuses existing `useChat` hook (already supports `{ contextType: "agency" }` signature)
+- No `clientId` or `projectId` needed — agency scope is global
+
 ### Claude's Discretion
 
 - Exact truncation algorithm for token budget enforcement
@@ -93,7 +110,8 @@ Out of scope: new AI capabilities, new chat features, conversations persistence,
 
 ### Integration Points
 
-- `app/(dashboard)/api/chat/route.ts` — calls all 3 context builders; becomes async `await buildAgencyContext()` etc.; adds `getUser()` auth gate
+- `app/(dashboard)/api/chat/route.ts` — becomes async, adds `getUser()` auth gate, selects model per `contextType` (Haiku for agency, Opus for client/project)
+- `components/GlobalNav.tsx` — new agency chat button + drawer component (reuses `useChat` hook)
 - `app/(dashboard)/actions/documents.ts` — `saveDocumentRecord` extended to trigger PDF vision extraction after file save
 - `lib/data/documents.ts` — `getClientDocs` needs a new variant or flag to fetch `is_pinned = true` docs cross-project for a client
 - `lib/mock.ts` — deleted at end of phase; types migrated to `lib/types.ts`
