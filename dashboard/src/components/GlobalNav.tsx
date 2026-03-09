@@ -25,8 +25,6 @@ export function GlobalNav() {
         <nav className="flex items-center gap-1 flex-1">
           <NavLink href="/" label="Clients" active={pathname !== "/compta"} />
           <NavLink href="/compta" label="Comptabilité" active={pathname === "/compta"} />
-          <NavItem label="Projets" />
-          <NavItem label="Analytics" />
         </nav>
 
         {/* Right */}
@@ -37,9 +35,6 @@ export function GlobalNav() {
             title={theme === "dark" ? "Mode clair" : "Mode sombre"}
           >
             <span className="text-xs">{theme === "dark" ? "☀" : "☽"}</span>
-          </button>
-          <button className="w-7 h-7 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors">
-            <span className="text-xs text-zinc-600 dark:text-zinc-400">⚙</span>
           </button>
           <div className="w-7 h-7 rounded-full bg-emerald-600 flex items-center justify-center">
             <span className="text-xs font-semibold text-white">Y</span>
@@ -91,19 +86,5 @@ function NavLink({
     >
       {label}
     </Link>
-  );
-}
-
-function NavItem({ label, active }: { label: string; active?: boolean }) {
-  return (
-    <button
-      className={`px-3 py-1.5 rounded-md text-sm transition-colors ${
-        active
-          ? "text-zinc-900 bg-zinc-200 dark:text-white dark:bg-zinc-800"
-          : "text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100 dark:hover:text-zinc-300 dark:hover:bg-zinc-900"
-      }`}
-    >
-      {label}
-    </button>
   );
 }

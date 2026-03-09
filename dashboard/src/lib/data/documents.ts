@@ -60,6 +60,27 @@ export async function getProjectDocs(projectId: string): Promise<Document[]> {
   return (data ?? []).map(toDocument)
 }
 
+/** 1 requête pour N projets — évite N round-trips. Retourne Map projectId → Document[] */
+export async function getProjectDocsForProjects(
+  projectIds: string[]
+): Promise<Record<string, Document[]>> {
+  if (projectIds.length === 0) return {}
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('documents')
+    .select('*')
+    .in('project_id', projectIds)
+    .order('created_at', { ascending: true })
+  if (error) throw new Error(error.message)
+  const byProject: Record<string, Document[]> = {}
+  for (const pid of projectIds) byProject[pid] = []
+  for (const row of data ?? []) {
+    const pid = row.project_id as string
+    if (pid && byProject[pid]) byProject[pid].push(toDocument(row as Record<string, unknown>))
+  }
+  return byProject
+}
+
 export async function getBudgetProducts(projectId: string): Promise<BudgetProduct[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
@@ -68,16 +89,7 @@ export async function getBudgetProducts(projectId: string): Promise<BudgetProduc
     .eq('project_id', projectId)
     .order('created_at', { ascending: true })
   if (error) throw new Error(error.message)
-  return (data ?? []).map((row) => ({
-    id: row.id as string,
-    projectId: row.project_id as string,
-    name: row.name as string,
-    totalAmount: Number(row.total_amount),
-    devis: row.devis as PaymentStage | undefined,
-    acompte: row.acompte as PaymentStage | undefined,
-    avancement: row.avancement as PaymentStage | undefined,
-    solde: row.solde as PaymentStage | undefined,
-  }))
+  return (data ?? []).map((row) => toBudgetProduct(row as Record<string, unknown>))
 }
 
 export async function getAllBudgetProducts(): Promise<BudgetProduct[]> {
@@ -87,7 +99,32 @@ export async function getAllBudgetProducts(): Promise<BudgetProduct[]> {
     .select('*')
     .order('created_at', { ascending: true })
   if (error) throw new Error(error.message)
-  return (data ?? []).map((row) => ({
+  return (data ?? []).map((row) => toBudgetProduct(row as Record<string, unknown>))
+}
+
+/** 1 requête pour N projets — évite N round-trips. Retourne Map projectId → BudgetProduct[] */
+export async function getBudgetProductsForProjects(
+  projectIds: string[]
+): Promise<Record<string, BudgetProduct[]>> {
+  if (projectIds.length === 0) return {}
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('budget_products')
+    .select('*')
+    .in('project_id', projectIds)
+    .order('created_at', { ascending: true })
+  if (error) throw new Error(error.message)
+  const rows = (data ?? []).map((row) => toBudgetProduct(row as Record<string, unknown>))
+  const byProject: Record<string, BudgetProduct[]> = {}
+  for (const pid of projectIds) byProject[pid] = []
+  for (const row of rows) {
+    byProject[row.projectId].push(row)
+  }
+  return byProject
+}
+
+function toBudgetProduct(row: Record<string, unknown>): BudgetProduct {
+  return {
     id: row.id as string,
     projectId: row.project_id as string,
     name: row.name as string,
@@ -96,5 +133,5 @@ export async function getAllBudgetProducts(): Promise<BudgetProduct[]> {
     acompte: row.acompte as PaymentStage | undefined,
     avancement: row.avancement as PaymentStage | undefined,
     solde: row.solde as PaymentStage | undefined,
-  }))
+  }
 }

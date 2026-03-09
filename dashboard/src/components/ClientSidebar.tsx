@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Client, ClientCategory } from "@/lib/types";
-import { createClient } from "@/app/(dashboard)/actions/clients";
+import { createClient, updateClient, archiveClient, deleteClient } from "@/app/(dashboard)/actions/clients";
 
 const TABS: { id: ClientCategory; label: string }[] = [
   { id: "client", label: "Clients" },
@@ -93,7 +93,7 @@ export function ClientSidebar({
           <p className="text-xs text-zinc-500 dark:text-zinc-700 px-3 py-4">Aucun élément</p>
         ) : (
           currentClients.map((client) => (
-            <ClientItem key={client.id} client={client} active={client.id === activeId} />
+            <ClientItem key={client.id} client={client} active={client.id === activeId} category={client.category} />
           ))
         )}
       </nav>
@@ -147,7 +147,22 @@ export function ClientSidebar({
   );
 }
 
-function ClientItem({ client, active }: { client: Client; active: boolean }) {
+function ClientItem({ client, active, category }: { client: Client; active: boolean; category: ClientCategory }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(client.name);
+  const [isPending, startTransition] = useTransition();
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    }
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [menuOpen]);
+
   const initials = client.name
     .split(/[\s.]/)
     .filter(Boolean)
@@ -155,36 +170,122 @@ function ClientItem({ client, active }: { client: Client; active: boolean }) {
     .map((w) => w[0].toUpperCase())
     .join("");
 
+  function handleSaveEdit() {
+    const name = editName.trim();
+    if (!name || name === client.name) {
+      setIsEditing(false);
+      return;
+    }
+    startTransition(async () => {
+      const result = await updateClient(client.id, { name });
+      if (!result.error) setIsEditing(false);
+    });
+  }
+
+  function handleArchive() {
+    setMenuOpen(false);
+    startTransition(() => void archiveClient(client.id));
+  }
+
+  function handleDelete() {
+    if (!confirm("Supprimer définitivement ce client ?")) return;
+    setMenuOpen(false);
+    startTransition(() => void deleteClient(client.id));
+  }
+
+  if (isEditing) {
+    return (
+      <div className="flex items-center gap-2 px-2 py-2.5 rounded-lg mb-0.5 bg-zinc-100 dark:bg-zinc-900">
+        <input
+          type="text"
+          value={editName}
+          onChange={(e) => setEditName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleSaveEdit();
+            if (e.key === "Escape") { setIsEditing(false); setEditName(client.name); }
+          }}
+          autoFocus
+          className="flex-1 min-w-0 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1.5 text-xs"
+        />
+        <button
+          onClick={handleSaveEdit}
+          disabled={!editName.trim() || isPending}
+          className="px-2 py-1 rounded text-[11px] font-medium bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 disabled:opacity-40"
+        >
+          {isPending ? "…" : "OK"}
+        </button>
+        <button
+          onClick={() => { setIsEditing(false); setEditName(client.name); }}
+          className="px-2 py-1 rounded text-[11px] text-zinc-500 hover:text-zinc-700"
+        >
+          ✕
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <Link
-      href={`/${client.id}`}
-      className={`flex items-center gap-3 px-2 py-2.5 rounded-lg mb-0.5 transition-all ${
+    <div
+      className={`group flex items-center gap-2 px-2 py-2.5 rounded-lg mb-0.5 transition-all ${
         active
           ? "bg-zinc-200 text-zinc-900 dark:bg-zinc-800 dark:text-white"
           : "text-zinc-600 hover:text-zinc-800 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-zinc-200 dark:hover:bg-zinc-900"
       }`}
     >
-      {/* Avatar */}
-      <div
-        className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold border ${
-          active ? "" : "bg-zinc-200 text-zinc-500 border-zinc-300 dark:bg-zinc-900 dark:text-zinc-500 dark:border-zinc-700"
-        }`}
-        style={active ? {
-          background: client.color + "30",
-          color: client.color,
-          borderColor: client.color + "40",
-        } : undefined}
+      <Link
+        href={`/${client.id}`}
+        className="flex items-center gap-3 flex-1 min-w-0"
       >
-        {initials}
-      </div>
-
-      {/* Info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium truncate">{client.name}</span>
+        <div
+          className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold border ${
+            active ? "" : "bg-zinc-200 text-zinc-500 border-zinc-300 dark:bg-zinc-900 dark:text-zinc-500 dark:border-zinc-700"
+          }`}
+          style={active ? {
+            background: client.color + "30",
+            color: client.color,
+            borderColor: client.color + "40",
+          } : undefined}
+        >
+          {initials}
         </div>
-        <p className="text-[11px] text-zinc-500 dark:text-zinc-600 mt-0.5 truncate">{client.industry}</p>
+        <span className="text-sm font-medium truncate">{client.name}</span>
+      </Link>
+      <div className="relative shrink-0" ref={menuRef}>
+        <button
+          onClick={(e) => { e.preventDefault(); setMenuOpen((v) => !v); }}
+          className="p-1 rounded opacity-60 hover:opacity-100 transition-opacity"
+          title="Menu"
+        >
+          <span className="text-xs">⋯</span>
+        </button>
+        {menuOpen && (
+          <div className="absolute left-0 top-full mt-0.5 py-1 min-w-[160px] rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-lg z-50">
+            <button
+              onClick={() => { setMenuOpen(false); setIsEditing(true); }}
+              className="w-full px-3 py-1.5 text-left text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            >
+              Éditer
+            </button>
+            {category === "archived" ? (
+              <button
+                onClick={handleDelete}
+                disabled={isPending}
+                className="w-full px-3 py-1.5 text-left text-xs text-red-600 dark:text-red-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-50"
+              >
+                Supprimer définitivement
+              </button>
+            ) : (
+              <button
+                onClick={handleArchive}
+                disabled={isPending}
+                className="w-full px-3 py-1.5 text-left text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-50"
+              >
+                Archiver
+              </button>
+            )}
+          </div>
+        )}
       </div>
-    </Link>
+    </div>
   );
 }

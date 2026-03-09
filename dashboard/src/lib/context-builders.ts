@@ -9,9 +9,15 @@
 // Injected data wrapped in XML structural tags (AI-6 prompt injection defense).
 
 import 'server-only'
-import { getClients, getClient } from '@/lib/data/clients'
-import { getClientProjects, getProject, getAllProjects } from '@/lib/data/projects'
-import { getClientDocsWithPinned, getProjectDocs, getBudgetProducts, getAllBudgetProducts } from '@/lib/data/documents'
+import { getClientsAll, getClient } from '@/lib/data/clients'
+import { getClientProjects, getProject, getProjectsForClients } from '@/lib/data/projects'
+import {
+  getClientDocsWithPinned,
+  getProjectDocs,
+  getBudgetProducts,
+  getBudgetProductsForProjects,
+  getProjectDocsForProjects,
+} from '@/lib/data/documents'
 import type { Client, Project, Document, BudgetProduct } from '@/lib/types'
 
 // ─── Token budget constants ────────────────────────────────────
@@ -249,14 +255,12 @@ function buildProjectDataSection(
 // Accès global à tous les clients, tous les projets, tous les produits
 
 export async function buildAgencyContext(): Promise<string> {
-  const [clients, prospects, allProjects, allProducts] = await Promise.all([
-    getClients('client'),
-    getClients('prospect'),
-    getAllProjects(),
-    getAllBudgetProducts(),
-  ])
-  // archived excluded via getClients filter — only client + prospect fetched
-  const activeClients = [...clients, ...prospects]
+  const sidebar = await getClientsAll()
+  const activeClients = [...sidebar.clients, ...sidebar.prospects]
+  const clientIds = activeClients.map((c) => c.id)
+  const allProjects = await getProjectsForClients(clientIds)
+  const budgetByProject = await getBudgetProductsForProjects(allProjects.map((p) => p.id))
+  const allProducts = allProjects.flatMap((p) => budgetByProject[p.id] ?? [])
 
   const intro = `\nTu as accès à l'ensemble du portefeuille de l'agence Yam.\n${'═'.repeat(60)}`
 
@@ -299,15 +303,15 @@ export async function buildClientContext(clientId: string): Promise<string> {
   if (!client) return PREAMBLE + '\n\nErreur : client introuvable.'
 
   const projects = await getClientProjects(clientId)
-  const [clientDocs, ...projectData] = await Promise.all([
+  const projectIds = projects.map((p) => p.id)
+  const [clientDocs, budgetByProject, docsByProject] = await Promise.all([
     getClientDocsWithPinned(clientId),
-    ...projects.map((p) =>
-      Promise.all([getBudgetProducts(p.id), getProjectDocs(p.id)])
-    ),
+    getBudgetProductsForProjects(projectIds),
+    getProjectDocsForProjects(projectIds),
   ])
 
-  const allProducts: BudgetProduct[][] = projectData.map(([products]) => products as BudgetProduct[])
-  const allProjectDocs: Document[][] = projectData.map(([, docs]) => docs as Document[])
+  const allProducts: BudgetProduct[][] = projects.map((p) => budgetByProject[p.id] ?? [])
+  const allProjectDocs: Document[][] = projects.map((p) => docsByProject[p.id] ?? [])
 
   const intro = `\nTu travailles sur le compte de ${client.name}. Tu as accès à l'ensemble du contexte client : documents de marque, missions et budget.\n${'═'.repeat(60)}`
 

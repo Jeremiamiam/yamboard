@@ -2,21 +2,18 @@
 import Link from "next/link"
 import { GlobalNav } from "@/components/GlobalNav"
 import { ClientSidebar } from "@/components/ClientSidebar"
-import { getClients } from "@/lib/data/clients"
-import { getAllProjects } from "@/lib/data/projects"
-import { getAllBudgetProducts } from "@/lib/data/documents"
+import { getClientsAll } from "@/lib/data/clients"
+import { getProjectsForClients } from "@/lib/data/projects"
+import { getBudgetProductsForProjects } from "@/lib/data/documents"
 import type { Client } from "@/lib/types"
 
 export default async function ComptaPage() {
-  const [clients, prospects, archived, allProjects, allBudgetProducts] = await Promise.all([
-    getClients('client'),
-    getClients('prospect'),
-    getClients('archived'),
-    getAllProjects(),
-    getAllBudgetProducts(),
-  ])
+  const sidebar = await getClientsAll()
+  const clientIds = [...sidebar.clients, ...sidebar.prospects].map((c) => c.id)
+  const allProjects = await getProjectsForClients(clientIds)
+  const budgetByProject = await getBudgetProductsForProjects(allProjects.map((p) => p.id))
 
-  const clientsAndProspects: Client[] = [...clients, ...prospects]
+  const clientsAndProspects: Client[] = [...sidebar.clients, ...sidebar.prospects]
 
   let globalTotal = 0
   let globalPaid = 0
@@ -27,12 +24,12 @@ export default async function ComptaPage() {
       const projects = allProjects.filter((p) => p.clientId === client.id)
 
       const total = projects.reduce((acc, p) => {
-        const products = allBudgetProducts.filter((bp) => bp.projectId === p.id)
+        const products = budgetByProject[p.id] ?? []
         return acc + products.reduce((s, bp) => s + bp.totalAmount, 0)
       }, 0)
 
       const paid = projects.reduce((acc, p) => {
-        const products = allBudgetProducts.filter((bp) => bp.projectId === p.id)
+        const products = budgetByProject[p.id] ?? []
         return acc + products.reduce((s, bp) => {
           let amt = 0
           if (bp.acompte?.status === 'paid') amt += bp.acompte.amount ?? 0
@@ -56,9 +53,9 @@ export default async function ComptaPage() {
     <>
       <GlobalNav />
       <ClientSidebar
-        clients={clients}
-        prospects={prospects}
-        archived={archived}
+        clients={sidebar.clients}
+        prospects={sidebar.prospects}
+        archived={sidebar.archived}
       />
 
       <div

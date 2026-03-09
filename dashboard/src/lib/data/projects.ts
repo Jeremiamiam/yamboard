@@ -49,3 +49,16 @@ export async function getAllProjects(): Promise<Project[]> {
   if (error) throw new Error(error.message)
   return (data ?? []).map(toProject)
 }
+
+/** 1 requête pour N clients — évite getAllProjects quand on ne veut que client+prospect */
+export async function getProjectsForClients(clientIds: string[]): Promise<Project[]> {
+  if (clientIds.length === 0) return []
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('projects')
+    .select('*')
+    .in('client_id', clientIds)
+    .order('created_at', { ascending: true })
+  if (error) throw new Error(error.message)
+  return (data ?? []).map((row) => toProject(row as Record<string, unknown>))
+}

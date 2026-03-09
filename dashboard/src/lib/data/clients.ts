@@ -36,6 +36,27 @@ export async function getClients(category: ClientCategory = 'client'): Promise<C
   return (data ?? []).map(toClient)
 }
 
+/** 1 requête pour client + prospect + archived (sidebar) — évite 3 round-trips */
+export async function getClientsAll(): Promise<{
+  clients: Client[]
+  prospects: Client[]
+  archived: Client[]
+}> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('clients')
+    .select('*, contacts(*)')
+    .in('category', ['client', 'prospect', 'archived'])
+    .order('created_at', { ascending: true })
+  if (error) throw new Error(error.message)
+  const all = (data ?? []).map(toClient)
+  return {
+    clients: all.filter((c) => c.category === 'client'),
+    prospects: all.filter((c) => c.category === 'prospect'),
+    archived: all.filter((c) => c.category === 'archived'),
+  }
+}
+
 export async function getClient(id: string): Promise<Client | null> {
   const supabase = await createClient()
   const { data, error } = await supabase

@@ -1,26 +1,28 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { GlobalNav } from "@/components/GlobalNav";
 import { ClientSidebar } from "@/components/ClientSidebar";
 import { DocumentViewer } from "@/components/DocumentViewer";
 import {
-  PROJECT_TYPE_LABEL,
-  PROJECT_STATUS_CONFIG,
   DOC_TYPE_LABEL,
   DOC_TYPE_COLOR,
   type Client,
   type Project,
   type Document,
+  type BudgetProduct,
 } from "@/lib/types";
 import { useClientChatDrawer } from "@/context/ClientChatDrawer";
 import { createProject } from "@/app/(dashboard)/actions/projects";
+import { updateClient, archiveClient, deleteClient } from "@/app/(dashboard)/actions/clients";
 import { AddDocForm } from "@/components/AddDocForm";
 
 type Props = {
   client: Client
   projects: Project[]
+  budgetByProject: Record<string, BudgetProduct[]>
   globalDocs: Document[]
   clientId: string
   clients: Client[]
@@ -31,12 +33,14 @@ type Props = {
 export function ClientPageShell({
   client,
   projects,
+  budgetByProject,
   globalDocs,
   clientId,
   clients,
   prospects,
   archived,
 }: Props) {
+  const router = useRouter();
   const { open: openChat } = useClientChatDrawer();
   const [viewerDoc, setViewerDoc] = useState<Document | null>(null);
   const [showAddMission, setShowAddMission] = useState(false);
@@ -45,6 +49,20 @@ export function ClientPageShell({
   const [isPendingMission, startMissionTransition] = useTransition();
 
   const [showAddDoc, setShowAddDoc] = useState(false);
+  const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(client.name);
+  const [isPendingClient, startClientTransition] = useTransition();
+  const headerMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!headerMenuOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (headerMenuRef.current && !headerMenuRef.current.contains(e.target as Node)) setHeaderMenuOpen(false);
+    }
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [headerMenuOpen]);
 
   function handleAddMission() {
     const name = newMissionName.trim();
@@ -67,6 +85,35 @@ export function ClientPageShell({
     draft: "bg-zinc-600",
     paused: "bg-yellow-500",
   }[client.status];
+
+  function handleSaveEdit() {
+    const name = editName.trim();
+    if (!name || name === client.name) {
+      setIsEditing(false);
+      return;
+    }
+    startClientTransition(async () => {
+      const result = await updateClient(clientId, { name });
+      if (!result.error) setIsEditing(false);
+    });
+  }
+
+  function handleArchive() {
+    setHeaderMenuOpen(false);
+    startClientTransition(async () => {
+      await archiveClient(clientId);
+      router.push("/");
+    });
+  }
+
+  function handleDelete() {
+    if (!confirm("Supprimer définitivement ce client ?")) return;
+    setHeaderMenuOpen(false);
+    startClientTransition(async () => {
+      await deleteClient(clientId);
+      router.push("/");
+    });
+  }
 
   return (
     <>
@@ -92,13 +139,41 @@ export function ClientPageShell({
               {client.name[0].toUpperCase()}
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-base font-semibold text-zinc-900 dark:text-white leading-none">
-                  {client.name}
-                </h1>
-                <span className={`w-1.5 h-1.5 rounded-full ${statusColor}`} />
-              </div>
-              <p className="text-xs text-zinc-500 mt-0.5">{client.industry}</p>
+              {isEditing ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleSaveEdit();
+                      if (e.key === "Escape") { setIsEditing(false); setEditName(client.name); }
+                    }}
+                    autoFocus
+                    className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm font-semibold"
+                  />
+                  <button
+                    onClick={handleSaveEdit}
+                    disabled={!editName.trim() || isPendingClient}
+                    className="px-2 py-1 rounded text-xs font-medium bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 disabled:opacity-40"
+                  >
+                    {isPendingClient ? "…" : "OK"}
+                  </button>
+                  <button
+                    onClick={() => { setIsEditing(false); setEditName(client.name); }}
+                    className="px-2 py-1 rounded text-xs text-zinc-500 hover:text-zinc-700"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <h1 className="text-base font-semibold text-zinc-900 dark:text-white leading-none">
+                    {client.name}
+                  </h1>
+                  <span className={`w-1.5 h-1.5 rounded-full ${statusColor}`} />
+                </div>
+              )}
             </div>
           </div>
 
@@ -112,6 +187,42 @@ export function ClientPageShell({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
             </button>
+            <div className="relative" ref={headerMenuRef}>
+              <button
+                onClick={() => setHeaderMenuOpen((v) => !v)}
+                className="p-2 rounded-lg text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100 dark:hover:text-zinc-200 dark:hover:bg-zinc-900 transition-colors"
+                title="Menu client"
+              >
+                <span className="text-sm">⋯</span>
+              </button>
+              {headerMenuOpen && (
+                <div className="absolute right-0 top-full mt-1 py-1 min-w-[180px] rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-lg z-50">
+                  <button
+                    onClick={() => { setHeaderMenuOpen(false); setIsEditing(true); }}
+                    className="w-full px-3 py-2 text-left text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  >
+                    Éditer
+                  </button>
+                  {client.category === "archived" ? (
+                    <button
+                      onClick={handleDelete}
+                      disabled={isPendingClient}
+                      className="w-full px-3 py-2 text-left text-xs text-red-600 dark:text-red-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-50"
+                    >
+                      Supprimer définitivement
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleArchive}
+                      disabled={isPendingClient}
+                      className="w-full px-3 py-2 text-left text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-50"
+                    >
+                      Archiver
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
             <div className="text-right hidden sm:block">
               <p className="text-xs text-zinc-500 dark:text-zinc-600">Contact</p>
               <p className="text-xs text-zinc-600 dark:text-zinc-400">{client.contact.name}</p>
@@ -236,8 +347,8 @@ export function ClientPageShell({
                   <ProjectCard
                     key={project.id}
                     project={project}
+                    products={budgetByProject[project.id] ?? []}
                     clientId={clientId}
-                    clientColor={client.color}
                   />
                 ))}
               </div>
@@ -286,63 +397,32 @@ function GlobalDocChip({
 
 function ProjectCard({
   project,
+  products,
   clientId,
-  clientColor,
 }: {
   project: Project;
+  products: BudgetProduct[];
   clientId: string;
-  clientColor: string;
 }) {
-  const statusCfg = PROJECT_STATUS_CONFIG[project.status];
-  const pct =
-    project.totalPhases > 0
-      ? Math.round((project.progress / project.totalPhases) * 100)
-      : 0;
-
-  const barColor =
-    project.status === "done"
-      ? "#10b981"
-      : project.status === "active"
-      ? clientColor
-      : null;
-
   return (
     <Link
       href={`/${clientId}/${project.id}#produits`}
       className="group flex flex-col p-5 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-all"
     >
-      <div className="flex items-start justify-between mb-2">
-        <div>
-          <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors leading-tight">
-            {project.name}
-          </p>
-          <p className="text-[11px] text-zinc-500 dark:text-zinc-600 mt-0.5">
-            {PROJECT_TYPE_LABEL[project.type]}
-          </p>
-        </div>
-        <span className={`w-1.5 h-1.5 rounded-full shrink-0 mt-1.5 ${statusCfg.dot}`} />
-      </div>
-
-      <p className="text-xs text-zinc-600 dark:text-zinc-500 leading-relaxed mb-4 line-clamp-2">
-        {project.description}
+      <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors leading-tight mb-3">
+        {project.name}
       </p>
-
-      <div className="mb-4">
-        <div className="h-1 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
-          <div
-            className="h-full rounded-full transition-all bg-zinc-300 dark:bg-zinc-700"
-            style={{ width: `${pct}%`, ...(barColor && { background: barColor }) }}
-          />
-        </div>
-        <p className="text-[11px] text-zinc-500 dark:text-zinc-700 mt-1.5">
-          {project.progress}/{project.totalPhases} phases
-        </p>
-      </div>
-
-      <div className="flex items-center justify-between mt-auto">
-        <p className="text-[11px] text-zinc-500 dark:text-zinc-700">{project.startDate}</p>
-        <p className="text-[11px] text-zinc-500 dark:text-zinc-600">{project.lastActivity}</p>
-      </div>
+      {products.length > 0 ? (
+        <ul className="space-y-1 text-xs text-zinc-600 dark:text-zinc-500">
+          {products.map((p) => (
+            <li key={p.id} className="truncate">
+              {p.name}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-xs text-zinc-500 dark:text-zinc-600">Aucun produit</p>
+      )}
     </Link>
   );
 }
