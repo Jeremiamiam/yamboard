@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { DOC_TYPE_LABEL, DOC_TYPE_COLOR, type Document } from "@/lib/types";
-import { PLATFORM_CONTENT, BRIEF_CONTENT, type PlatformDoc, type BriefDoc } from "@/lib/doc-content";
 import { getDocumentSignedUrl } from "@/app/(dashboard)/actions/documents";
 
 // ─── Component ───────────────────────────────────────────────
@@ -42,8 +41,6 @@ export function DocumentViewer({
   const typeColor = DOC_TYPE_COLOR[doc.type];
 
   const hasNote = !!doc.content?.trim();
-  const platformContent = !hasNote && doc.type === "platform" ? PLATFORM_CONTENT[doc.id] : null;
-  const briefContent = !hasNote && doc.type === "brief" ? BRIEF_CONTENT[doc.id] : null;
 
   return (
     <>
@@ -87,10 +84,6 @@ export function DocumentViewer({
             />
           ) : hasNote ? (
             <NoteContent content={doc.content!} />
-          ) : platformContent ? (
-            <PlatformContent content={platformContent} />
-          ) : briefContent ? (
-            <BriefContent content={briefContent} />
           ) : (
             <GenericDocContent doc={doc} />
           )}
@@ -120,125 +113,6 @@ function NoteContent({ content }: { content: string }) {
   );
 }
 
-// ─── Platform content ─────────────────────────────────────────
-function PlatformContent({ content }: { content: PlatformDoc }) {
-  return (
-    <div className="space-y-8">
-      <Section title="Raison d'être">
-        <blockquote className="border-l-2 border-zinc-300 dark:border-zinc-700 pl-4 text-sm text-zinc-600 dark:text-zinc-300 leading-relaxed italic">
-          {content.raison}
-        </blockquote>
-      </Section>
-
-      <Section title="Essence de marque">
-        <div className="p-5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-center">
-          <p className="text-3xl font-bold text-zinc-900 dark:text-white tracking-tight mb-2">
-            {content.essence}
-          </p>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed max-w-md mx-auto">
-            {content.essenceDesc}
-          </p>
-        </div>
-      </Section>
-
-      <Section title="Valeurs">
-        <div className="space-y-3">
-          {content.valeurs.map((v, i) => (
-            <div key={i} className="flex gap-4 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
-              <span className="text-xs font-bold text-zinc-500 dark:text-zinc-600 mt-0.5 shrink-0 w-4">
-                {String(i + 1).padStart(2, "0")}
-              </span>
-              <div>
-                <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">{v.titre}</p>
-                <p className="text-xs text-zinc-500 mt-1 leading-relaxed">{v.desc}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Section>
-
-      <Section title="Manifeste">
-        <div className="p-5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
-          <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-loose whitespace-pre-line">{content.manifeste}</p>
-        </div>
-      </Section>
-
-      <Section title="Ton & voix">
-        <div className="grid grid-cols-3 gap-3">
-          {content.ton.map((t, i) => (
-            <div key={i} className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
-              <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">{t.registre}</p>
-              <p className="text-[11px] text-zinc-500 leading-relaxed">{t.desc}</p>
-            </div>
-          ))}
-        </div>
-      </Section>
-
-      <Section title="Persona principal">
-        <div className="p-5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
-          <div className="flex items-start gap-4">
-            <div className="w-10 h-10 rounded-full bg-zinc-200 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center shrink-0 text-lg">
-              👤
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">{content.persona.nom}</p>
-              <p className="text-xs text-zinc-500">{content.persona.age}</p>
-              <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-3 leading-relaxed">{content.persona.profil}</p>
-              <div className="mt-3 p-3 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
-                <p className="text-[11px] text-zinc-500 uppercase tracking-wider mb-1">Ce qu&apos;il attend</p>
-                <p className="text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed">{content.persona.attente}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Section>
-    </div>
-  );
-}
-
-// ─── Brief content ────────────────────────────────────────────
-function BriefContent({ content }: { content: BriefDoc }) {
-  return (
-    <div className="space-y-8">
-      <Section title="Contexte">
-        <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">{content.contexte}</p>
-      </Section>
-
-      <Section title="Enjeux identifiés">
-        <ul className="space-y-2">
-          {content.enjeux.map((e, i) => (
-            <li key={i} className="flex gap-3 text-sm text-zinc-600 dark:text-zinc-400">
-              <span className="text-zinc-500 dark:text-zinc-700 shrink-0 mt-0.5">→</span>
-              {e}
-            </li>
-          ))}
-        </ul>
-      </Section>
-
-      <Section title="Angle stratégique retenu">
-        <div className="p-5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
-          <p className="text-sm font-semibold text-zinc-900 dark:text-white mb-2">{content.angle}</p>
-          <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">{content.angleDesc}</p>
-        </div>
-      </Section>
-
-      <Section title="Angles écartés">
-        <div className="space-y-3">
-          {content.ecart.map((e, i) => (
-            <div key={i} className="flex gap-3 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
-              <span className="text-zinc-500 dark:text-zinc-700 shrink-0 mt-0.5 text-sm">✗</span>
-              <div>
-                <p className="text-xs font-semibold text-zinc-500 line-through">{e.angle}</p>
-                <p className="text-xs text-zinc-500 dark:text-zinc-600 mt-1 leading-relaxed">{e.raison}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Section>
-    </div>
-  );
-}
-
 // ─── Generic doc ──────────────────────────────────────────────
 function GenericDocContent({ doc }: { doc: Document }) {
   return (
@@ -257,14 +131,3 @@ function GenericDocContent({ doc }: { doc: Document }) {
   );
 }
 
-// ─── Helper ───────────────────────────────────────────────────
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <h3 className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-600 mb-3">
-        {title}
-      </h3>
-      {children}
-    </div>
-  );
-}
