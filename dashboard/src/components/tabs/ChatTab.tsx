@@ -35,7 +35,15 @@ export function ChatTab({
   });
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const allDocs = [...clientDocs, ...projectDocs];
+  // Éviter les doublons : un doc épinglé apparaît dans clientDocs ET projectDocs
+  const allDocs = (() => {
+    const seen = new Set<string>();
+    return [...clientDocs, ...projectDocs].filter((d) => {
+      if (seen.has(d.id)) return false;
+      seen.add(d.id);
+      return true;
+    });
+  })();
 
   // Charger les conversations
   useEffect(() => {
@@ -144,7 +152,7 @@ export function ChatTab({
             {conversations.length === 0 ? (
               <p className="text-xs text-zinc-500 dark:text-zinc-600 p-3">Aucune conversation.</p>
             ) : (
-              conversations.map((conv) => (
+              [...new Map(conversations.map((c) => [c.id, c])).values()].map((conv) => (
                 <div
                   key={conv.id}
                   className={`group flex items-center gap-1 rounded-lg mb-0.5 ${

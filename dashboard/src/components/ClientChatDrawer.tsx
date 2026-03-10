@@ -170,7 +170,7 @@ function ClientChatPanel({ clientId, onClose }: { clientId: string; onClose: () 
             {conversations.length === 0 ? (
               <p className="text-xs text-zinc-500 dark:text-zinc-600 p-3">Aucune conversation.</p>
             ) : (
-              conversations.map((conv) => (
+              [...new Map(conversations.map((c) => [c.id, c])).values()].map((conv) => (
                 <div
                   key={conv.id}
                   className={`group flex items-center gap-1 rounded-lg mb-0.5 ${

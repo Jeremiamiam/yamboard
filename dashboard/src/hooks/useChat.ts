@@ -129,7 +129,18 @@ export function useChat(
           }),
         });
 
-        if (!res.ok || !res.body) throw new Error(`Erreur API : ${res.status}`);
+        if (!res.ok) {
+          const errBody = await res.text();
+          let errMsg = `Erreur API : ${res.status}`;
+          try {
+            const parsed = JSON.parse(errBody);
+            if (parsed?.error) errMsg = parsed.error;
+          } catch {
+            if (errBody) errMsg = errBody.slice(0, 200);
+          }
+          throw new Error(errMsg);
+        }
+        if (!res.body) throw new Error("Réponse vide");
 
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
@@ -156,7 +167,10 @@ export function useChat(
         }
       } catch (err: unknown) {
         if (err instanceof Error && err.name === "AbortError") return;
-        const errorContent = "Une erreur est survenue. Réessaie.";
+        const errorContent =
+          err instanceof Error && err.message
+            ? err.message
+            : "Une erreur est survenue. Réessaie.";
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId ? { ...m, content: errorContent } : m
