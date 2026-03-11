@@ -113,7 +113,7 @@ export function DocumentViewer({
             <div className="flex items-center justify-center py-20">
               <span className="w-6 h-6 border-2 border-zinc-300 dark:border-zinc-600 border-t-zinc-600 dark:border-t-zinc-400 rounded-full animate-spin" />
             </div>
-          ) : hasNote ? (
+          ) : hasNote && noteContent ? (
             <NoteContent docName={doc.name} content={noteContent} />
           ) : (
             <GenericDocContent doc={doc} />
