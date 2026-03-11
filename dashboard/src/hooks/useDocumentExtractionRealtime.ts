@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { useStore } from "@/lib/store";
 import { fetchAllDocuments } from "@/lib/data/client-queries";
@@ -25,12 +26,28 @@ function rowToDocUpdates(row: Record<string, unknown>): Partial<Document> {
   };
 }
 
+function fireExtractionToast(docName: string, status: Document["extractionStatus"]) {
+  if (status === "done") {
+    toast.success(`Extraction terminée — ${docName}`, {
+      description: "Le contenu du PDF est maintenant disponible dans le contexte chat.",
+    });
+  } else if (status === "failed") {
+    toast.error(`Échec d'extraction — ${docName}`, {
+      description: "Le PDF n'a pas pu être analysé.",
+    });
+  }
+}
+
 /** Realtime + polling : met à jour le store quand extraction_status change. */
 export function useDocumentExtractionRealtime() {
   const documents = useStore((s) => s.documents);
   const updateDocument = useStore((s) => s.updateDocument);
   const setDocuments = useStore((s) => s.setDocuments);
   const hasProcessing = documents.some((d) => d.extractionStatus === "processing");
+
+  // Keep a ref to the latest documents to compare statuses in callbacks
+  const documentsRef = useRef(documents);
+  documentsRef.current = documents;
 
   useEffect(() => {
     if (!hasProcessing) return;
@@ -50,6 +67,10 @@ export function useDocumentExtractionRealtime() {
           const id = newRow.id as string;
           const updates = rowToDocUpdates(newRow);
           if (Object.keys(updates).length > 0) {
+            const prev = documentsRef.current.find((d) => d.id === id);
+            if (prev?.extractionStatus === "processing" && updates.extractionStatus !== "processing") {
+              fireExtractionToast(prev.name, updates.extractionStatus);
+            }
             updateDocument(id, updates);
           }
         }
@@ -58,8 +79,18 @@ export function useDocumentExtractionRealtime() {
 
     // Fallback polling si Realtime indisponible (ex. config Supabase)
     const poll = setInterval(async () => {
+      const prev = documentsRef.current;
       const fresh = await fetchAllDocuments();
       const stillProcessing = fresh.some((d) => d.extractionStatus === "processing");
+
+      // Detect status changes via polling
+      for (const doc of fresh) {
+        const prevDoc = prev.find((d) => d.id === doc.id);
+        if (prevDoc?.extractionStatus === "processing" && doc.extractionStatus !== "processing") {
+          fireExtractionToast(doc.name, doc.extractionStatus);
+        }
+      }
+
       setDocuments(fresh);
       if (!stillProcessing) clearInterval(poll);
     }, 4000);
