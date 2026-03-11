@@ -40,7 +40,7 @@ export function DocumentsTab({
         isPending={isPending}
       />
 
-      <div className="flex-1 overflow-y-auto p-6 bg-zinc-50 dark:bg-zinc-950">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-zinc-50 dark:bg-zinc-950">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -208,11 +208,11 @@ function DocRow({
   const isFailed = doc.extractionStatus === "failed";
 
   return (
-    <div className="flex items-center gap-2 p-4 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors group">
+    <div className="flex items-center gap-2 p-3 sm:p-4 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors group">
       <button
         onClick={onClick}
         disabled={isProcessing}
-        className="flex-1 flex items-center gap-4 min-w-0 text-left disabled:opacity-90 disabled:cursor-wait"
+        className="flex-1 flex items-center gap-3 sm:gap-4 min-w-0 text-left disabled:opacity-90 disabled:cursor-wait"
       >
         <div className="w-9 h-9 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center shrink-0">
           {isProcessing ? (
@@ -224,8 +224,8 @@ function DocRow({
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors truncate">
+          <div className="flex items-start sm:items-center gap-2 flex-wrap sm:flex-nowrap">
+            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors truncate w-full sm:w-auto">
               {doc.name}
             </span>
             <span className={`text-[10px] font-semibold uppercase tracking-wide shrink-0 ${DOC_TYPE_COLOR[doc.type]}`}>
