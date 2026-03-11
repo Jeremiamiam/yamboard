@@ -79,7 +79,7 @@ export type BudgetProduct = {
   totalAmount: number;
   devis?: PaymentStage;
   acompte?: PaymentStage;
-  avancement?: PaymentStage;
+  avancements?: PaymentStage[]; // tableau — autant de factures d'avancement que souhaité
   solde?: PaymentStage;
 };
 
@@ -119,9 +119,8 @@ export const DOC_TYPE_COLOR: Record<Document["type"], string> = {
   other: "text-zinc-400",
 };
 
-export const PAYMENT_STAGE_LABEL: Record<"devis" | "acompte" | "avancement" | "solde", string> = {
+export const PAYMENT_STAGE_LABEL: Record<"devis" | "acompte" | "solde", string> = {
   devis: "Devis",
   acompte: "Acompte",
-  avancement: "Avancement",
   solde: "Solde",
 };

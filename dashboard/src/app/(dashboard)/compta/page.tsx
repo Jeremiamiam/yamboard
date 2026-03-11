@@ -26,7 +26,9 @@ export default function ComptaPage() {
     const paid = products.reduce((s, bp) => {
       let amt = 0;
       if (bp.acompte?.status === "paid") amt += bp.acompte.amount ?? 0;
-      if (bp.avancement?.status === "paid") amt += bp.avancement.amount ?? 0;
+      for (const av of bp.avancements ?? []) {
+        if (av.status === "paid") amt += av.amount ?? 0;
+      }
       if (bp.solde?.status === "paid") amt += bp.solde.amount ?? 0;
       return s + amt;
     }, 0);

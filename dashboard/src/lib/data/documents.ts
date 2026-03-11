@@ -2,6 +2,12 @@ import 'server-only'
 import { createClient } from '@/lib/supabase/server'
 import type { Document, BudgetProduct, PaymentStage } from '@/lib/types'
 
+function toAvancements(raw: unknown): PaymentStage[] | undefined {
+  if (!raw) return undefined;
+  if (Array.isArray(raw)) return raw as PaymentStage[];
+  return [raw as PaymentStage];
+}
+
 function toDocument(row: Record<string, unknown>): Document {
   const size = row.content
     ? `~${(row.content as string).split(/\s+/).filter(Boolean).length} mots`
@@ -154,7 +160,7 @@ function toBudgetProduct(row: Record<string, unknown>): BudgetProduct {
     totalAmount: Number(row.total_amount),
     devis: row.devis as PaymentStage | undefined,
     acompte: row.acompte as PaymentStage | undefined,
-    avancement: row.avancement as PaymentStage | undefined,
+    avancements: toAvancements(row.avancement),
     solde: row.solde as PaymentStage | undefined,
   }
 }

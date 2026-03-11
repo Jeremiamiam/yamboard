@@ -62,7 +62,9 @@ function fmtProducts(products: BudgetProduct[], lean = false): string {
         [
           p.devis && `devis${p.devis.amount ? ` ${p.devis.amount.toLocaleString('fr-FR')} €` : ''} → ${p.devis.status}`,
           p.acompte && `acompte${p.acompte.amount ? ` ${p.acompte.amount.toLocaleString('fr-FR')} €` : ''} → ${p.acompte.status}`,
-          p.avancement && `avancement${p.avancement.amount ? ` ${p.avancement.amount.toLocaleString('fr-FR')} €` : ''} → ${p.avancement.status}`,
+          ...(p.avancements ?? []).map((av, i) =>
+            `avancement${(p.avancements?.length ?? 0) > 1 ? ` ${i + 1}` : ''}${av.amount ? ` ${av.amount.toLocaleString('fr-FR')} €` : ''} → ${av.status}`
+          ),
           p.solde && `solde${p.solde.amount ? ` ${p.solde.amount.toLocaleString('fr-FR')} €` : ''} → ${p.solde.status}`,
         ] as (string | undefined)[]
       )

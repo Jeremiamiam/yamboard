@@ -24,7 +24,9 @@ export function BudgetsTab({
     const pd = budgetProducts.reduce((s, p) => {
       let amt = 0;
       if (p.acompte?.status === "paid") amt += p.acompte.amount ?? 0;
-      if (p.avancement?.status === "paid") amt += p.avancement.amount ?? 0;
+      for (const av of p.avancements ?? []) {
+        if (av.status === "paid") amt += av.amount ?? 0;
+      }
       if (p.solde?.status === "paid") amt += p.solde.amount ?? 0;
       return s + amt;
     }, 0);
@@ -204,21 +206,19 @@ function ProductCard({
   clientColor: string;
   onClick?: () => void;
 }) {
-  const stages: {
-    key: "devis" | "acompte" | "avancement" | "solde";
-    stage: PaymentStage | undefined;
-  }[] = [
-    { key: "devis", stage: product.devis },
-    { key: "acompte", stage: product.acompte },
-    { key: "avancement", stage: product.avancement },
-    { key: "solde", stage: product.solde },
-  ];
-
-  const definedStages = stages.filter((s) => s.stage != null);
+  const fixedStages: { label: string; stage: PaymentStage }[] = [
+    product.devis && { label: PAYMENT_STAGE_LABEL["devis"], stage: product.devis },
+    product.acompte && { label: PAYMENT_STAGE_LABEL["acompte"], stage: product.acompte },
+    ...(product.avancements ?? []).map((av, i) => ({
+      label: `Avancement${(product.avancements?.length ?? 0) > 1 ? ` ${i + 1}` : ""}`,
+      stage: av,
+    })),
+    product.solde && { label: PAYMENT_STAGE_LABEL["solde"], stage: product.solde },
+  ].filter(Boolean) as { label: string; stage: PaymentStage }[];
 
   // Progress: how many stages are paid
-  const paidCount = definedStages.filter((s) => s.stage?.status === "paid").length;
-  const sentCount = definedStages.filter((s) => s.stage?.status === "sent").length;
+  const paidCount = fixedStages.filter((s) => s.stage?.status === "paid").length;
+  const sentCount = fixedStages.filter((s) => s.stage?.status === "sent").length;
 
   return (
     <div
@@ -232,12 +232,12 @@ function ProductCard({
       <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-200 dark:border-zinc-800">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">{product.name}</span>
-          {paidCount === definedStages.length && definedStages.length > 0 && (
+          {paidCount === fixedStages.length && fixedStages.length > 0 && (
             <span className="text-[10px] font-semibold text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-full">
               Soldé
             </span>
           )}
-          {sentCount > 0 && paidCount < definedStages.length && (
+          {sentCount > 0 && paidCount < fixedStages.length && (
             <span className="text-[10px] font-semibold text-yellow-500 bg-yellow-500/10 border border-yellow-500/20 px-1.5 py-0.5 rounded-full">
               En attente
             </span>
@@ -250,11 +250,11 @@ function ProductCard({
 
       {/* Payment stages */}
       <div className="divide-y divide-zinc-200 dark:divide-zinc-800/60">
-        {definedStages.map(({ key, stage }) => (
+        {fixedStages.map(({ label, stage }, i) => (
           <PaymentRow
-            key={key}
-            label={PAYMENT_STAGE_LABEL[key]}
-            stage={stage!}
+            key={i}
+            label={label}
+            stage={stage}
             clientColor={clientColor}
           />
         ))}

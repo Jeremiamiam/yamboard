@@ -466,7 +466,7 @@ export async function deleteBudgetProductAction(productId: string): Promise<{ er
 
 export async function updatePaymentStageAction(
   productId: string,
-  stage: 'devis' | 'acompte' | 'avancement' | 'solde',
+  stage: 'devis' | 'acompte' | 'solde',
   value: { amount?: number; date?: string; status: 'pending' | 'sent' | 'paid' }
 ): Promise<{ error: string | null }> {
   const auth = await getAuth()
@@ -485,6 +485,41 @@ export async function updatePaymentStageAction(
   const { error } = await supabase
     .from('budget_products')
     .update({ [stage]: value })
+    .eq('id', productId)
+    .eq('owner_id', userId)
+
+  if (error) {
+    useStore.setState((s) => ({
+      budgetProducts: s.budgetProducts.map((p) => (p.id === productId ? product : p)),
+    }))
+    toast.error(error.message)
+    return { error: error.message }
+  }
+  invalidateCache()
+  return { error: null }
+}
+
+/** Met à jour la liste complète des avancements (tableau stocké dans la colonne `avancement`). */
+export async function setAvancementsAction(
+  productId: string,
+  avancements: PaymentStage[]
+): Promise<{ error: string | null }> {
+  const auth = await getAuth()
+  if (!auth) return { error: 'Not authenticated' }
+  const { supabase, userId } = auth
+
+  const product = useStore.getState().budgetProducts.find((p) => p.id === productId)
+  if (!product) return { error: 'Product not found' }
+
+  useStore.setState((s) => ({
+    budgetProducts: s.budgetProducts.map((p) =>
+      p.id === productId ? { ...p, avancements } : p
+    ),
+  }))
+
+  const { error } = await supabase
+    .from('budget_products')
+    .update({ avancement: avancements })
     .eq('id', productId)
     .eq('owner_id', userId)
 
