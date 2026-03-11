@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { GlobalNav } from '@/components/GlobalNav'
 import { StoreProvider } from '@/components/StoreProvider'
 import { ClientSidebarWrapper } from '@/components/ClientSidebarWrapper'
+import { SidebarProvider } from '@/context/Sidebar'
 
 function SidebarSkeleton() {
   return (
@@ -24,12 +25,12 @@ export default async function DashboardLayout({
   if (!user) redirect('/login')
 
   return (
-    <>
+    <SidebarProvider>
       <GlobalNav />
       <StoreProvider>
         <ClientSidebarWrapper fallback={<SidebarSkeleton />} />
         {children}
       </StoreProvider>
-    </>
+    </SidebarProvider>
   )
 }

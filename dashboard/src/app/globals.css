@@ -38,6 +38,13 @@ input[type="number"] {
   appearance: textfield !important;
 }
 
+/* Mobile: sidebar hidden, no content offset */
+@media (max-width: 767px) {
+  :root {
+    --sidebar-w: 0px;
+  }
+}
+
 /* Thin scrollbar */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }

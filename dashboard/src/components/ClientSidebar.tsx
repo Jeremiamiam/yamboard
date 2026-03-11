@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { Client, ClientCategory } from "@/lib/types";
+import { useSidebar } from "@/context/Sidebar";
 import {
   createClientAction,
   updateClientAction,
@@ -31,6 +32,7 @@ export function ClientSidebar({
   const pathname = usePathname();
   const router = useRouter();
   const activeId = pathname?.split("/")[1];
+  const { open, close } = useSidebar();
   const [tab, setTab] = useState<ClientCategory>("client");
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -67,9 +69,16 @@ export function ClientSidebar({
     : clientsByTab[tab]
 
   return (
+    <>
+      {/* Backdrop mobile */}
+      {open && (
+        <div
+          className="fixed inset-0 z-30 bg-black/40 md:hidden"
+          onClick={close}
+        />
+      )}
     <aside
-      className="fixed top-12 left-0 bottom-0 z-40 flex flex-col border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950"
-      style={{ width: "var(--sidebar-w)" }}
+      className={`fixed top-12 left-0 bottom-0 z-40 flex flex-col border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 w-60 transition-transform duration-200 md:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}
     >
       {/* ── Tab switcher ── */}
       <div className="shrink-0 flex border-b border-zinc-200 dark:border-zinc-800">
@@ -161,10 +170,12 @@ export function ClientSidebar({
         )}
       </div>
     </aside>
+    </>
   );
 }
 
 function ClientItem({ client, active, category }: { client: Client; active: boolean; category: ClientCategory }) {
+  const { close: closeSidebar } = useSidebar();
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuRect, setMenuRect] = useState<DOMRect | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -267,6 +278,7 @@ function ClientItem({ client, active, category }: { client: Client; active: bool
       <Link
         href={`/${client.id}`}
         prefetch
+        onClick={closeSidebar}
         className="flex items-center gap-3 flex-1 min-w-0"
       >
         <div

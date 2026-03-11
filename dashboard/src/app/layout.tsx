@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ClientChatDrawerProvider } from "@/context/ClientChatDrawer";
 import { ThemeProvider } from "@/context/ThemeContext";
@@ -7,6 +7,11 @@ import { ClientChatDrawer } from "@/components/ClientChatDrawer";
 export const metadata: Metadata = {
   title: "YamBoard",
   description: "Agence Yam — espace client",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
