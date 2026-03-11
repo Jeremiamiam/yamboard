@@ -337,7 +337,7 @@ function AvancementRow({
         </button>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
         <div className="flex items-center gap-1 flex-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 focus-within:border-zinc-400 dark:focus-within:border-zinc-500 transition-colors">
           <input
             type="number"
@@ -436,7 +436,7 @@ function FixedStageRow({
         </button>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
         <div className="flex items-center gap-1 flex-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 focus-within:border-zinc-400 dark:focus-within:border-zinc-500 transition-colors">
           <input
             type="number"

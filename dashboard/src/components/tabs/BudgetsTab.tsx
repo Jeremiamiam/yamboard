@@ -60,7 +60,7 @@ export function BudgetsTab({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 bg-zinc-50 dark:bg-zinc-950">
+    <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-zinc-50 dark:bg-zinc-950">
       <div className="max-w-2xl">
         <ProductDrawer
           product={drawerProduct}
@@ -126,7 +126,7 @@ export function BudgetsTab({
         {/* Summary */}
         {total > 0 && (
           <div className="p-5 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 mb-6">
-            <div className="grid grid-cols-3 gap-4 mb-4">
+            <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4">
               <SumCard label="Budget" value={`${total.toLocaleString("fr-FR")} €`} />
               <SumCard label="Encaissé" value={`${paid.toLocaleString("fr-FR")} €`} highlight />
               <SumCard label="Restant" value={`${remaining.toLocaleString("fr-FR")} €`} />
@@ -173,9 +173,9 @@ function SumCard({
   highlight?: boolean;
 }) {
   return (
-    <div>
-      <p className="text-[11px] text-zinc-500 dark:text-zinc-600 uppercase tracking-wider mb-1">{label}</p>
-      <p className={`text-lg font-semibold ${highlight ? "text-zinc-900 dark:text-white" : "text-zinc-600 dark:text-zinc-400"}`}>
+    <div className="min-w-0">
+      <p className="text-[10px] sm:text-[11px] text-zinc-500 dark:text-zinc-600 uppercase tracking-wider mb-1 truncate">{label}</p>
+      <p className={`text-base sm:text-lg font-semibold truncate ${highlight ? "text-zinc-900 dark:text-white" : "text-zinc-600 dark:text-zinc-400"}`}>
         {value}
       </p>
     </div>
@@ -214,21 +214,21 @@ function ProductCard({
       className={`rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 ${onClick ? "cursor-pointer hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors" : ""}`}
     >
       {/* Product header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-200 dark:border-zinc-800">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">{product.name}</span>
+      <div className="flex items-center justify-between px-3 sm:px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200 truncate">{product.name}</span>
           {paidCount === fixedStages.length && fixedStages.length > 0 && (
-            <span className="text-[10px] font-semibold text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-full">
+            <span className="text-[10px] font-semibold text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-full shrink-0">
               Soldé
             </span>
           )}
           {sentCount > 0 && paidCount < fixedStages.length && (
-            <span className="text-[10px] font-semibold text-yellow-500 bg-yellow-500/10 border border-yellow-500/20 px-1.5 py-0.5 rounded-full">
+            <span className="text-[10px] font-semibold text-yellow-500 bg-yellow-500/10 border border-yellow-500/20 px-1.5 py-0.5 rounded-full shrink-0">
               En attente
             </span>
           )}
         </div>
-        <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+        <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 shrink-0">
           {(product.devis?.amount ?? product.totalAmount).toLocaleString("fr-FR")} €
         </span>
       </div>
@@ -264,16 +264,20 @@ function PaymentRow({
   }[stage.status ?? "pending"];
 
   return (
-    <div className="flex items-center gap-3 px-4 py-2.5">
+    <div className="flex items-center gap-2 px-3 sm:px-4 py-2.5">
       <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusConfig.dot}`} />
-      <span className="text-xs text-zinc-500 dark:text-zinc-600 w-20 shrink-0">{label}</span>
-      <span className="text-xs text-zinc-600 dark:text-zinc-400 flex-1">
+      {/* Label */}
+      <span className="text-xs text-zinc-500 dark:text-zinc-600 shrink-0 w-16 sm:w-20">{label}</span>
+      {/* Amount */}
+      <span className="text-xs text-zinc-600 dark:text-zinc-400 flex-1 text-right sm:text-left">
         {stage.amount ? `${stage.amount.toLocaleString("fr-FR")} €` : "—"}
       </span>
-      <span className="text-xs text-zinc-500 dark:text-zinc-600 w-24 text-right">
+      {/* Date — masquée sur mobile */}
+      <span className="hidden sm:block text-xs text-zinc-500 dark:text-zinc-600 w-24 text-right">
         {stage.date ?? "—"}
       </span>
-      <span className={`text-[11px] font-medium w-20 text-right ${statusConfig.text}`}>
+      {/* Status */}
+      <span className={`text-[11px] font-medium shrink-0 text-right sm:w-20 ${statusConfig.text}`}>
         {statusConfig.label}
       </span>
     </div>
