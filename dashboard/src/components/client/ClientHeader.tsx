@@ -51,12 +51,6 @@ export function ClientHeader({ client, clientId, onArchived, onDeleted, children
     return () => document.removeEventListener("click", handleClickOutside);
   }, [headerMenuOpen]);
 
-  const statusColor = {
-    active: "bg-emerald-500",
-    draft: "bg-zinc-600",
-    paused: "bg-yellow-500",
-  }[client.status];
-
   function handleSaveEdit() {
     const name = editName.trim();
     if (!name || name === client.name) {
@@ -195,13 +189,14 @@ export function ClientHeader({ client, clientId, onArchived, onDeleted, children
                 <h1 className="text-lg font-semibold text-zinc-900 dark:text-white leading-none">
                   {client.name}
                 </h1>
-                <span className={`w-2 h-2 rounded-full ${statusColor}`} />
               </div>
             )}
           </div>
         </div>
 
-        <div className="flex items-center gap-1 sm:gap-2">
+        {children}
+
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           <div className="relative" ref={headerMenuRef}>
             <NavIconButton onClick={() => setHeaderMenuOpen((v) => !v)} title="Menu client">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">

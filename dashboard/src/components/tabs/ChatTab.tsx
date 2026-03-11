@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useTransition } from "react";
 import { useChat } from "@/hooks/useChat";
 import { type Project, type Message, type Document } from "@/lib/types";
 import { MarkdownContent } from "@/components/MarkdownContent";
-import { ConfirmButton } from "@/components/ConfirmButton";
+import { DeleteMenu } from "@/components/DeleteMenu";
 import {
   getConversations,
   createConversation,
@@ -115,21 +115,20 @@ export function ChatTab({
                     <span className="text-[11px] text-zinc-500 dark:text-zinc-600">{conv.messageCount} msg</span>
                   </div>
                 </button>
-                <ConfirmButton
-                  onConfirm={() => startTransition(async () => {
-                    const err = await deleteConversation(conv.id);
-                    if (!err.error) {
-                      if (activeConvId === conv.id) setActiveConvId(null);
-                      const fresh = await getConversations({ clientId, projectId: project.id });
-                      setConversations(fresh);
-                    }
-                  })}
-                  confirmLabel="Supprimer ?"
-                  className="p-1.5 rounded opacity-0 group-hover:opacity-100 hover:opacity-100 text-zinc-500 hover:text-red-600 dark:hover:text-red-400 shrink-0 transition-opacity"
-                  disabled={isPending}
-                >
-                  🗑
-                </ConfirmButton>
+                <div className="opacity-0 group-hover:opacity-100 shrink-0">
+                  <DeleteMenu
+                    onDelete={async () => {
+                      const err = await deleteConversation(conv.id);
+                      if (!err.error) {
+                        if (activeConvId === conv.id) setActiveConvId(null);
+                        const fresh = await getConversations({ clientId, projectId: project.id });
+                        setConversations(fresh);
+                      }
+                    }}
+                    confirmLabel="Supprimer cette conversation ?"
+                    disabled={isPending}
+                  />
+                </div>
               </div>
             ))
           )}

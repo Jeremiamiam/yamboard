@@ -86,9 +86,8 @@ function fmtProject(
     : project.description
 
   const lines = [
-    `### ${project.name} (${project.type}) — statut : ${project.status}`,
+    `### ${project.name} (${project.type})`,
     `Description : ${description}`,
-    `Avancement : ${project.progress}/${project.totalPhases} phases`,
     project.potentialAmount ? `Potentiel : ${project.potentialAmount.toLocaleString('fr-FR')} €` : null,
   ]
     .filter(Boolean)
@@ -169,7 +168,7 @@ function buildAgencyDataSection(
     return [
       `## CLIENT : ${client.name.toUpperCase()}`,
       fmtClient(client, true), // Agency scope: lean contact (name + role only)
-      projects.length > 0 ? `\n### Missions\n${projectsStr}` : 'Aucune mission.',
+      projects.length > 0 ? `\n### Projets\n${projectsStr}` : 'Aucun projet.',
     ]
       .filter(Boolean)
       .join('\n')
@@ -205,7 +204,7 @@ function buildClientDataSection(
             })
           })
           .join('\n\n')
-      : 'Aucune mission.'
+      : 'Aucun projet.'
 
   const convsStr = fmtConversations(conversations)
 
@@ -259,7 +258,7 @@ function buildProjectDataSection(
     clientDocsStr,
     '═'.repeat(60),
     `## PROJET : ${project.name.toUpperCase()}`,
-    `Type : ${project.type} | Statut : ${project.status} | Avancement : ${project.progress}/${project.totalPhases} phases`,
+    `Type : ${project.type}`,
     `Description : ${description}`,
     project.potentialAmount ? `Potentiel : ${project.potentialAmount.toLocaleString('fr-FR')} €` : '',
     '═'.repeat(60),
@@ -342,7 +341,7 @@ export async function buildClientContext(clientId: string): Promise<string> {
   const allProducts: BudgetProduct[][] = projects.map((p) => budgetByProject[p.id] ?? [])
   const allProjectDocs: Document[][] = projects.map((p) => docsByProject[p.id] ?? [])
 
-  const intro = `\nTu travailles sur le compte de ${client.name}. Tu as accès à l'ensemble du contexte client : documents de marque, missions, budget et historique des conversations.\n${'═'.repeat(60)}`
+  const intro = `\nTu travailles sur le compte de ${client.name}. Tu as accès à l'ensemble du contexte client : documents de marque, projets, budget et historique des conversations.\n${'═'.repeat(60)}`
 
   for (const truncLevel of [0, 1, 2, 3] as const) {
     const dataSection = buildClientDataSection(

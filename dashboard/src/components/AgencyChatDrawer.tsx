@@ -12,6 +12,7 @@ import {
   deleteConversation,
 } from "@/app/(dashboard)/actions/conversations";
 import { createDocFromConversation } from "@/app/(dashboard)/actions/documents";
+import { DeleteMenu } from "@/components/DeleteMenu";
 import { useStore } from "@/lib/store";
 import { toast } from "sonner";
 
@@ -118,8 +119,14 @@ export function AgencyChatDrawer({
   if (!open) return null;
 
   return (
-    <div
-      className={`fixed bottom-[100px] right-6 z-[10000] h-[520px] flex flex-col bg-white dark:bg-zinc-950 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-2xl overflow-hidden transition-[width] duration-200 ${
+    <>
+      <div
+        className="fixed inset-0 z-[9999]"
+        onClick={onClose}
+        aria-hidden
+      />
+      <div
+        className={`fixed bottom-[100px] right-6 z-[10000] h-[520px] flex flex-col bg-white dark:bg-zinc-950 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-2xl overflow-hidden transition-[width] duration-200 ${
         showHistory ? "w-[580px]" : "w-[380px]"
       } max-w-[calc(100vw-2rem)]`}
       style={{ boxShadow: "0 25px 50px -12px rgb(0 0 0 / 0.25), 0 0 0 1px rgb(0 0 0 / 0.05)" }}
@@ -208,10 +215,10 @@ export function AgencyChatDrawer({
 
               {/* Messages */}
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 bg-zinc-50/50 dark:bg-zinc-900/50 min-h-0">
-          {messages.length === 0 && !activeConvId && hasConversations && (
+          {messages.length === 0 && !activeConvId && hasConversations && conversations.length > 0 && (
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                Clique sur « Historique » puis « + Nouvelle conversation » pour commencer
+                Sélectionne une conversation dans l&apos;historique ou crée-en une nouvelle
               </p>
             </div>
           )}
@@ -303,9 +310,9 @@ export function AgencyChatDrawer({
                       <div className="text-xs font-medium truncate text-zinc-800 dark:text-zinc-200">{conv.title}</div>
                       <div className="text-[10px] text-zinc-500 dark:text-zinc-600 mt-0.5">{conv.date} · {conv.messageCount} msg</div>
                     </button>
-                    <button
-                      onClick={() =>
-                        startTransition(async () => {
+                    <div className="opacity-0 group-hover:opacity-100 shrink-0" onClick={(e) => e.stopPropagation()}>
+                      <DeleteMenu
+                        onDelete={async () => {
                           const err = await deleteConversation(conv.id);
                           if (err.error) {
                             toast.error(err.error);
@@ -315,13 +322,11 @@ export function AgencyChatDrawer({
                             setConversations(fresh);
                             toast.success("Conversation supprimée");
                           }
-                        })
-                      }
-                      disabled={isPending}
-                      className="p-1 rounded opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-red-600 shrink-0"
-                    >
-                      🗑
-                    </button>
+                        }}
+                        confirmLabel="Supprimer cette conversation ?"
+                        disabled={isPending}
+                      />
+                    </div>
                   </div>
                 ))
               )}
@@ -351,6 +356,7 @@ export function AgencyChatDrawer({
         )}
       </div>
     </div>
+    </>
   );
 }
 
@@ -360,7 +366,7 @@ function AgencyEmptyState({ client, project }: { client?: Client | null; project
   const contextLabel = project
     ? `${client?.name} · ${project.name} — docs projet`
     : client
-      ? `${client.name} — docs de marque + missions`
+      ? `${client.name} — docs de marque + projets`
       : "tous les clients et projets";
   return (
     <div className="flex flex-col items-center justify-center py-8 text-center">

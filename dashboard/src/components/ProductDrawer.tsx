@@ -10,6 +10,7 @@ import {
   deleteBudgetProductAction,
 } from "@/lib/store/actions";
 import { ConfirmButton } from "@/components/ConfirmButton";
+import { DeleteMenu } from "@/components/DeleteMenu";
 import { useStore } from "@/lib/store";
 
 const FIXED_STAGE_KEYS = ["devis", "acompte", "solde"] as const;
@@ -20,10 +21,12 @@ export function ProductDrawer({
   product,
   onClose,
   clientColor,
+  variant = "drawer",
 }: {
   product: BudgetProduct | null;
   onClose: () => void;
   clientColor?: string;
+  variant?: "drawer" | "inline";
 }) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -34,6 +37,18 @@ export function ProductDrawer({
   }, [onClose]);
 
   if (!product) return null;
+
+  if (variant === "inline") {
+    return (
+      <ProductDrawerContent
+        key={product.id}
+        product={product}
+        onClose={onClose}
+        clientColor={clientColor}
+        inline
+      />
+    );
+  }
 
   return (
     <>
@@ -54,10 +69,12 @@ function ProductDrawerContent({
   product,
   onClose,
   clientColor,
+  inline,
 }: {
   product: BudgetProduct;
   onClose: () => void;
   clientColor?: string;
+  inline?: boolean;
 }) {
   const liveProduct = useStore((s) => s.budgetProducts.find((p) => p.id === product.id)) ?? product;
 
@@ -92,7 +109,13 @@ function ProductDrawerContent({
     (liveProduct.avancements?.length ?? 0) > 0;
 
   return (
-    <div className="fixed top-0 right-0 bottom-0 z-50 w-full sm:w-[480px] flex flex-col bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 shadow-2xl overflow-hidden">
+    <div
+      className={`flex flex-col bg-white dark:bg-zinc-950 overflow-hidden ${
+        inline
+          ? "flex-1 min-h-0 border-l border-zinc-200 dark:border-zinc-800"
+          : "fixed top-0 right-0 bottom-0 z-50 w-full sm:w-[480px] border-l border-zinc-200 dark:border-zinc-800 shadow-2xl"
+      }`}
+    >
       {/* Header */}
       <div className="shrink-0 flex items-start justify-between px-5 py-4 border-b border-zinc-200 dark:border-zinc-800">
         {editingHeader ? (
@@ -130,14 +153,11 @@ function ProductDrawerContent({
           </button>
         )}
         <div className="flex items-center gap-2 shrink-0">
-          <ConfirmButton
-            onConfirm={handleDelete}
-            confirmLabel="Supprimer ?"
-            className="px-2 py-1 rounded text-xs text-zinc-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors disabled:opacity-40"
+          <DeleteMenu
+            onDelete={handleDelete}
+            confirmLabel="Supprimer ce produit ?"
             disabled={isPending}
-          >
-            🗑
-          </ConfirmButton>
+          />
           <button
             onClick={onClose}
             className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center text-zinc-600 dark:text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors"

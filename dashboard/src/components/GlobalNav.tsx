@@ -1,15 +1,26 @@
 "use client";
 
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useTheme } from "@/context/ThemeContext";
+import { useTheme, type ThemePreference } from "@/context/ThemeContext";
 import { logout } from "@/app/login/actions";
 import { useSidebar } from "@/context/Sidebar";
 
 export function GlobalNav() {
   const pathname = usePathname();
-  const { theme, toggleTheme } = useTheme();
+  const { preference, resolved, setTheme } = useTheme();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onOutside = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("click", onOutside);
+    return () => document.removeEventListener("click", onOutside);
+  }, []);
   const { toggle } = useSidebar();
 
   return (
@@ -65,13 +76,35 @@ export function GlobalNav() {
 
         {/* Right */}
         <div className="flex items-center gap-2 sm:gap-3">
-          <button
-            onClick={toggleTheme}
-            className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
-            title={theme === "dark" ? "Mode clair" : "Mode sombre"}
-          >
-            <span className="text-xs">{theme === "dark" ? "☀" : "☽"}</span>
-          </button>
+          <div className="relative" ref={ref}>
+            <button
+              onClick={() => setOpen((o) => !o)}
+              className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+              title="Thème"
+              aria-expanded={open}
+            >
+              <span className="text-xs">
+                {resolved === "dark" ? "☽" : "☀"}
+              </span>
+            </button>
+            {open && (
+              <div className="absolute right-0 top-full mt-1 py-1 min-w-[140px] rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-lg z-50">
+                {(["light", "dark", "system"] as const).map((p) => (
+                  <ThemeOption
+                    key={p}
+                    value={p}
+                    label={p === "system" ? "Système" : p === "dark" ? "Sombre" : "Clair"}
+                    icon={p === "system" ? "🖥" : p === "dark" ? "☽" : "☀"}
+                    active={preference === p}
+                    onClick={() => {
+                      setTheme(p);
+                      setOpen(false);
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
           <form action={logout}>
             <button
               type="submit"
@@ -84,6 +117,35 @@ export function GlobalNav() {
         </div>
       </header>
     </>
+  );
+}
+
+function ThemeOption({
+  value,
+  label,
+  icon,
+  active,
+  onClick,
+}: {
+  value: ThemePreference;
+  label: string;
+  icon: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 transition-colors ${
+        active
+          ? "text-zinc-900 dark:text-white bg-zinc-100 dark:bg-zinc-800"
+          : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+      }`}
+    >
+      <span className="text-base">{icon}</span>
+      {label}
+    </button>
   );
 }
 

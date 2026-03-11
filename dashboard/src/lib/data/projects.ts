@@ -1,6 +1,6 @@
 import 'server-only'
 import { createClient } from '@/lib/supabase/server'
-import type { Project, ProjectType, ProjectStatus } from '@/lib/types'
+import type { Project, ProjectType } from '@/lib/types'
 
 function toProject(row: Record<string, unknown>): Project {
   return {
@@ -8,10 +8,7 @@ function toProject(row: Record<string, unknown>): Project {
     clientId: row.client_id as string,
     name: row.name as string,
     type: ((row.type as string) ?? 'other') as ProjectType,
-    status: ((row.status as string) ?? 'draft') as ProjectStatus,
     description: (row.description as string) ?? '',
-    progress: (row.progress as number) ?? 0,
-    totalPhases: (row.total_phases as number) ?? 1,
     lastActivity: (row.last_activity as string) ?? '—',
     startDate: (row.start_date as string) ?? '—',
     potentialAmount: row.potential_amount != null ? Number(row.potential_amount) : undefined,

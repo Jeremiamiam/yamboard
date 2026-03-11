@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Document } from "@/lib/types";
 import { AddDocForm } from "@/components/AddDocForm";
+import { DeleteMenu } from "@/components/DeleteMenu";
 
 type NavDocChipProps = {
   doc: Document;
@@ -30,17 +31,9 @@ function NavDocChip({ doc, onClick, onDelete, isPending }: NavDocChipProps) {
           {doc.name}
         </span>
       </button>
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          if (confirm("Supprimer ce document ?")) onDelete();
-        }}
-        disabled={isPending}
-        className="p-1 rounded text-zinc-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-zinc-200 dark:hover:bg-zinc-800 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 cursor-pointer"
-        title="Supprimer"
-      >
-        🗑
-      </button>
+      <div className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0" onClick={(e) => e.stopPropagation()}>
+        <DeleteMenu onDelete={onDelete} confirmLabel="Supprimer ce document ?" disabled={isPending} />
+      </div>
     </div>
   );
 }

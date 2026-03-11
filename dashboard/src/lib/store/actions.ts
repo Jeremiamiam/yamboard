@@ -12,7 +12,6 @@ import type {
   ClientStatus,
   Project,
   ProjectType,
-  ProjectStatus,
   BudgetProduct,
   PaymentStage,
   Subcontract,
@@ -240,7 +239,6 @@ export async function createProjectAction(params: {
   clientId: string
   name: string
   type?: ProjectType
-  status?: ProjectStatus
   description?: string
   potentialAmount?: number
 }): Promise<{ error: string | null; projectId?: string }> {
@@ -254,7 +252,7 @@ export async function createProjectAction(params: {
       client_id: params.clientId,
       name: params.name,
       type: params.type ?? 'other',
-      status: params.status ?? 'draft',
+      status: 'active',
       description: params.description ?? null,
       potential_amount: params.potentialAmount ?? null,
       owner_id: userId,
@@ -269,10 +267,7 @@ export async function createProjectAction(params: {
     clientId: params.clientId,
     name: params.name,
     type: params.type ?? 'other',
-    status: params.status ?? 'draft',
     description: params.description ?? '',
-    progress: 0,
-    totalPhases: 1,
     lastActivity: '—',
     startDate: '—',
     potentialAmount: params.potentialAmount,
@@ -288,10 +283,8 @@ export async function updateProjectAction(
   updates: {
     name?: string
     type?: ProjectType
-    status?: ProjectStatus
     description?: string
     potentialAmount?: number
-    progress?: number
   }
 ): Promise<{ error: string | null }> {
   const auth = await getAuth()
@@ -308,10 +301,8 @@ export async function updateProjectAction(
   const dbUpdates: Record<string, unknown> = {}
   if (updates.name !== undefined) dbUpdates.name = updates.name
   if (updates.type !== undefined) dbUpdates.type = updates.type
-  if (updates.status !== undefined) dbUpdates.status = updates.status
   if (updates.description !== undefined) dbUpdates.description = updates.description
   if (updates.potentialAmount !== undefined) dbUpdates.potential_amount = updates.potentialAmount
-  if (updates.progress !== undefined) dbUpdates.progress = updates.progress
 
   const { error } = await supabase
     .from('projects')

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import type { Document } from "@/lib/types";
 import { createNote, createSignedUploadUrl, saveDocumentRecord } from "@/app/(dashboard)/actions/documents";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import { useStore } from "@/lib/store";
@@ -18,7 +17,6 @@ export function AddDocForm({
   onSuccess?: () => void;
 }) {
   const [name, setName] = useState("");
-  const [type, setType] = useState<Document["type"]>("brief");
   const [content, setContent] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +24,6 @@ export function AddDocForm({
 
   function reset() {
     setName("");
-    setType("brief");
     setContent("");
     setFile(null);
     setError(null);
@@ -54,7 +51,6 @@ export function AddDocForm({
           clientId,
           projectId,
           name: trimmedName,
-          type,
           storagePath: urlResult.path,
         });
         if (saveResult.error) { setError(saveResult.error); return; }
@@ -63,7 +59,6 @@ export function AddDocForm({
           clientId,
           projectId,
           name: trimmedName,
-          type,
           content: content.trim(),
         });
         if (result.error) { setError(result.error); return; }
@@ -77,7 +72,7 @@ export function AddDocForm({
 
   return (
     <div className="space-y-3">
-      {/* Nom + type + bouton */}
+      {/* Nom + bouton */}
       <div className="flex gap-2 items-center flex-wrap">
         <input
           type="text"
@@ -90,17 +85,6 @@ export function AddDocForm({
           autoFocus
           className="flex-1 min-w-[160px] bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 outline-none focus:border-zinc-400 dark:focus:border-zinc-500 transition-colors"
         />
-        <select
-          value={type}
-          onChange={(e) => setType(e.target.value as Document["type"])}
-          className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-400 dark:focus:border-zinc-500 transition-colors"
-        >
-          <option value="brief">Brief</option>
-          <option value="platform">Plateforme de marque</option>
-          <option value="campaign">Campagne</option>
-          <option value="site">Site</option>
-          <option value="other">Autre</option>
-        </select>
         <button
           onClick={handleSubmit}
           disabled={!name.trim() || isPending}

@@ -65,7 +65,7 @@ export function ClientChatTab({ client }: { client: Client }) {
           </button>
         </div>
         <p className="mt-1.5 text-[11px] text-zinc-400 dark:text-zinc-700 text-center">
-          Contexte : {client.name} — docs de marque + toutes les missions · Shift+Entrée pour sauter une ligne
+          Contexte : {client.name} — docs de marque + tous les projets · Shift+Entrée pour sauter une ligne
         </p>
       </div>
     </div>

@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { DOC_TYPE_LABEL, DOC_TYPE_COLOR, type Project, type Document } from "@/lib/types";
+import type { Project, Document } from "@/lib/types";
 import { DocumentViewer } from "@/components/DocumentViewer";
 import { AddDocForm } from "@/components/AddDocForm";
 import { deleteDocument, pinDocument, unpinDocument } from "@/app/(dashboard)/actions/documents";
-import { ConfirmButton } from "@/components/ConfirmButton";
+import { DeleteMenu } from "@/components/DeleteMenu";
 import { useStore } from "@/lib/store";
 
 export function DocumentsTab({
@@ -154,7 +154,7 @@ function DocChip({
   return (
     <div className="group flex items-center gap-2.5 px-3 py-2 rounded-lg border border-dotted border-zinc-300 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/50 hover:border-zinc-400 dark:hover:border-zinc-600 transition-colors">
       <button onClick={onView} className="flex items-center gap-2.5 min-w-0 flex-1 text-left">
-        <DocIcon type={doc.type} />
+        <DocIcon />
         <div className="min-w-0">
           <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300 truncate max-w-[140px]">{doc.name}</p>
           <p className="text-[10px] text-zinc-500 dark:text-zinc-600">
@@ -174,14 +174,11 @@ function DocChip({
             📌
           </button>
         )}
-        <ConfirmButton
-          onConfirm={onDelete}
-          confirmLabel="Supprimer ?"
-          className="p-1 rounded text-zinc-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-zinc-200 dark:hover:bg-zinc-800 disabled:opacity-40"
+        <DeleteMenu
+          onDelete={onDelete}
+          confirmLabel="Supprimer ce document ?"
           disabled={isPending}
-        >
-          🗑
-        </ConfirmButton>
+        />
       </div>
     </div>
   );
@@ -220,16 +217,13 @@ function DocRow({
           ) : isFailed ? (
             <span className="text-amber-500" title="Échec d'extraction">⚠</span>
           ) : (
-            <DocIcon type={doc.type} />
+            <DocIcon />
           )}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-start sm:items-center gap-2 flex-wrap sm:flex-nowrap">
             <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors truncate w-full sm:w-auto">
               {doc.name}
-            </span>
-            <span className={`text-[10px] font-semibold uppercase tracking-wide shrink-0 ${DOC_TYPE_COLOR[doc.type]}`}>
-              {DOC_TYPE_LABEL[doc.type]}
             </span>
             {doc.content && !doc.storagePath && (
               <span className="text-[10px] text-zinc-400 dark:text-zinc-600 shrink-0">· note</span>
@@ -263,14 +257,11 @@ function DocRow({
         >
           📌
         </button>
-        <ConfirmButton
-          onConfirm={onDelete}
-          confirmLabel="Supprimer ?"
-          className="p-1.5 rounded text-zinc-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-40"
+        <DeleteMenu
+          onDelete={onDelete}
+          confirmLabel="Supprimer ce document ?"
           disabled={isPending}
-        >
-          🗑
-        </ConfirmButton>
+        />
       </div>
     </div>
   );
@@ -282,15 +273,8 @@ function ExtractionStatusLabel({ doc }: { doc: Document }) {
   return <>{doc.size}</>;
 }
 
-function DocIcon({ type }: { type: string }) {
-  const icons: Record<string, string> = {
-    brief: "📋",
-    platform: "🏗",
-    campaign: "📣",
-    site: "🌐",
-    other: "📄",
-  };
-  return <span className="text-base">{icons[type] ?? "📄"}</span>;
+function DocIcon() {
+  return <span className="text-base">📄</span>;
 }
 
 function EmptyState({ projectName, onAdd }: { projectName: string; onAdd: () => void }) {

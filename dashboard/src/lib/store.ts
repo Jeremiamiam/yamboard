@@ -23,6 +23,7 @@ export type StoreState = {
   loading: boolean
   loaded: boolean
   error: string | null
+  viewerDocId: string | null
 }
 
 type StoreActions = {
@@ -32,6 +33,7 @@ type StoreActions = {
   setDocuments: (documents: Document[]) => void
   setBudgetProducts: (budgetProducts: BudgetProduct[]) => void
   updateDocument: (docId: string, updates: Partial<Document>) => void
+  setViewerDocId: (id: string | null) => void
 }
 
 function toCachedData(state: StoreState): CachedData {
@@ -64,6 +66,7 @@ export const useStore = create<StoreState & StoreActions>((set, get) => ({
   loading: false,
   loaded: false,
   error: null,
+  viewerDocId: null,
 
   loadData: async () => {
     if (get().loading) return
@@ -90,6 +93,7 @@ export const useStore = create<StoreState & StoreActions>((set, get) => ({
         loading: false,
         loaded: true,
         error: null,
+        viewerDocId: get().viewerDocId,
       }
       set(state)
       saveToCache(toCachedData(state))
@@ -107,6 +111,7 @@ export const useStore = create<StoreState & StoreActions>((set, get) => ({
     set((s) => ({
       documents: s.documents.map((d) => (d.id === docId ? { ...d, ...updates } : d)),
     })),
+  setViewerDocId: (id) => set({ viewerDocId: id }),
 }))
 
 // ─── Getters ───────────────────────────────────────────────────

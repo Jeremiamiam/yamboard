@@ -6,7 +6,6 @@
 export type ClientCategory = "client" | "prospect" | "archived";
 export type ClientStatus = "active" | "draft" | "paused";
 export type ProjectType = "brand" | "site" | "campaign" | "social" | "other";
-export type ProjectStatus = "active" | "done" | "paused" | "draft";
 
 export type Client = {
   id: string;
@@ -25,10 +24,7 @@ export type Project = {
   clientId: string;
   name: string;
   type: ProjectType;
-  status: ProjectStatus;
   description: string;
-  progress: number;     // phases terminées
-  totalPhases: number;
   lastActivity: string;
   startDate: string;
   potentialAmount?: number;  // montant potentiel (devis en cours, prospects)
@@ -99,32 +95,6 @@ export const PROJECT_TYPE_LABEL: Record<ProjectType, string> = {
   campaign: "Campagne",
   social: "Social",
   other: "Autre",
-};
-
-export const PROJECT_STATUS_CONFIG: Record<
-  ProjectStatus,
-  { label: string; dot: string }
-> = {
-  active: { label: "En cours", dot: "bg-blue-500" },
-  done: { label: "Terminé", dot: "bg-emerald-500" },
-  paused: { label: "En pause", dot: "bg-yellow-500" },
-  draft: { label: "À démarrer", dot: "bg-zinc-600" },
-};
-
-export const DOC_TYPE_LABEL: Record<Document["type"], string> = {
-  brief: "Contre-brief",
-  platform: "Plateforme",
-  campaign: "Campagne",
-  site: "Site web",
-  other: "Document",
-};
-
-export const DOC_TYPE_COLOR: Record<Document["type"], string> = {
-  brief: "text-orange-400",
-  platform: "text-blue-400",
-  campaign: "text-purple-400",
-  site: "text-cyan-400",
-  other: "text-zinc-400",
 };
 
 export const PAYMENT_STAGE_LABEL: Record<"devis" | "acompte" | "solde", string> = {

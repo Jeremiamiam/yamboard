@@ -10,7 +10,7 @@ import {
   deleteConversation,
 } from "@/app/(dashboard)/actions/conversations";
 import type { Message } from "@/lib/types";
-import { ConfirmButton } from "@/components/ConfirmButton";
+import { DeleteMenu } from "@/components/DeleteMenu";
 
 export function ClientChatDrawer() {
   const pathname = usePathname();
@@ -154,7 +154,7 @@ function ClientChatPanel({ clientId, onClose }: { clientId: string; onClose: () 
             </button>
           </div>
           <p className="mt-1.5 text-[11px] text-zinc-400 dark:text-zinc-700 text-center">
-            Contexte : docs de marque + toutes les missions · Shift+Entrée pour sauter une ligne
+            Contexte : docs de marque + tous les projets · Shift+Entrée pour sauter une ligne
           </p>
         </div>
       </div>
@@ -190,21 +190,20 @@ function ClientChatPanel({ clientId, onClose }: { clientId: string; onClose: () 
                       <span className="text-[11px] text-zinc-500 dark:text-zinc-600">{conv.messageCount} msg</span>
                     </div>
                   </button>
-                  <ConfirmButton
-                    onConfirm={() => startTransition(async () => {
-                      const err = await deleteConversation(conv.id);
-                      if (!err.error) {
-                        if (activeConvId === conv.id) setActiveConvId(null);
-                        const fresh = await getConversations({ clientId });
-                        setConversations(fresh);
-                      }
-                    })}
-                    confirmLabel="Supprimer ?"
-                    disabled={isPending}
-                    className="p-1.5 rounded opacity-0 group-hover:opacity-100 hover:opacity-100 text-zinc-500 hover:text-red-600 dark:hover:text-red-400 shrink-0 transition-opacity"
-                  >
-                    🗑
-                  </ConfirmButton>
+                  <div className="opacity-0 group-hover:opacity-100 shrink-0">
+                    <DeleteMenu
+                      onDelete={async () => {
+                        const err = await deleteConversation(conv.id);
+                        if (!err.error) {
+                          if (activeConvId === conv.id) setActiveConvId(null);
+                          const fresh = await getConversations({ clientId });
+                          setConversations(fresh);
+                        }
+                      }}
+                      confirmLabel="Supprimer cette conversation ?"
+                      disabled={isPending}
+                    />
+                  </div>
                 </div>
               ))
             )}

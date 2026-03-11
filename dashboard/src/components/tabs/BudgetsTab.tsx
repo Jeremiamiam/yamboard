@@ -7,19 +7,23 @@ import {
   type BudgetProduct,
   type PaymentStage,
 } from "@/lib/types";
-import { ProductDrawer } from "@/components/ProductDrawer";
 import { createBudgetProductAction } from "@/lib/store/actions";
+import { useStore } from "@/lib/store";
 
 export function BudgetsTab({
   project,
   clientColor,
   budgetProducts,
+  selectedProduct,
+  onSelectProduct,
 }: {
   project: Project;
   clientColor: string;
   budgetProducts: BudgetProduct[];
+  selectedProduct?: BudgetProduct | null;
+  onSelectProduct?: (product: BudgetProduct | null) => void;
 }) {
-  const { total, paid, remaining } = useMemo(() => {
+  const { total, paid, remaining, sousTraitance } = useMemo(() => {
     // total = somme des montants du devis (étape Devis), fallback sur totalAmount
     const t = budgetProducts.reduce((s, p) => s + (p.devis?.amount ?? p.totalAmount), 0);
     const pd = budgetProducts.reduce((s, p) => {
@@ -31,7 +35,11 @@ export function BudgetsTab({
       if (p.solde?.status === "paid") amt += p.solde.amount ?? 0;
       return s + amt;
     }, 0);
-    return { total: t, paid: pd, remaining: t - pd };
+    const st = budgetProducts.reduce(
+      (s, p) => s + (p.subcontracts ?? []).reduce((a, sub) => a + (sub.amount ?? 0), 0),
+      0
+    );
+    return { total: t, paid: pd, remaining: t - pd, sousTraitance: st };
   }, [budgetProducts]);
 
   const pct = total > 0 ? Math.round((paid / total) * 100) : 0;
@@ -40,8 +48,6 @@ export function BudgetsTab({
   const [newName, setNewName] = useState("");
   const [addError, setAddError] = useState<string | null>(null);
   const [isPendingAdd, startAddTransition] = useTransition();
-
-  const [drawerProduct, setDrawerProduct] = useState<BudgetProduct | null>(null);
 
   function handleAddProduct() {
     const name = newName.trim();
@@ -62,11 +68,6 @@ export function BudgetsTab({
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-zinc-50 dark:bg-zinc-950">
       <div className="max-w-2xl">
-        <ProductDrawer
-          product={drawerProduct}
-          onClose={() => setDrawerProduct(null)}
-          clientColor={clientColor}
-        />
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -125,19 +126,36 @@ export function BudgetsTab({
 
         {/* Summary */}
         {total > 0 && (
-          <div className="p-5 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 mb-6">
-            <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4">
+          <div
+            className={`p-5 rounded-xl bg-white dark:bg-zinc-900 border mb-6 ${
+              pct >= 100
+                ? "border-emerald-500/40 dark:border-emerald-500/40 ring-1 ring-emerald-500/20"
+                : "border-zinc-200 dark:border-zinc-800"
+            }`}
+          >
+            <div className={`grid gap-2 sm:gap-4 mb-4 ${sousTraitance > 0 ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}>
               <SumCard label="Budget" value={`${total.toLocaleString("fr-FR")} €`} />
               <SumCard label="Encaissé" value={`${paid.toLocaleString("fr-FR")} €`} highlight />
               <SumCard label="Restant" value={`${remaining.toLocaleString("fr-FR")} €`} />
+              {sousTraitance > 0 && (
+                <SumCard label="Sous-traitance" value={`${sousTraitance.toLocaleString("fr-FR")} €`} />
+              )}
             </div>
             <div className="h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
               <div
                 className="h-full rounded-full transition-all"
-                style={{ width: `${pct}%`, background: clientColor }}
+                style={{ width: `${pct}%`, background: pct >= 100 ? "rgb(16 185 129)" : clientColor }}
               />
             </div>
-            <p className="text-[11px] text-zinc-500 dark:text-zinc-600 mt-1.5">{pct}% encaissé</p>
+            <p className="text-[11px] text-zinc-500 dark:text-zinc-600 mt-1.5 flex items-center gap-2">
+              {pct}% encaissé
+              {pct >= 100 && total > 0 && (
+                <span className="inline-flex items-center gap-1 text-emerald-500 font-semibold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  Soldé
+                </span>
+              )}
+            </p>
           </div>
         )}
 
@@ -151,7 +169,8 @@ export function BudgetsTab({
                 key={product.id}
                 product={product}
                 clientColor={clientColor}
-                onClick={() => setDrawerProduct(product)}
+                isSelected={selectedProduct?.id === product.id}
+                onClick={() => onSelectProduct?.(selectedProduct?.id === product.id ? null : product)}
               />
             ))}
           </div>
@@ -186,10 +205,12 @@ function ProductCard({
   product,
   clientColor,
   onClick,
+  isSelected,
 }: {
   product: BudgetProduct;
   clientColor: string;
   onClick?: () => void;
+  isSelected?: boolean;
 }) {
   const fixedStages: { label: string; stage: PaymentStage }[] = [
     product.devis && { label: PAYMENT_STAGE_LABEL["devis"], stage: product.devis },
@@ -201,8 +222,13 @@ function ProductCard({
     product.solde && { label: PAYMENT_STAGE_LABEL["solde"], stage: product.solde },
   ].filter(Boolean) as { label: string; stage: PaymentStage }[];
 
-  // Progress: how many stages are paid
-  const paidCount = fixedStages.filter((s) => s.stage?.status === "paid").length;
+  // Montant encaissé (acompte + avancements + solde) — le devis n'est pas un encaissement
+  const total = product.devis?.amount ?? product.totalAmount;
+  const paid = [product.acompte, ...(product.avancements ?? []), product.solde].reduce(
+    (s, stage) => s + (stage?.status === "paid" ? (stage.amount ?? 0) : 0),
+    0
+  );
+  const isSoldé = total > 0 && paid >= total;
   const sentCount = fixedStages.filter((s) => s.stage?.status === "sent").length;
 
   return (
@@ -211,26 +237,47 @@ function ProductCard({
       onClick={onClick}
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={onClick ? (e) => e.key === "Enter" && onClick() : undefined}
-      className={`rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 ${onClick ? "cursor-pointer hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors" : ""}`}
+      className={`rounded-xl bg-white dark:bg-zinc-900 border transition-all ${
+        isSelected
+          ? "border-zinc-400 dark:border-zinc-600 ring-1 ring-zinc-300 dark:ring-zinc-600"
+          : "border-zinc-200 dark:border-zinc-800"
+      } ${onClick ? "cursor-pointer hover:border-zinc-300 dark:hover:border-zinc-700 hover:shadow-md active:scale-[0.99]" : ""}`}
+      title={onClick ? "Cliquer pour ouvrir" : undefined}
     >
       {/* Product header */}
       <div className="flex items-center justify-between px-3 sm:px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200 truncate">{product.name}</span>
-          {paidCount === fixedStages.length && fixedStages.length > 0 && (
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200 truncate">
+            {product.name}
+          </span>
+          {isSoldé && (
             <span className="text-[10px] font-semibold text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-full shrink-0">
               Soldé
             </span>
           )}
-          {sentCount > 0 && paidCount < fixedStages.length && (
+          {sentCount > 0 && !isSoldé && (
             <span className="text-[10px] font-semibold text-yellow-500 bg-yellow-500/10 border border-yellow-500/20 px-1.5 py-0.5 rounded-full shrink-0">
               En attente
             </span>
           )}
         </div>
-        <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 shrink-0">
-          {(product.devis?.amount ?? product.totalAmount).toLocaleString("fr-FR")} €
-        </span>
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-col items-end gap-0.5">
+            <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+              {(product.devis?.amount ?? product.totalAmount).toLocaleString("fr-FR")} €
+            </span>
+            {(product.subcontracts?.length ?? 0) > 0 && (
+              <span className="text-[11px] text-zinc-500 dark:text-zinc-600">
+                dont {(product.subcontracts ?? []).reduce((s, sub) => s + (sub.amount ?? 0), 0).toLocaleString("fr-FR")} € sous-traitance
+              </span>
+            )}
+          </div>
+          {onClick && (
+            <svg className="w-4 h-4 text-zinc-400 dark:text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          )}
+        </div>
       </div>
 
       {/* Payment stages */}
@@ -243,6 +290,24 @@ function ProductCard({
             clientColor={clientColor}
           />
         ))}
+        {(product.subcontracts?.length ?? 0) > 0 && (
+          <div className="px-3 sm:px-4 py-2.5">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-zinc-500" />
+              <span className="text-xs text-zinc-500 dark:text-zinc-600 shrink-0">Sous-traitance</span>
+            </div>
+            <div className="pl-5 space-y-1">
+              {(product.subcontracts ?? []).map((sub, i) => (
+                <div key={i} className="flex items-center justify-between text-xs">
+                  <span className="text-zinc-600 dark:text-zinc-400 truncate">{sub.freelancerName || "—"}</span>
+                  <span className="text-zinc-600 dark:text-zinc-400 shrink-0 ml-2">
+                    {(sub.amount ?? 0).toLocaleString("fr-FR")} €
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

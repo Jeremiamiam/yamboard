@@ -1,31 +1,22 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useTransition } from "react";
 import { DocumentViewer } from "@/components/DocumentViewer";
 import type {
   Client,
   Project,
-  Document,
   BudgetProduct,
 } from "@/lib/types";
 import { deleteDocument } from "@/app/(dashboard)/actions/documents";
 import { useStore } from "@/lib/store";
-import { useClientContacts } from "@/hooks/useClientContacts";
-import { useClientLinks } from "@/hooks/useClientLinks";
-import {
-  ClientHeader,
-  ClientDocsSection,
-  ClientMissionsSection,
-  ContactsBlock,
-  LinksBlock,
-} from "@/components/client";
+import { ClientMissionsSection } from "@/components/client";
+import { ClientBreadcrumbNav } from "@/components/ClientBreadcrumbNav";
 
 type Props = {
   client: Client;
   projects: Project[];
   budgetByProject: Record<string, BudgetProduct[]>;
-  globalDocs: Document[];
+  globalDocs?: unknown[];
   clientId: string;
 };
 
@@ -33,24 +24,20 @@ export function ClientPageShell({
   client,
   projects,
   budgetByProject,
-  globalDocs,
   clientId,
 }: Props) {
-  const router = useRouter();
-  const [viewerDoc, setViewerDoc] = useState<Document | null>(null);
-  const [showAddContact, setShowAddContact] = useState(false);
-  const [showAddLink, setShowAddLink] = useState(false);
+  const viewerDocId = useStore((s) => s.viewerDocId);
+  const setViewerDocId = useStore((s) => s.setViewerDocId);
+  const documents = useStore((s) => s.documents);
+  const viewerDoc = viewerDocId ? documents.find((d) => d.id === viewerDocId) ?? null : null;
   const [isPendingDoc, startDocTransition] = useTransition();
-
-  const { contacts, refresh: refreshContacts } = useClientContacts(clientId);
-  const { links, refresh: refreshLinks } = useClientLinks(clientId);
 
   function handleDeleteDoc(docId: string) {
     startDocTransition(async () => {
       const err = await deleteDocument(docId);
       if (!err.error) {
         useStore.getState().loadData();
-        if (viewerDoc?.id === docId) setViewerDoc(null);
+        if (viewerDocId === docId) setViewerDocId(null);
       }
     });
   }
@@ -59,7 +46,7 @@ export function ClientPageShell({
     <>
       <DocumentViewer
         doc={viewerDoc}
-        onClose={() => setViewerDoc(null)}
+        onClose={() => setViewerDocId(null)}
         onDelete={
           viewerDoc
             ? (docId) => handleDeleteDoc(docId)
@@ -70,49 +57,9 @@ export function ClientPageShell({
 
       <div
         className="flex flex-col min-h-screen bg-zinc-50 dark:bg-zinc-950"
-        style={{ paddingLeft: "var(--sidebar-w)", paddingTop: "var(--nav-h)" }}
+        style={{ paddingLeft: "calc(var(--sidebar-w) + var(--client-detail-sidebar-w))", paddingTop: "calc(var(--nav-h) + var(--breadcrumb-h))" }}
       >
-        <ClientHeader
-          client={client}
-          clientId={clientId}
-          onArchived={() => router.push("/")}
-          onDeleted={() => router.push("/")}
-        >
-          <div className="px-6 py-3 grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-zinc-200 dark:border-zinc-800">
-            <ContactsBlock
-              clientId={clientId}
-              contacts={contacts}
-              onRefresh={refreshContacts}
-              showAdd={showAddContact}
-              onToggleAdd={() => {
-                setShowAddContact((v) => !v);
-                setShowAddLink(false);
-              }}
-              clientColor={client.color}
-            />
-            <LinksBlock
-              clientId={clientId}
-              links={links}
-              onRefresh={refreshLinks}
-              showAdd={showAddLink}
-              onToggleAdd={() => {
-                setShowAddLink((v) => !v);
-                setShowAddContact(false);
-              }}
-              clientColor={client.color}
-            />
-          </div>
-
-          <ClientDocsSection
-            clientId={clientId}
-            clientColor={client.color}
-            globalDocs={globalDocs}
-            onDocClick={setViewerDoc}
-            onDeleteDoc={handleDeleteDoc}
-            isPendingDoc={isPendingDoc}
-          />
-        </ClientHeader>
-
+        <ClientBreadcrumbNav client={client} clientId={clientId} />
         <div className="flex-1 overflow-y-auto p-6 space-y-8">
           <ClientMissionsSection
             clientId={clientId}

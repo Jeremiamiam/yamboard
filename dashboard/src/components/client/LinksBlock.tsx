@@ -6,6 +6,7 @@ import {
   updateClientLinkAction,
   deleteClientLinkAction,
 } from "@/lib/store/actions";
+import { DeleteMenu } from "@/components/DeleteMenu";
 import type { ClientLinkRow } from "@/lib/data/client-queries";
 
 type Props = {
@@ -55,8 +56,7 @@ export function LinksBlock({
     });
   }
 
-  function handleDelete(linkId: string) {
-    if (!confirm("Supprimer ce lien ?")) return;
+  function doDelete(linkId: string) {
     startTransition(async () => {
       const err = await deleteClientLinkAction(linkId);
       if (!err.error) onRefresh();
@@ -179,13 +179,10 @@ export function LinksBlock({
                   >
                     ✎
                   </button>
-                  <button
-                    onClick={() => handleDelete(link.id)}
-                    className="p-1 rounded text-zinc-500 hover:text-red-600 hover:bg-zinc-200 dark:hover:bg-zinc-700 cursor-pointer"
-                    title="Supprimer"
-                  >
-                    🗑
-                  </button>
+                  <DeleteMenu
+                    onDelete={() => doDelete(link.id)}
+                    confirmLabel="Supprimer ce lien ?"
+                  />
                 </div>
               </>
             )}

@@ -136,7 +136,6 @@ Format : texte brut uniquement. Pas de markdown (pas de #, -, *, **, etc.). Util
     clientId: params.clientId,
     projectId: params.projectId,
     name: docName,
-    type: 'other',
     content: summary,
   })
 }
@@ -149,7 +148,6 @@ export async function createNote(params: {
   clientId: string
   projectId?: string
   name: string
-  type: Document['type']
   content: string
 }): Promise<{ error: string | null }> {
   const supabase = await createSupabaseClient()
@@ -163,7 +161,7 @@ export async function createNote(params: {
     client_id: params.clientId,
     project_id: params.projectId ?? null,
     name: params.name,
-    type: params.type,
+    type: 'other',
     storage_path: null,
     content: params.content,
     owner_id: user.id,
@@ -251,7 +249,6 @@ export async function saveDocumentRecord(params: {
   clientId: string
   projectId?: string
   name: string
-  type: Document['type']
   storagePath: string
 }): Promise<{ error: string | null }> {
   const supabase = await createSupabaseClient()
@@ -268,7 +265,7 @@ export async function saveDocumentRecord(params: {
     client_id: params.clientId,
     project_id: params.projectId ?? null,
     name: params.name,
-    type: params.type,
+    type: 'other',
     storage_path: params.storagePath,
     content: null,
     extraction_status: extractionStatus,

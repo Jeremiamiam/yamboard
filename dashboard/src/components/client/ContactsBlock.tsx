@@ -6,6 +6,7 @@ import {
   updateContactAction,
   deleteContactAction,
 } from "@/lib/store/actions";
+import { DeleteMenu } from "@/components/DeleteMenu";
 import { useStore } from "@/lib/store";
 import type { ContactRow } from "@/lib/data/client-queries";
 
@@ -62,8 +63,7 @@ export function ContactsBlock({
     });
   }
 
-  function handleDelete(contactId: string) {
-    if (!confirm("Supprimer ce contact ?")) return;
+  function doDelete(contactId: string) {
     startTransition(async () => {
       const err = await deleteContactAction(contactId);
       if (!err.error) {
@@ -185,13 +185,10 @@ export function ContactsBlock({
                   >
                     ✎
                   </button>
-                  <button
-                    onClick={() => handleDelete(c.id)}
-                    className="p-1 rounded text-zinc-500 hover:text-red-600 hover:bg-zinc-200 dark:hover:bg-zinc-700 cursor-pointer"
-                    title="Supprimer"
-                  >
-                    🗑
-                  </button>
+                  <DeleteMenu
+                    onDelete={() => doDelete(c.id)}
+                    confirmLabel="Supprimer ce contact ?"
+                  />
                 </div>
               </>
             )}

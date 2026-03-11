@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { DOC_TYPE_LABEL, DOC_TYPE_COLOR, type Document } from "@/lib/types";
+import type { Document } from "@/lib/types";
 import { getDocumentSignedUrl, getDocument } from "@/app/(dashboard)/actions/documents";
-import { ConfirmButton } from "@/components/ConfirmButton";
+import { DeleteMenu } from "@/components/DeleteMenu";
 import { toast } from "sonner";
 
 // ─── Component ───────────────────────────────────────────────
@@ -55,9 +55,6 @@ export function DocumentViewer({
 
   if (!doc) return null;
 
-  const typeLabel = DOC_TYPE_LABEL[doc.type];
-  const typeColor = DOC_TYPE_COLOR[doc.type];
-
   const noteContent = doc.content?.trim() || (fetchedContent && fetchedContent !== "loading" ? fetchedContent : null);
   const hasNote = !!noteContent?.trim();
   const isLoadingNote = !doc.storagePath && fetchedContent === "loading";
@@ -73,9 +70,6 @@ export function DocumentViewer({
         {/* Header */}
         <div className="shrink-0 flex items-start justify-between px-6 py-5 border-b border-zinc-200 dark:border-zinc-800">
           <div>
-            <p className={`text-[11px] font-semibold uppercase tracking-widest mb-1 ${typeColor}`}>
-              {typeLabel}
-            </p>
             <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">{doc.name}</h2>
             <p className="text-xs text-zinc-500 dark:text-zinc-600 mt-0.5">
               Mis à jour le {doc.updatedAt} · {doc.size}
@@ -83,14 +77,12 @@ export function DocumentViewer({
           </div>
           <div className="flex items-center gap-2 ml-4 shrink-0">
             {onDelete && (
-              <ConfirmButton
-                onConfirm={() => onDelete(doc.id)}
-                confirmLabel="Confirmer ?"
-                className="px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-900 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/50 disabled:opacity-40 transition-colors"
+              <DeleteMenu
+                onDelete={() => onDelete(doc.id)}
+                confirmLabel="Supprimer ce document ?"
                 disabled={isPending}
-              >
-                🗑 Supprimer
-              </ConfirmButton>
+                className="px-3 py-1.5"
+              />
             )}
             <button
               onClick={onClose}

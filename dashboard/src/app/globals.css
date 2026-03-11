@@ -6,22 +6,67 @@
 
 :root {
   --nav-h: 80px;
+  --breadcrumb-h: 56px;
   --sidebar-w: 240px;
+  --client-detail-sidebar-w: 280px;
   --history-w: 280px;
+  /* Light theme – semantic colors (Radzion-style) */
+  --color-background: #fafafa;
+  --color-foreground: #ffffff;
+  --color-text: #18181b;
+  --color-text-supporting: #52525b;
+  --color-text-shy: #71717a;
+  --color-contrast: #000000;
+  --color-mist: rgba(0, 0, 0, 0.06);
+  --color-mist-extra: rgba(0, 0, 0, 0.13);
+  --color-overlay: rgba(0, 0, 0, 0.8);
 }
 
 * { box-sizing: border-box; }
 
 html, body {
   height: 100%;
-  background: #fafafa;
-  color: #18181b;
+  background: var(--color-background);
+  color: var(--color-text);
 }
 
+/* Dark mode palette: Black Rock, Blue Suede Shoes, Daemonette Hide + accents */
 html[data-theme="dark"],
 html[data-theme="dark"] body {
-  background: #09090b;
-  color: #e4e4e7;
+  background: var(--color-background);
+  color: var(--color-text);
+}
+
+/* Dark theme – semantic colors (Radzion-style) */
+html[data-theme="dark"] {
+  --color-background: #0f1014;
+  --color-foreground: #1a1c24;
+  --color-text: #e4e5ed;
+  --color-text-supporting: #9395a8;
+  --color-text-shy: #676386;
+  --color-contrast: #ffffff;
+  --color-mist: rgba(255, 255, 255, 0.06);
+  --color-mist-extra: rgba(255, 255, 255, 0.13);
+  --color-overlay: rgba(0, 0, 0, 0.8);
+}
+
+/* Override zinc palette for dark mode */
+html[data-theme="dark"] {
+  --color-zinc-950: #0f1014;   /* fond principal – très sombre */
+  --color-zinc-900: #1a1c24;   /* surface cards */
+  --color-zinc-800: #2B2D3B;   /* Black Rock */
+  --color-zinc-700: #494C65;   /* Blue Suede Shoes */
+  --color-zinc-600: #676386;   /* Daemonette Hide */
+  --color-zinc-500: #7a7c8f;
+  --color-zinc-400: #9395a8;
+  --color-zinc-300: #b0b2c4;
+  --color-zinc-200: #d0d1dd;
+  --color-zinc-100: #e4e5ed;
+  --color-zinc-50: #f2f3f7;
+  /* Accents (Succulent Lime, Wondrous Wisteria, Persian Orange) */
+  --color-accent-lime: #DDDE68;
+  --color-accent-wisteria: #A5B2EB;
+  --color-accent-orange: #DA935D;
 }
 
 /* Hide number input spinner arrows (pognon cells) */
@@ -38,10 +83,11 @@ input[type="number"] {
   appearance: textfield !important;
 }
 
-/* Mobile: sidebar hidden, no content offset */
+/* Mobile: sidebars hidden, no content offset */
 @media (max-width: 767px) {
   :root {
     --sidebar-w: 0px;
+    --client-detail-sidebar-w: 0px;
   }
 }
 
@@ -50,5 +96,5 @@ input[type="number"] {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #d4d4d8; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #a1a1aa; }
-html[data-theme="dark"] ::-webkit-scrollbar-thumb { background: #27272a; }
-html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+html[data-theme="dark"] ::-webkit-scrollbar-thumb { background: #2B2D3B; }
+html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #494C65; }

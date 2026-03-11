@@ -23,10 +23,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 try {
                   var stored = localStorage.getItem('theme');
                   var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                  var theme = stored || (prefersDark ? 'dark' : 'light');
+                  var resolved = stored === 'system' || !stored
+                    ? (prefersDark ? 'dark' : 'light')
+                    : stored;
                   var html = document.documentElement;
-                  html.setAttribute('data-theme', theme);
-                  html.classList.toggle('dark', theme === 'dark');
+                  html.setAttribute('data-theme', resolved);
+                  html.classList.toggle('dark', resolved === 'dark');
                 } catch (e) {}
               })();
             `,
