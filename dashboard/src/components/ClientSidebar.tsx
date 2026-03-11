@@ -4,6 +4,7 @@ import { useState, useTransition, useRef, useEffect, useLayoutEffect } from "rea
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+
 import type { Client, ClientCategory } from "@/lib/types";
 import { useSidebar } from "@/context/Sidebar";
 import {
@@ -168,6 +169,20 @@ export function ClientSidebar({
             </button>
           )
         )}
+
+        {/* Lien comptabilité — visible sur toutes les tailles */}
+        <Link
+          href="/compta"
+          onClick={close}
+          className={`mt-2 w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm ${
+            pathname === "/compta"
+              ? "bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-white"
+              : "text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100 dark:text-zinc-600 dark:hover:text-zinc-400 dark:hover:bg-zinc-900"
+          }`}
+        >
+          <span className="text-base leading-none">💳</span>
+          <span>Comptabilité</span>
+        </Link>
       </div>
     </aside>
     </>

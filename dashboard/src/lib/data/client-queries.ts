@@ -75,6 +75,13 @@ function toDocument(row: Record<string, unknown>): Document {
   }
 }
 
+function toAvancements(raw: unknown): PaymentStage[] | undefined {
+  if (!raw) return undefined;
+  if (Array.isArray(raw)) return raw as PaymentStage[];
+  // Backward compat: old format stored a single PaymentStage object
+  return [raw as PaymentStage];
+}
+
 function toBudgetProduct(row: Record<string, unknown>): BudgetProduct {
   return {
     id: row.id as string,
@@ -83,7 +90,7 @@ function toBudgetProduct(row: Record<string, unknown>): BudgetProduct {
     totalAmount: Number(row.total_amount),
     devis: row.devis as PaymentStage | undefined,
     acompte: row.acompte as PaymentStage | undefined,
-    avancement: row.avancement as PaymentStage | undefined,
+    avancements: toAvancements(row.avancement),
     solde: row.solde as PaymentStage | undefined,
   }
 }
