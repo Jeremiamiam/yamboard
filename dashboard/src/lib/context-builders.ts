@@ -287,7 +287,10 @@ export async function buildAgencyContext(): Promise<string> {
   const budgetByProject = await getBudgetProductsForProjects(allProjects.map((p) => p.id))
   const allProducts = allProjects.flatMap((p) => budgetByProject[p.id] ?? [])
 
-  const intro = `\nTu as accès à l'ensemble du portefeuille de l'agence Yam.\n${'═'.repeat(60)}`
+  const intro = `\nTu as accès à l'ensemble du portefeuille de l'agence Yam.
+
+Style : réponses ultra-minimalistes. Pas de paraphrase ni d'introduction du type "Basé sur les données…". Va directement à l'essentiel. Ne termine jamais par une question ou une proposition de suivi.
+${'═'.repeat(60)}`
 
   for (const truncLevel of [0, 1, 2, 3] as const) {
     const dataSection = buildAgencyDataSection(activeClients, allProjects, allProducts, truncLevel)

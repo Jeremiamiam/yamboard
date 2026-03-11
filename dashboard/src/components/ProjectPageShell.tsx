@@ -3,6 +3,7 @@
 import { useState, useEffect, useTransition } from "react";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { ClientAvatar } from "@/components/ClientAvatar";
 import { ChatTab } from "@/components/tabs/ChatTab";
 import { DocumentsTab } from "@/components/tabs/DocumentsTab";
 import { BudgetsTab } from "@/components/tabs/BudgetsTab";
@@ -77,16 +78,7 @@ export function ProjectPageShell({
               href={`/${clientId}`}
               className="flex items-center gap-2.5 shrink-0 hover:opacity-80 transition-opacity"
             >
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shrink-0"
-                style={{
-                  background: client.color + "25",
-                  color: client.color,
-                  border: `1px solid ${client.color}35`,
-                }}
-              >
-                {client.name[0].toUpperCase()}
-              </div>
+              <ClientAvatar client={client} size="lg" />
               <span className="text-sm font-medium text-zinc-500 hidden sm:inline">
                 {client.name}
               </span>

@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+import Image from 'next/image'
 import { login } from './actions'
 import { useState } from 'react'
 import { useFormStatus } from 'react-dom'
@@ -32,8 +34,16 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-zinc-950">
       <div className="w-full max-w-sm space-y-6 p-8">
         <div className="space-y-1">
-          <h1 className="text-xl font-semibold text-white">YamBoard</h1>
-          <p className="text-sm text-zinc-400">Connectez-vous pour continuer</p>
+          <Link href="/" className="inline-block hover:opacity-90 transition-opacity">
+            <Image
+              src="/yamboard_logo.svg"
+              alt="YamBoard"
+              width={140}
+              height={62}
+              className="h-8 w-auto"
+            />
+          </Link>
+          <p className="text-sm text-zinc-400 pt-1">Connectez-vous pour continuer</p>
         </div>
 
         <form action={handleSubmit} className="space-y-4">

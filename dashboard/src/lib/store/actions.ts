@@ -72,7 +72,7 @@ export async function createClientAction(params: {
 
 export async function updateClientAction(
   clientId: string,
-  updates: { name?: string; industry?: string; status?: ClientStatus; color?: string }
+  updates: { name?: string; industry?: string; status?: ClientStatus; color?: string; logoPath?: string | null }
 ): Promise<{ error: string | null }> {
   const auth = await getAuth()
   if (!auth) return { error: 'Not authenticated' }
@@ -81,13 +81,19 @@ export async function updateClientAction(
   const client = getClientFromState(useStore.getState(), clientId)
   if (!client) return { error: 'Client not found' }
 
-  applyClientUpdate({ ...client, ...updates })
+  const merged: Client = {
+    ...client,
+    ...updates,
+    logoPath: updates.logoPath === null ? undefined : (updates.logoPath ?? client.logoPath),
+  }
+  applyClientUpdate(merged)
 
   const dbUpdates: Record<string, unknown> = {}
   if (updates.name !== undefined) dbUpdates.name = updates.name
   if (updates.industry !== undefined) dbUpdates.industry = updates.industry
   if (updates.status !== undefined) dbUpdates.status = updates.status
   if (updates.color !== undefined) dbUpdates.color = updates.color
+  if (updates.logoPath !== undefined) dbUpdates.logo_path = updates.logoPath
 
   const { error } = await supabase
     .from('clients')
@@ -723,6 +729,80 @@ export async function deleteContactAction(contactId: string): Promise<{ error: s
     return { error: error.message }
   }
   toast.success('Contact supprimé')
+  invalidateCache()
+  return { error: null }
+}
+
+// ─── Liens externes (Figma, Dropbox, Drive, etc.) ─────────────────
+
+export async function createClientLinkAction(params: {
+  clientId: string
+  label: string
+  url: string
+}): Promise<{ error: string | null }> {
+  const auth = await getAuth()
+  if (!auth) return { error: 'Not authenticated' }
+  const { supabase, userId } = auth
+
+  const { error } = await supabase.from('client_links').insert({
+    client_id: params.clientId,
+    label: params.label.trim(),
+    url: params.url.trim(),
+    owner_id: userId,
+  })
+
+  if (error) {
+    toast.error(error.message)
+    return { error: error.message }
+  }
+  toast.success('Lien ajouté')
+  invalidateCache()
+  return { error: null }
+}
+
+export async function updateClientLinkAction(
+  linkId: string,
+  updates: { label?: string; url?: string }
+): Promise<{ error: string | null }> {
+  const auth = await getAuth()
+  if (!auth) return { error: 'Not authenticated' }
+  const { supabase, userId } = auth
+
+  const dbUpdates: Record<string, unknown> = {}
+  if (updates.label !== undefined) dbUpdates.label = updates.label.trim()
+  if (updates.url !== undefined) dbUpdates.url = updates.url.trim()
+
+  const { error } = await supabase
+    .from('client_links')
+    .update(dbUpdates)
+    .eq('id', linkId)
+    .eq('owner_id', userId)
+
+  if (error) {
+    toast.error(error.message)
+    return { error: error.message }
+  }
+  toast.success('Lien mis à jour')
+  invalidateCache()
+  return { error: null }
+}
+
+export async function deleteClientLinkAction(linkId: string): Promise<{ error: string | null }> {
+  const auth = await getAuth()
+  if (!auth) return { error: 'Not authenticated' }
+  const { supabase, userId } = auth
+
+  const { error } = await supabase
+    .from('client_links')
+    .delete()
+    .eq('id', linkId)
+    .eq('owner_id', userId)
+
+  if (error) {
+    toast.error(error.message)
+    return { error: error.message }
+  }
+  toast.success('Lien supprimé')
   invalidateCache()
   return { error: null }
 }

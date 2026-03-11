@@ -17,6 +17,7 @@ export type Client = {
   contact: { name: string; role: string; email: string; phone?: string };
   color: string;
   since?: string;   // date début relation
+  logoPath?: string; // chemin Storage pour logo SVG (remplace les initiales)
 };
 
 export type Project = {

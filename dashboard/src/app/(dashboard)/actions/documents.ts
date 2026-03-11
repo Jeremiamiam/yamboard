@@ -75,6 +75,72 @@ Retourne les deux parties clairement séparées, sans commentaire introductif.`,
   }
 }
 
+// ─── createDocFromConversation ──────────────────────────────────
+// Résume une conversation chat via Claude, crée un doc et le range dans les docs client/projet.
+export async function createDocFromConversation(params: {
+  clientId: string
+  projectId?: string
+  messages: { role: string; content: string }[]
+  contextLabel: string
+}): Promise<{ error: string | null }> {
+  const supabase = await createSupabaseClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) {
+    return { error: 'Not authenticated' }
+  }
+
+  if (!params.messages.length) {
+    return { error: 'Conversation vide' }
+  }
+
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return { error: 'Configuration API manquante' }
+  }
+
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  const convoText = params.messages
+    .map((m) => `**${m.role === 'user' ? 'Utilisateur' : 'Brandon'}**\n${m.content}`)
+    .join('\n\n')
+
+  const response = await anthropic.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 2048,
+    messages: [{
+      role: 'user',
+      content: `Tu es un assistant qui synthétise des conversations en documents concis.
+
+Voici une conversation de chat (contexte : ${params.contextLabel}) :
+
+---
+${convoText}
+---
+
+Rédige un document très succinct (synthèse) qui capture :
+- Les points clés discutés
+- Les décisions ou conclusions
+- Les actions à retenir ou prochaines étapes
+
+Format : texte brut uniquement. Pas de markdown (pas de #, -, *, **, etc.). Utilise des retours à la ligne et des paragraphes courts pour structurer. Pas d'intro ni de conclusion superflue. Maximum 1 page.`,
+    }],
+  })
+
+  const summary = response.content[0]?.type === 'text' ? response.content[0].text : ''
+  if (!summary.trim()) {
+    return { error: 'Impossible de générer le résumé' }
+  }
+
+  const dateStr = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+  const docName = `Synthèse chat — ${dateStr}`
+
+  return createNote({
+    clientId: params.clientId,
+    projectId: params.projectId,
+    name: docName,
+    type: 'other',
+    content: summary,
+  })
+}
+
 // ─── createNote ────────────────────────────────────────────────
 // INSERT document de type texte libre.
 // storage_path = null, content = le texte saisi.
@@ -228,6 +294,51 @@ export async function saveDocumentRecord(params: {
   }
 
   return { error: null }
+}
+
+// ─── getDocument ────────────────────────────────────────────────
+// Charge un document complet (avec content) pour affichage.
+// Utilisé par DocumentViewer pour les notes (sans storage_path).
+export async function getDocument(
+  documentId: string
+): Promise<{ doc: { id: string; name: string; content?: string; storagePath?: string; updatedAt: string; size: string } } | { error: string }> {
+  const supabase = await createSupabaseClient()
+
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) {
+    return { error: 'Not authenticated' }
+  }
+
+  const { data: row, error } = await supabase
+    .from('documents')
+    .select('id, name, content, storage_path, updated_at')
+    .eq('id', documentId)
+    .eq('owner_id', user.id)
+    .single()
+
+  if (error || !row) {
+    return { error: error?.message ?? 'Document introuvable' }
+  }
+
+  const content = (row.content as string | null) ?? undefined
+  const size = content
+    ? `~${content.split(/\s+/).filter(Boolean).length} mots`
+    : '—'
+
+  return {
+    doc: {
+      id: row.id as string,
+      name: row.name as string,
+      content,
+      storagePath: (row.storage_path as string | null) ?? undefined,
+      updatedAt: new Date(row.updated_at as string).toLocaleDateString('fr-FR', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      }),
+      size,
+    },
+  }
 }
 
 // ─── getDocumentSignedUrl ──────────────────────────────────────

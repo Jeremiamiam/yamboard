@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ClientAvatar } from "@/components/ClientAvatar";
 import {
   useSidebarClients,
   useSidebarProspects,
@@ -120,15 +121,7 @@ export default function ComptaPage() {
                 className="flex items-center justify-between py-3 px-4 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors group"
               >
                 <div className="flex items-center gap-3">
-                  <div
-                    className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
-                    style={{
-                      background: client.color + "25",
-                      color: client.color,
-                    }}
-                  >
-                    {client.name[0].toUpperCase()}
-                  </div>
+                  <ClientAvatar client={client} size="sm" rounded="lg" />
                   <div>
                     <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200 group-hover:text-zinc-900 dark:hover:text-white">
                       {client.name}

@@ -23,6 +23,7 @@ function toClient(row: Record<string, unknown>): Client {
       : { name: '—', role: '—', email: '—' },
     color: (row.color as string) ?? '#71717a',
     since: (row.since as string | undefined) ?? undefined,
+    logoPath: (row.logo_path as string | null) ?? undefined,
   }
 }
 
@@ -58,6 +59,7 @@ export const getClientsAll = cache(async (): Promise<{
       email: '—',
     },
     color: (row.color as string) ?? '#71717a',
+    logoPath: (row.logo_path as string | null) ?? undefined,
   }))
   return {
     clients: all.filter((c) => c.category === 'client'),

@@ -35,6 +35,7 @@ function toClient(row: Record<string, unknown>): Client {
       : { name: '—', role: '—', email: '—' },
     color: (row.color as string) ?? '#71717a',
     since: (row.since as string | undefined) ?? undefined,
+    logoPath: (row.logo_path as string | null) ?? undefined,
   }
 }
 
@@ -155,4 +156,59 @@ export async function fetchAllBudgetProducts(): Promise<BudgetProduct[]> {
     .order('created_at', { ascending: true })
   if (error) throw new Error(error.message)
   return (data ?? []).map((row) => toBudgetProduct(row as Record<string, unknown>))
+}
+
+// ─── Contacts (CRUD top bar) ────────────────────────────────────
+export type ContactRow = {
+  id: string
+  clientId: string
+  name: string
+  role: string | null
+  email: string | null
+  phone: string | null
+  isPrimary: boolean
+}
+
+export async function fetchContactsForClient(clientId: string): Promise<ContactRow[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('contacts')
+    .select('id, client_id, name, role, email, phone, is_primary')
+    .eq('client_id', clientId)
+    .order('is_primary', { ascending: false })
+    .order('created_at', { ascending: true })
+  if (error) throw new Error(error.message)
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    clientId: row.client_id,
+    name: row.name ?? '',
+    role: row.role ?? null,
+    email: row.email ?? null,
+    phone: row.phone ?? null,
+    isPrimary: row.is_primary ?? false,
+  }))
+}
+
+// ─── Liens externes (Figma, Dropbox, etc.) ───────────────────────
+export type ClientLinkRow = {
+  id: string
+  clientId: string
+  label: string
+  url: string
+}
+
+export async function fetchClientLinks(clientId: string): Promise<ClientLinkRow[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('client_links')
+    .select('id, client_id, label, url')
+    .eq('client_id', clientId)
+    .order('created_at', { ascending: true })
+  if (error) throw new Error(error.message)
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    clientId: row.client_id,
+    label: row.label ?? '',
+    url: row.url ?? '',
+  }))
 }

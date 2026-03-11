@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { GlobalNav } from '@/components/GlobalNav'
+import { AgencyChatFab } from '@/components/AgencyChatFab'
 import { StoreProvider } from '@/components/StoreProvider'
 import { ClientSidebarWrapper } from '@/components/ClientSidebarWrapper'
 import { SidebarProvider } from '@/context/Sidebar'
@@ -8,7 +9,7 @@ import { SidebarProvider } from '@/context/Sidebar'
 function SidebarSkeleton() {
   return (
     <aside
-      className="fixed top-12 left-0 bottom-0 z-40 border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950"
+      className="fixed top-20 left-0 bottom-0 z-40 border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950"
       style={{ width: 'var(--sidebar-w)' }}
     />
   )
@@ -31,6 +32,7 @@ export default async function DashboardLayout({
         <ClientSidebarWrapper fallback={<SidebarSkeleton />} />
         {children}
       </StoreProvider>
+      <AgencyChatFab />
     </SidebarProvider>
   )
 }

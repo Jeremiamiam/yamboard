@@ -1,8 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import { ClientChatDrawerProvider } from "@/context/ClientChatDrawer";
 import { ThemeProvider } from "@/context/ThemeContext";
-import { ClientChatDrawer } from "@/components/ClientChatDrawer";
 
 export const metadata: Metadata = {
   title: "YamBoard",
@@ -37,10 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="antialiased">
         <ThemeProvider>
-          <ClientChatDrawerProvider>
-            {children}
-            <ClientChatDrawer />
-          </ClientChatDrawerProvider>
+          {children}
         </ThemeProvider>
       </body>
     </html>

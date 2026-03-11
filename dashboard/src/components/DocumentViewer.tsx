@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { DOC_TYPE_LABEL, DOC_TYPE_COLOR, type Document } from "@/lib/types";
-import { getDocumentSignedUrl } from "@/app/(dashboard)/actions/documents";
+import { getDocumentSignedUrl, getDocument } from "@/app/(dashboard)/actions/documents";
 import { ConfirmButton } from "@/components/ConfirmButton";
+import { toast } from "sonner";
 
 // ─── Component ───────────────────────────────────────────────
 export function DocumentViewer({
@@ -18,6 +19,7 @@ export function DocumentViewer({
   isPending?: boolean;
 }) {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [fetchedContent, setFetchedContent] = useState<string | null | "loading">(null);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -28,8 +30,8 @@ export function DocumentViewer({
   }, [onClose]);
 
   useEffect(() => {
-    // Reset pdfUrl when doc changes
     setPdfUrl(null);
+    setFetchedContent(null);
 
     if (doc?.storagePath) {
       getDocumentSignedUrl(doc.storagePath).then((result) => {
@@ -37,15 +39,28 @@ export function DocumentViewer({
           setPdfUrl(result.signedUrl);
         }
       });
+    } else if (doc && !doc.content?.trim()) {
+      setFetchedContent("loading");
+      getDocument(doc.id).then((result) => {
+        if ("doc" in result && result.doc.content) {
+          setFetchedContent(result.doc.content);
+        } else {
+          setFetchedContent("");
+        }
+      });
+    } else if (doc?.content?.trim()) {
+      setFetchedContent(doc.content);
     }
-  }, [doc?.storagePath]);
+  }, [doc?.id, doc?.storagePath, doc?.content]);
 
   if (!doc) return null;
 
   const typeLabel = DOC_TYPE_LABEL[doc.type];
   const typeColor = DOC_TYPE_COLOR[doc.type];
 
-  const hasNote = !!doc.content?.trim();
+  const noteContent = doc.content?.trim() || (fetchedContent && fetchedContent !== "loading" ? fetchedContent : null);
+  const hasNote = !!noteContent?.trim();
+  const isLoadingNote = !doc.storagePath && fetchedContent === "loading";
 
   return (
     <>
@@ -94,8 +109,12 @@ export function DocumentViewer({
               className="w-full h-full min-h-[600px]"
               title={doc.name}
             />
+          ) : isLoadingNote ? (
+            <div className="flex items-center justify-center py-20">
+              <span className="w-6 h-6 border-2 border-zinc-300 dark:border-zinc-600 border-t-zinc-600 dark:border-t-zinc-400 rounded-full animate-spin" />
+            </div>
           ) : hasNote ? (
-            <NoteContent content={doc.content!} />
+            <NoteContent docName={doc.name} content={noteContent} />
           ) : (
             <GenericDocContent doc={doc} />
           )}
@@ -106,15 +125,46 @@ export function DocumentViewer({
 }
 
 // ─── Note content (free-text) ─────────────────────────────────
-function NoteContent({ content }: { content: string }) {
+function NoteContent({ docName, content }: { docName: string; content: string }) {
   const wordCount = content.trim().split(/\s+/).filter(Boolean).length;
+
+  function handleCopy() {
+    navigator.clipboard.writeText(content);
+    toast.success("Copié dans le presse-papier");
+  }
+
+  function handleDownload() {
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${docName.replace(/[^a-zA-Z0-9-_]/g, "-")}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Téléchargement lancé");
+  }
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-600">
           Note · contenu injecté dans le contexte agent
         </p>
-        <span className="text-[11px] text-zinc-400 dark:text-zinc-600">{wordCount} mots</span>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-zinc-400 dark:text-zinc-600">{wordCount} mots</span>
+          <button
+            onClick={handleCopy}
+            className="px-2 py-1 rounded text-[11px] text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700"
+          >
+            Copier
+          </button>
+          <button
+            onClick={handleDownload}
+            className="px-2 py-1 rounded text-[11px] text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700"
+          >
+            ↓ Télécharger .txt
+          </button>
+        </div>
       </div>
       <div className="p-5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
         <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-loose whitespace-pre-wrap">
@@ -125,8 +175,9 @@ function NoteContent({ content }: { content: string }) {
   );
 }
 
-// ─── Generic doc ──────────────────────────────────────────────
+// ─── Generic doc (fallback : PDF en cours / note sans contenu) ─
 function GenericDocContent({ doc }: { doc: Document }) {
+  const isNote = !doc.storagePath;
   return (
     <div className="flex flex-col items-center justify-center h-full text-center py-20">
       <div className="w-14 h-14 rounded-2xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center mb-4 text-2xl">
@@ -136,9 +187,11 @@ function GenericDocContent({ doc }: { doc: Document }) {
       <p className="text-xs text-zinc-500 dark:text-zinc-600 mt-1 mb-6">
         {doc.size} · {doc.updatedAt}
       </p>
-      <button className="px-4 py-2 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-sm text-zinc-700 dark:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-600 hover:text-zinc-900 dark:hover:text-white transition-colors">
-        ↓ Ouvrir le fichier
-      </button>
+      {isNote ? (
+        <p className="text-xs text-zinc-500 dark:text-zinc-600">Aucun contenu disponible</p>
+      ) : (
+        <p className="text-xs text-zinc-500 dark:text-zinc-600">Chargement du fichier…</p>
+      )}
     </div>
   );
 }

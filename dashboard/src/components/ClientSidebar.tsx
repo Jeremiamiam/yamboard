@@ -14,6 +14,7 @@ import {
   unarchiveClientAction,
   deleteClientAction,
 } from "@/lib/store/actions";
+import { ClientAvatar } from "@/components/ClientAvatar";
 
 const TABS: { id: ClientCategory; label: string }[] = [
   { id: "client", label: "Clients" },
@@ -79,7 +80,7 @@ export function ClientSidebar({
         />
       )}
     <aside
-      className={`fixed top-12 left-0 bottom-0 z-40 flex flex-col border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 w-60 transition-transform duration-200 md:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}
+      className={`fixed top-20 left-0 bottom-0 z-40 flex flex-col border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 w-60 transition-transform duration-200 md:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}
     >
       {/* ── Tab switcher ── */}
       <div className="shrink-0 flex border-b border-zinc-200 dark:border-zinc-800">
@@ -87,7 +88,7 @@ export function ClientSidebar({
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`flex-1 py-2.5 text-[11px] font-medium transition-colors ${
+            className={`flex-1 py-2.5 text-[11px] font-medium transition-colors cursor-pointer ${
               tab === t.id
                 ? "text-zinc-800 border-b border-zinc-900 -mb-px dark:text-zinc-200 dark:border-white"
                 : "text-zinc-500 hover:text-zinc-600 dark:text-zinc-600 dark:hover:text-zinc-400"
@@ -98,36 +99,32 @@ export function ClientSidebar({
         ))}
       </div>
 
-      {/* ── Search ── */}
-      <div className="shrink-0 p-3">
-        <div className="flex items-center gap-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2">
-          <svg className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Rechercher…"
-            className="bg-transparent text-xs text-zinc-600 dark:text-zinc-400 placeholder-zinc-400 dark:placeholder-zinc-600 outline-none w-full"
-          />
+      {/* ── Search + New ── */}
+      <div className="shrink-0 p-3 space-y-2">
+        <div className="flex items-center gap-2">
+          <div className="flex-1 flex items-center gap-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2">
+            <svg className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Rechercher…"
+              className="bg-transparent text-xs text-zinc-600 dark:text-zinc-400 placeholder-zinc-400 dark:placeholder-zinc-600 outline-none w-full"
+            />
+          </div>
+          {tab !== "archived" && (
+            <button
+              onClick={() => setShowForm(true)}
+              className="w-8 h-8 shrink-0 flex items-center justify-center rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100 dark:text-zinc-600 dark:hover:text-zinc-400 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+              title={tab === "prospect" ? "Nouveau prospect" : "Nouveau client"}
+            >
+              <span className="text-lg leading-none font-light">+</span>
+            </button>
+          )}
         </div>
-      </div>
-
-      {/* ── List ── */}
-      <nav className="flex-1 overflow-y-auto px-2">
-        {currentClients.length === 0 ? (
-          <p className="text-xs text-zinc-500 dark:text-zinc-700 px-3 py-4">Aucun élément</p>
-        ) : (
-          currentClients.map((client) => (
-            <ClientItem key={client.id} client={client} active={client.id === activeId} category={client.category} />
-          ))
-        )}
-      </nav>
-
-      {/* ── Footer ── */}
-      <div className="shrink-0 p-3 border-t border-zinc-200 dark:border-zinc-800">
-        {showForm ? (
+        {showForm && (
           <div className="space-y-2">
             <input
               type="text"
@@ -158,23 +155,27 @@ export function ClientSidebar({
               </button>
             </div>
           </div>
-        ) : (
-          tab !== "archived" && (
-            <button
-              onClick={() => setShowForm(true)}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100 dark:text-zinc-600 dark:hover:text-zinc-400 dark:hover:bg-zinc-900 transition-colors text-sm"
-            >
-              <span className="text-base leading-none">+</span>
-              <span>{tab === "prospect" ? "Nouveau prospect" : "Nouveau client"}</span>
-            </button>
-          )
         )}
+      </div>
 
-        {/* Lien comptabilité — visible sur toutes les tailles */}
+      {/* ── List ── */}
+      <nav className="flex-1 overflow-y-auto px-2">
+        {currentClients.length === 0 ? (
+          <p className="text-xs text-zinc-500 dark:text-zinc-700 px-3 py-4">Aucun élément</p>
+        ) : (
+          currentClients.map((client) => (
+            <ClientItem key={client.id} client={client} active={client.id === activeId} category={client.category} />
+          ))
+        )}
+      </nav>
+
+      {/* ── Footer ── */}
+      <div className="shrink-0 p-3 border-t border-zinc-200 dark:border-zinc-800">
+        {/* Lien comptabilité — visible en responsive uniquement */}
         <Link
           href="/compta"
           onClick={close}
-          className={`mt-2 w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm ${
+          className={`md:hidden mt-2 w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm ${
             pathname === "/compta"
               ? "bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-white"
               : "text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100 dark:text-zinc-600 dark:hover:text-zinc-400 dark:hover:bg-zinc-900"
@@ -221,13 +222,6 @@ function ClientItem({ client, active, category }: { client: Client; active: bool
     document.addEventListener("click", handleClickOutside);
     return () => document.removeEventListener("click", handleClickOutside);
   }, [menuOpen]);
-
-  const initials = client.name
-    .split(/[\s.]/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0].toUpperCase())
-    .join("");
 
   function handleSaveEdit() {
     const name = editName.trim();
@@ -296,18 +290,7 @@ function ClientItem({ client, active, category }: { client: Client; active: bool
         onClick={closeSidebar}
         className="flex items-center gap-3 flex-1 min-w-0"
       >
-        <div
-          className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold border ${
-            active ? "" : "bg-zinc-200 text-zinc-500 border-zinc-300 dark:bg-zinc-900 dark:text-zinc-500 dark:border-zinc-700"
-          }`}
-          style={active ? {
-            background: client.color + "30",
-            color: client.color,
-            borderColor: client.color + "40",
-          } : undefined}
-        >
-          {initials}
-        </div>
+        <ClientAvatar client={client} size="sm" rounded="lg" active={active} />
         <span className="text-sm font-medium truncate">{client.name}</span>
       </Link>
       <div className="relative shrink-0">
