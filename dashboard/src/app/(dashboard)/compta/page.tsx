@@ -22,7 +22,7 @@ export default function ComptaPage() {
   const budgetByProject: Record<string, { total: number; paid: number }> = {};
   for (const p of allProjects) {
     const products = budgetProducts.filter((bp) => bp.projectId === p.id);
-    const total = products.reduce((s, bp) => s + bp.totalAmount, 0);
+    const total = products.reduce((s, bp) => s + (bp.devis?.amount ?? bp.totalAmount), 0);
     const paid = products.reduce((s, bp) => {
       let amt = 0;
       if (bp.acompte?.status === "paid") amt += bp.acompte.amount ?? 0;

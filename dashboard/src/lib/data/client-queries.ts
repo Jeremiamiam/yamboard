@@ -13,6 +13,7 @@ import type {
   Document,
   BudgetProduct,
   PaymentStage,
+  Subcontract,
 } from '@/lib/types'
 
 function toClient(row: Record<string, unknown>): Client {
@@ -92,6 +93,7 @@ function toBudgetProduct(row: Record<string, unknown>): BudgetProduct {
     acompte: row.acompte as PaymentStage | undefined,
     avancements: toAvancements(row.avancement),
     solde: row.solde as PaymentStage | undefined,
+    subcontracts: (row.subcontracts as Subcontract[] | null) ?? undefined,
   }
 }
 

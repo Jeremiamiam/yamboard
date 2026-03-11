@@ -20,7 +20,8 @@ export function BudgetsTab({
   budgetProducts: BudgetProduct[];
 }) {
   const { total, paid, remaining } = useMemo(() => {
-    const t = budgetProducts.reduce((s, p) => s + p.totalAmount, 0);
+    // total = somme des montants du devis (étape Devis), fallback sur totalAmount
+    const t = budgetProducts.reduce((s, p) => s + (p.devis?.amount ?? p.totalAmount), 0);
     const pd = budgetProducts.reduce((s, p) => {
       let amt = 0;
       if (p.acompte?.status === "paid") amt += p.acompte.amount ?? 0;
@@ -37,7 +38,6 @@ export function BudgetsTab({
 
   const [showForm, setShowForm] = useState(false);
   const [newName, setNewName] = useState("");
-  const [newAmount, setNewAmount] = useState("");
   const [addError, setAddError] = useState<string | null>(null);
   const [isPendingAdd, startAddTransition] = useTransition();
 
@@ -45,18 +45,16 @@ export function BudgetsTab({
 
   function handleAddProduct() {
     const name = newName.trim();
-    const amount = parseFloat(newAmount);
-    if (!name || isNaN(amount) || amount <= 0) return;
+    if (!name) return;
 
     startAddTransition(async () => {
       setAddError(null);
-      const result = await createBudgetProductAction({ projectId: project.id, name, totalAmount: amount });
+      const result = await createBudgetProductAction({ projectId: project.id, name, totalAmount: 0 });
       if (result.error) {
         setAddError(result.error);
       } else {
         setShowForm(false);
         setNewName("");
-        setNewAmount("");
       }
     });
   }
@@ -105,32 +103,19 @@ export function BudgetsTab({
                 className="flex-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 outline-none focus:border-zinc-400 dark:focus:border-zinc-500 transition-colors"
                 autoFocus
               />
-              <div className="flex items-center gap-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 focus-within:border-zinc-400 dark:focus-within:border-zinc-500 transition-colors">
-                <input
-                  type="number"
-                  value={newAmount}
-                  onChange={(e) => setNewAmount(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") { e.preventDefault(); handleAddProduct(); }
-                  }}
-                  placeholder="0"
-                  className="w-24 bg-transparent text-sm text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 outline-none text-right"
-                />
-                <span className="text-sm text-zinc-500 dark:text-zinc-600 ml-1">€</span>
-              </div>
               <button
                 onClick={handleAddProduct}
-                disabled={!newName.trim() || !newAmount || isPendingAdd}
+                disabled={!newName.trim() || isPendingAdd}
                 className="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors disabled:bg-zinc-300 dark:disabled:bg-zinc-800"
                 style={{
-                  background: newName.trim() && newAmount ? clientColor : undefined,
+                  background: newName.trim() ? clientColor : undefined,
                 }}
               >
                 {isPendingAdd ? "…" : "Créer"}
               </button>
             </div>
             <p className="text-[11px] text-zinc-500 dark:text-zinc-700 mt-2">
-              Les étapes de paiement (devis, acompte, avancement, solde) s&apos;ajoutent ensuite.
+              Le devis, les acomptes, avancements et sous-traitances s&apos;ajoutent ensuite depuis la fiche.
             </p>
             {addError && (
               <p className="text-[11px] text-red-500 mt-1">{addError}</p>
@@ -142,7 +127,7 @@ export function BudgetsTab({
         {total > 0 && (
           <div className="p-5 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 mb-6">
             <div className="grid grid-cols-3 gap-4 mb-4">
-              <SumCard label="Devis total" value={`${total.toLocaleString("fr-FR")} €`} />
+              <SumCard label="Budget" value={`${total.toLocaleString("fr-FR")} €`} />
               <SumCard label="Encaissé" value={`${paid.toLocaleString("fr-FR")} €`} highlight />
               <SumCard label="Restant" value={`${remaining.toLocaleString("fr-FR")} €`} />
             </div>
@@ -244,7 +229,7 @@ function ProductCard({
           )}
         </div>
         <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
-          {product.totalAmount.toLocaleString("fr-FR")} €
+          {(product.devis?.amount ?? product.totalAmount).toLocaleString("fr-FR")} €
         </span>
       </div>
 
