@@ -18,7 +18,7 @@ export function ClientChatTab({ client }: { client: Client }) {
   return (
     <div className="flex flex-col h-full bg-zinc-50 dark:bg-zinc-900">
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-6">
         {messages.length === 0 && (
           <EmptyState name={client.name} color={client.color} contextLabel="compte client global" />
         )}
@@ -32,7 +32,7 @@ export function ClientChatTab({ client }: { client: Client }) {
       </div>
 
       {/* Input */}
-      <div className="shrink-0 px-6 pb-6 pt-2">
+      <div className="shrink-0 px-4 sm:px-6 pb-4 sm:pb-6 pt-2">
         <div className="flex items-end gap-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3 focus-within:border-zinc-400 dark:focus-within:border-zinc-600 transition-colors">
           <textarea
             value={input}
@@ -121,7 +121,7 @@ function ChatMessage({ msg, clientColor }: { msg: Message; clientColor: string }
         </div>
       )}
       <div
-        className={`max-w-[72%] rounded-xl px-4 py-3 text-sm leading-relaxed ${
+        className={`max-w-[85%] sm:max-w-[72%] rounded-xl px-3 sm:px-4 py-3 text-sm leading-relaxed ${
           isUser
             ? "bg-zinc-200 text-zinc-800 rounded-br-sm dark:bg-zinc-800 dark:text-zinc-200"
             : "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-bl-sm"

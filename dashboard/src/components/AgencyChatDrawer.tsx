@@ -39,7 +39,7 @@ export function AgencyChatDrawer({
         className="fixed inset-0 z-50 bg-black/60"
         onClick={onClose}
       />
-      <div className="fixed top-0 right-0 bottom-0 z-50 w-[70vw] min-w-[320px] flex flex-col bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 shadow-2xl overflow-hidden">
+      <div className="fixed top-0 right-0 bottom-0 z-50 w-full sm:w-[70vw] sm:min-w-[320px] sm:max-w-[600px] flex flex-col bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800">
           <h2 className="text-base font-semibold text-zinc-900 dark:text-white">Brandon — Agence</h2>
@@ -52,7 +52,7 @@ export function AgencyChatDrawer({
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6 bg-zinc-50 dark:bg-zinc-900">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-6 bg-zinc-50 dark:bg-zinc-900">
           {messages.length === 0 && <AgencyEmptyState />}
           {messages.map((msg) => (
             <AgencyChatMessage key={msg.id} msg={msg} />
@@ -64,7 +64,7 @@ export function AgencyChatDrawer({
         </div>
 
         {/* Input */}
-        <div className="shrink-0 px-6 pb-6 pt-2 bg-white dark:bg-zinc-950">
+        <div className="shrink-0 px-4 sm:px-6 pb-4 sm:pb-6 pt-2 bg-white dark:bg-zinc-950">
           <div className="flex items-end gap-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3 focus-within:border-zinc-400 dark:focus-within:border-zinc-600 transition-colors">
             <textarea
               value={input}
@@ -150,7 +150,7 @@ function AgencyChatMessage({ msg }: { msg: Message }) {
         </div>
       )}
       <div
-        className={`max-w-[72%] rounded-xl px-4 py-3 text-sm leading-relaxed ${
+        className={`max-w-[85%] sm:max-w-[72%] rounded-xl px-3 sm:px-4 py-3 text-sm leading-relaxed ${
           isUser
             ? "bg-zinc-200 text-zinc-800 rounded-br-sm dark:bg-zinc-800 dark:text-zinc-200"
             : "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-bl-sm"
