@@ -15,6 +15,7 @@ import type {
   ProjectStatus,
   BudgetProduct,
   PaymentStage,
+  Subcontract,
 } from '@/lib/types'
 
 // ─── Auth helper ────────────────────────────────────────────────
@@ -520,6 +521,41 @@ export async function setAvancementsAction(
   const { error } = await supabase
     .from('budget_products')
     .update({ avancement: avancements })
+    .eq('id', productId)
+    .eq('owner_id', userId)
+
+  if (error) {
+    useStore.setState((s) => ({
+      budgetProducts: s.budgetProducts.map((p) => (p.id === productId ? product : p)),
+    }))
+    toast.error(error.message)
+    return { error: error.message }
+  }
+  invalidateCache()
+  return { error: null }
+}
+
+/** Met à jour la liste complète des sous-traitances. */
+export async function setSubcontractsAction(
+  productId: string,
+  subcontracts: Subcontract[]
+): Promise<{ error: string | null }> {
+  const auth = await getAuth()
+  if (!auth) return { error: 'Not authenticated' }
+  const { supabase, userId } = auth
+
+  const product = useStore.getState().budgetProducts.find((p) => p.id === productId)
+  if (!product) return { error: 'Product not found' }
+
+  useStore.setState((s) => ({
+    budgetProducts: s.budgetProducts.map((p) =>
+      p.id === productId ? { ...p, subcontracts } : p
+    ),
+  }))
+
+  const { error } = await supabase
+    .from('budget_products')
+    .update({ subcontracts })
     .eq('id', productId)
     .eq('owner_id', userId)
 

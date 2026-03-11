@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { PAYMENT_STAGE_LABEL, type BudgetProduct, type PaymentStage } from "@/lib/types";
+import { PAYMENT_STAGE_LABEL, type BudgetProduct, type PaymentStage, type Subcontract } from "@/lib/types";
 import {
   updatePaymentStageAction,
   setAvancementsAction,
+  setSubcontractsAction,
   updateBudgetProductAction,
   deleteBudgetProductAction,
 } from "@/lib/store/actions";
@@ -200,6 +201,17 @@ function ProductDrawerContent({
             </div>
           </div>
         )}
+
+        {/* Sous-traitance */}
+        <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-600 mb-2">
+            Sous-traitance
+          </p>
+          <SubcontractsSection
+            productId={product.id}
+            subcontracts={liveProduct.subcontracts ?? []}
+          />
+        </div>
       </div>
     </div>
   );
@@ -325,7 +337,7 @@ function AvancementRow({
         </button>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
         <div className="flex items-center gap-1 flex-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 focus-within:border-zinc-400 dark:focus-within:border-zinc-500 transition-colors">
           <input
             type="number"
@@ -424,7 +436,7 @@ function FixedStageRow({
         </button>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
         <div className="flex items-center gap-1 flex-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 focus-within:border-zinc-400 dark:focus-within:border-zinc-500 transition-colors">
           <input
             type="number"
@@ -462,6 +474,146 @@ function FixedStageRow({
       {stage.status === "paid" && stage.amount && (
         <div className="h-0.5 rounded-full" style={{ background: clientColor ?? "#10b981" }} />
       )}
+    </div>
+  );
+}
+
+// ─── Sous-traitance section ────────────────────────────────────
+
+function SubcontractsSection({
+  productId,
+  subcontracts,
+}: {
+  productId: string;
+  subcontracts: Subcontract[];
+}) {
+  const [isPending, startTransition] = useTransition();
+
+  function add() {
+    startTransition(() =>
+      void setSubcontractsAction(productId, [
+        ...subcontracts,
+        { freelancerName: "", status: "pending" },
+      ])
+    );
+  }
+
+  function updateAt(index: number, patch: Partial<Subcontract>) {
+    const next = subcontracts.map((s, i) => (i === index ? { ...s, ...patch } : s));
+    startTransition(() => void setSubcontractsAction(productId, next));
+  }
+
+  function removeAt(index: number) {
+    const next = subcontracts.filter((_, i) => i !== index);
+    startTransition(() => void setSubcontractsAction(productId, next));
+  }
+
+  return (
+    <div className="space-y-2">
+      {subcontracts.map((sub, i) => (
+        <SubcontractRow
+          key={i}
+          sub={sub}
+          onUpdate={(patch) => updateAt(i, patch)}
+          onRemove={() => removeAt(i)}
+          isPending={isPending}
+        />
+      ))}
+      <button
+        onClick={add}
+        disabled={isPending}
+        className="w-full px-3 py-1.5 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700 text-xs text-zinc-500 dark:text-zinc-600 hover:border-zinc-400 dark:hover:border-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-400 transition-colors disabled:opacity-40"
+      >
+        + Sous-traitance
+      </button>
+    </div>
+  );
+}
+
+function SubcontractRow({
+  sub,
+  onUpdate,
+  onRemove,
+  isPending,
+}: {
+  sub: Subcontract;
+  onUpdate: (patch: Partial<Subcontract>) => void;
+  onRemove: () => void;
+  isPending: boolean;
+}) {
+  const [editName, setEditName] = useState(sub.freelancerName);
+  const [editAmount, setEditAmount] = useState(sub.amount != null ? String(sub.amount) : "");
+
+  function toggleStatus() {
+    onUpdate({ status: sub.status === "paid" ? "pending" : "paid" });
+  }
+
+  return (
+    <div className="rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-3 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <ConfirmButton
+            onConfirm={onRemove}
+            confirmLabel="Retirer ?"
+            className="text-[11px] text-zinc-400 hover:text-red-500 transition-colors px-1 shrink-0 disabled:opacity-40"
+            disabled={isPending}
+          >
+            ✕
+          </ConfirmButton>
+          <input
+            type="text"
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            onBlur={() => {
+              if (editName !== sub.freelancerName) onUpdate({ freelancerName: editName });
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                onUpdate({ freelancerName: editName });
+                (e.target as HTMLInputElement).blur();
+              }
+            }}
+            placeholder="Nom du freelance…"
+            disabled={isPending}
+            className="flex-1 min-w-0 bg-transparent border-b border-zinc-300 dark:border-zinc-700 outline-none text-xs text-zinc-700 dark:text-zinc-300 placeholder-zinc-400 dark:placeholder-zinc-600 pb-0.5 disabled:opacity-50"
+          />
+        </div>
+        <button
+          onClick={toggleStatus}
+          disabled={isPending}
+          className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all disabled:opacity-50 ${
+            sub.status === "paid"
+              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-500"
+              : "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-500"
+          }`}
+        >
+          <span className={`w-1.5 h-1.5 rounded-full ${sub.status === "paid" ? "bg-emerald-500" : "bg-zinc-400"}`} />
+          {sub.status === "paid" ? "Payé ✓" : "En attente"}
+        </button>
+      </div>
+
+      <div className="flex items-center gap-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 focus-within:border-zinc-400 dark:focus-within:border-zinc-500 transition-colors">
+        <input
+          type="number"
+          value={editAmount}
+          onChange={(e) => setEditAmount(e.target.value)}
+          onBlur={() => {
+            const v = parseFloat(editAmount);
+            if (!isNaN(v) && v !== sub.amount) onUpdate({ amount: v });
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              const v = parseFloat(editAmount);
+              if (!isNaN(v)) onUpdate({ amount: v });
+              (e.target as HTMLInputElement).blur();
+            }
+          }}
+          placeholder="Montant payé au freelance"
+          disabled={isPending}
+          className="flex-1 bg-transparent text-sm text-zinc-700 dark:text-zinc-300 outline-none text-right placeholder-zinc-400 dark:placeholder-zinc-600 disabled:opacity-50"
+        />
+        <span className="text-sm text-zinc-400 dark:text-zinc-600 ml-1 shrink-0">€</span>
+      </div>
     </div>
   );
 }

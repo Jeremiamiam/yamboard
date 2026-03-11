@@ -20,7 +20,8 @@ export function BudgetsTab({
   budgetProducts: BudgetProduct[];
 }) {
   const { total, paid, remaining } = useMemo(() => {
-    const t = budgetProducts.reduce((s, p) => s + p.totalAmount, 0);
+    // total = somme des montants du devis (étape Devis), fallback sur totalAmount
+    const t = budgetProducts.reduce((s, p) => s + (p.devis?.amount ?? p.totalAmount), 0);
     const pd = budgetProducts.reduce((s, p) => {
       let amt = 0;
       if (p.acompte?.status === "paid") amt += p.acompte.amount ?? 0;
@@ -37,7 +38,6 @@ export function BudgetsTab({
 
   const [showForm, setShowForm] = useState(false);
   const [newName, setNewName] = useState("");
-  const [newAmount, setNewAmount] = useState("");
   const [addError, setAddError] = useState<string | null>(null);
   const [isPendingAdd, startAddTransition] = useTransition();
 
@@ -45,24 +45,22 @@ export function BudgetsTab({
 
   function handleAddProduct() {
     const name = newName.trim();
-    const amount = parseFloat(newAmount);
-    if (!name || isNaN(amount) || amount <= 0) return;
+    if (!name) return;
 
     startAddTransition(async () => {
       setAddError(null);
-      const result = await createBudgetProductAction({ projectId: project.id, name, totalAmount: amount });
+      const result = await createBudgetProductAction({ projectId: project.id, name, totalAmount: 0 });
       if (result.error) {
         setAddError(result.error);
       } else {
         setShowForm(false);
         setNewName("");
-        setNewAmount("");
       }
     });
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 bg-zinc-50 dark:bg-zinc-950">
+    <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-zinc-50 dark:bg-zinc-950">
       <div className="max-w-2xl">
         <ProductDrawer
           product={drawerProduct}
@@ -105,32 +103,19 @@ export function BudgetsTab({
                 className="flex-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 outline-none focus:border-zinc-400 dark:focus:border-zinc-500 transition-colors"
                 autoFocus
               />
-              <div className="flex items-center gap-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 focus-within:border-zinc-400 dark:focus-within:border-zinc-500 transition-colors">
-                <input
-                  type="number"
-                  value={newAmount}
-                  onChange={(e) => setNewAmount(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") { e.preventDefault(); handleAddProduct(); }
-                  }}
-                  placeholder="0"
-                  className="w-24 bg-transparent text-sm text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 outline-none text-right"
-                />
-                <span className="text-sm text-zinc-500 dark:text-zinc-600 ml-1">€</span>
-              </div>
               <button
                 onClick={handleAddProduct}
-                disabled={!newName.trim() || !newAmount || isPendingAdd}
+                disabled={!newName.trim() || isPendingAdd}
                 className="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors disabled:bg-zinc-300 dark:disabled:bg-zinc-800"
                 style={{
-                  background: newName.trim() && newAmount ? clientColor : undefined,
+                  background: newName.trim() ? clientColor : undefined,
                 }}
               >
                 {isPendingAdd ? "…" : "Créer"}
               </button>
             </div>
             <p className="text-[11px] text-zinc-500 dark:text-zinc-700 mt-2">
-              Les étapes de paiement (devis, acompte, avancement, solde) s&apos;ajoutent ensuite.
+              Le devis, les acomptes, avancements et sous-traitances s&apos;ajoutent ensuite depuis la fiche.
             </p>
             {addError && (
               <p className="text-[11px] text-red-500 mt-1">{addError}</p>
@@ -141,8 +126,8 @@ export function BudgetsTab({
         {/* Summary */}
         {total > 0 && (
           <div className="p-5 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 mb-6">
-            <div className="grid grid-cols-3 gap-4 mb-4">
-              <SumCard label="Devis total" value={`${total.toLocaleString("fr-FR")} €`} />
+            <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4">
+              <SumCard label="Budget" value={`${total.toLocaleString("fr-FR")} €`} />
               <SumCard label="Encaissé" value={`${paid.toLocaleString("fr-FR")} €`} highlight />
               <SumCard label="Restant" value={`${remaining.toLocaleString("fr-FR")} €`} />
             </div>
@@ -188,9 +173,9 @@ function SumCard({
   highlight?: boolean;
 }) {
   return (
-    <div>
-      <p className="text-[11px] text-zinc-500 dark:text-zinc-600 uppercase tracking-wider mb-1">{label}</p>
-      <p className={`text-lg font-semibold ${highlight ? "text-zinc-900 dark:text-white" : "text-zinc-600 dark:text-zinc-400"}`}>
+    <div className="min-w-0">
+      <p className="text-[10px] sm:text-[11px] text-zinc-500 dark:text-zinc-600 uppercase tracking-wider mb-1 truncate">{label}</p>
+      <p className={`text-base sm:text-lg font-semibold truncate ${highlight ? "text-zinc-900 dark:text-white" : "text-zinc-600 dark:text-zinc-400"}`}>
         {value}
       </p>
     </div>
@@ -229,22 +214,22 @@ function ProductCard({
       className={`rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 ${onClick ? "cursor-pointer hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors" : ""}`}
     >
       {/* Product header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-200 dark:border-zinc-800">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">{product.name}</span>
+      <div className="flex items-center justify-between px-3 sm:px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200 truncate">{product.name}</span>
           {paidCount === fixedStages.length && fixedStages.length > 0 && (
-            <span className="text-[10px] font-semibold text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-full">
+            <span className="text-[10px] font-semibold text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-full shrink-0">
               Soldé
             </span>
           )}
           {sentCount > 0 && paidCount < fixedStages.length && (
-            <span className="text-[10px] font-semibold text-yellow-500 bg-yellow-500/10 border border-yellow-500/20 px-1.5 py-0.5 rounded-full">
+            <span className="text-[10px] font-semibold text-yellow-500 bg-yellow-500/10 border border-yellow-500/20 px-1.5 py-0.5 rounded-full shrink-0">
               En attente
             </span>
           )}
         </div>
-        <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
-          {product.totalAmount.toLocaleString("fr-FR")} €
+        <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 shrink-0">
+          {(product.devis?.amount ?? product.totalAmount).toLocaleString("fr-FR")} €
         </span>
       </div>
 
@@ -279,16 +264,20 @@ function PaymentRow({
   }[stage.status ?? "pending"];
 
   return (
-    <div className="flex items-center gap-3 px-4 py-2.5">
+    <div className="flex items-center gap-2 px-3 sm:px-4 py-2.5">
       <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusConfig.dot}`} />
-      <span className="text-xs text-zinc-500 dark:text-zinc-600 w-20 shrink-0">{label}</span>
-      <span className="text-xs text-zinc-600 dark:text-zinc-400 flex-1">
+      {/* Label */}
+      <span className="text-xs text-zinc-500 dark:text-zinc-600 shrink-0 w-16 sm:w-20">{label}</span>
+      {/* Amount */}
+      <span className="text-xs text-zinc-600 dark:text-zinc-400 flex-1 text-right sm:text-left">
         {stage.amount ? `${stage.amount.toLocaleString("fr-FR")} €` : "—"}
       </span>
-      <span className="text-xs text-zinc-500 dark:text-zinc-600 w-24 text-right">
+      {/* Date — masquée sur mobile */}
+      <span className="hidden sm:block text-xs text-zinc-500 dark:text-zinc-600 w-24 text-right">
         {stage.date ?? "—"}
       </span>
-      <span className={`text-[11px] font-medium w-20 text-right ${statusConfig.text}`}>
+      {/* Status */}
+      <span className={`text-[11px] font-medium shrink-0 text-right sm:w-20 ${statusConfig.text}`}>
         {statusConfig.label}
       </span>
     </div>

@@ -72,15 +72,22 @@ export type PaymentStage = {
   status: "pending" | "sent" | "paid";
 };
 
+export type Subcontract = {
+  freelancerName: string;
+  amount?: number;
+  status: "pending" | "paid";
+};
+
 export type BudgetProduct = {
   id: string;
   projectId: string;
   name: string;
-  totalAmount: number;
+  totalAmount: number; // conservé pour compat DB — l'affichage utilise devis.amount
   devis?: PaymentStage;
   acompte?: PaymentStage;
   avancements?: PaymentStage[]; // tableau — autant de factures d'avancement que souhaité
   solde?: PaymentStage;
+  subcontracts?: Subcontract[]; // sous-traitance freelances
 };
 
 // ─── UI config maps ───────────────────────────────────────────
