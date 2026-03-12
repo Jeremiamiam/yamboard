@@ -24,6 +24,7 @@ import {
   executeCreateProduct,
   executeCreateNote,
   executeCreateLink,
+  executeCreateContact,
   getToolResultMessage,
 } from '@/lib/chat-tools'
 import { insertClientActivity } from '@/lib/activity-log'
@@ -99,6 +100,21 @@ const AGENCY_TOOLS = [
         url: { type: 'string', description: 'URL complète (https://...)' },
       },
       required: ['clientId', 'name', 'url'],
+    },
+  },
+  {
+    name: 'create_contact',
+    description: 'Ajoute un contact (nom, email) à un client. Utilise pour l\'expéditeur du mail.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        clientId: { type: 'string', description: 'UUID du client' },
+        name: { type: 'string', description: 'Nom complet du contact' },
+        email: { type: 'string', description: 'Email du contact (optionnel)' },
+        role: { type: 'string', description: 'Rôle/fonction (optionnel)' },
+        isPrimary: { type: 'boolean', description: 'Contact principal (défaut true si premier)' },
+      },
+      required: ['clientId', 'name'],
     },
   },
 ]
@@ -203,6 +219,7 @@ export async function POST(req: Request) {
       user.id,
       event.data?.subject ?? '(sans sujet)',
       body,
+      event.data?.from ?? '',
       debugTrace,
     )
 
@@ -241,6 +258,7 @@ async function processEmailWithAgent(
   userId: string,
   subject: string,
   body: string,
+  from: string,
   debugTrace: string[] | null,
 ): Promise<void> {
   trace(debugTrace, `input → userId=${userId} subject="${subject}" bodyLen=${body.length}`)
@@ -248,13 +266,19 @@ async function processEmailWithAgent(
   const systemPrompt = await buildAgencyContextForUser(userId)
   trace(debugTrace, `context built, ${systemPrompt.length} chars`)
 
-  const userMessage = `[Email reçu — Sujet: ${subject}]
+  const userMessage = `[Email reçu]
+Expéditeur: ${from || '(inconnu)'}
+Sujet: ${subject}
 
 ${body}
 
 ---
-Traite ce mail : exécute les actions demandées (ajouter un client, un doc, une note, un lien, etc.) via tes outils.
-Important : "nouveau client" ou "ajouter un client" → utilise category: client. Prospect uniquement si le mail dit explicitement "prospect". Sois concis.`
+Traite ce mail :
+1. **Contact** : Extrais l'expéditeur (nom, email) du mail. Crée le client si nécessaire, puis create_contact avec ces infos.
+2. **Résumé** : Pour les notes, rédige un RÉSUMÉ SYNTHÉTIQUE des échanges (points clés, décisions, prochaines étapes). Pas le mail brut.
+3. **"nouveau client"** → category: client.
+
+Exécute les actions via tes outils. Sois concis.`
 
   const admin = createAdminClient()
 
@@ -363,11 +387,12 @@ Important : "nouveau client" ou "ajouter un client" → utilise category: client
           }
         } else if (block.name === 'create_note') {
           const clientId = String(input.clientId ?? '')
+          const content = String(input.content ?? '')
           const r = await executeCreateNote(admin, userId, {
             clientId,
             projectId: input.projectId ? String(input.projectId) : undefined,
             name: String(input.name ?? ''),
-            content: String(input.content ?? ''),
+            content,
           })
           result = getToolResultMessage(r)
           if (r.ok && r.type === 'create_note') {
@@ -377,7 +402,7 @@ Important : "nouveau client" ou "ajouter un client" → utilise category: client
               actionType: 'note_added',
               source: 'email',
               summary: `Note ajoutée : ${r.name}`,
-              metadata: { name: r.name },
+              metadata: { name: r.name, content },
               ownerId: userId,
             })
           }
@@ -397,6 +422,26 @@ Important : "nouveau client" ou "ajouter un client" → utilise category: client
               source: 'email',
               summary: `Lien ajouté : ${r.name}`,
               metadata: { name: r.name, url: input.url },
+              ownerId: userId,
+            })
+          }
+        } else if (block.name === 'create_contact') {
+          const clientId = String(input.clientId ?? '')
+          const r = await executeCreateContact(admin, userId, {
+            clientId,
+            name: String(input.name ?? ''),
+            email: input.email ? String(input.email) : undefined,
+            role: input.role ? String(input.role) : undefined,
+            isPrimary: input.isPrimary === true,
+          })
+          result = getToolResultMessage(r)
+          if (r.ok && r.type === 'create_contact') {
+            await insertClientActivity(admin, {
+              clientId,
+              actionType: 'contact_added',
+              source: 'email',
+              summary: `Contact ajouté : ${r.name}`,
+              metadata: { name: r.name },
               ownerId: userId,
             })
           }
