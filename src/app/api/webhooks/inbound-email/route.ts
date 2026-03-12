@@ -71,6 +71,15 @@ function extractEmailFromFromField(from: string): string | null {
   return null
 }
 
+function extractSenderName(from: string): string {
+  // "Jérémy Hervo <jeremy@agence-yam.fr>" → "Jérémy"
+  // "jeremy@agence-yam.fr" → "jeremy"
+  const nameMatch = from.match(/^([^<]+)</)
+  if (nameMatch) return nameMatch[1].trim().split(/\s+/)[0]
+  const email = from.trim().split('@')[0]
+  return email.charAt(0).toUpperCase() + email.slice(1)
+}
+
 /** Vérifie la signature Svix sans contrôle du timestamp (pour replay Resend). */
 function verifyWebhookReplay(
   rawBody: string,
@@ -302,6 +311,7 @@ RÈGLES :
 
 Exécute les actions. Sois concis.`
 
+  const senderName = extractSenderName(from)
   const admin = createAdminClient()
 
   if (!process.env.ANTHROPIC_API_KEY) {
@@ -368,8 +378,8 @@ Exécute les actions. Sois concis.`
               projectId: input.projectId ? String(input.projectId) : undefined,
               actionType: 'note_added',
               source: 'email',
-              summary: `Note ajoutée : ${r.name}`,
-              metadata: { name: r.name, content },
+              summary: `Note ajoutée par ${senderName} : ${r.name}`,
+              metadata: { name: r.name, content, sender: from },
               ownerId: clientOwnerId,
             })
           }
@@ -391,8 +401,8 @@ Exécute les actions. Sois concis.`
               clientId,
               actionType: 'contact_added',
               source: 'email',
-              summary: `Contact ajouté : ${r.name}`,
-              metadata: { name: r.name },
+              summary: `Contact ajouté par ${senderName} : ${r.name}`,
+              metadata: { name: r.name, sender: from },
               ownerId: clientOwnerId,
             })
           }
