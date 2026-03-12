@@ -1,0 +1,9 @@
+# Netlify — Next.js (OpenNext adapter)
+# Sans ce fichier, Netlify peut mal détecter le framework → 404
+
+[build]
+  command = "npm run build"
+  # Ne pas définir publish : le plugin Next.js gère tout
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
