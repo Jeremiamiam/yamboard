@@ -36,13 +36,13 @@ export const dynamic = 'force-dynamic'
 const AGENCY_TOOLS = [
   {
     name: 'create_client',
-    description: "Crée un nouveau client ou prospect dans Yam.",
+    description: "Crée un nouveau client ou prospect dans Yam. Par défaut: client.",
     input_schema: {
       type: 'object' as const,
       properties: {
         name: { type: 'string', description: 'Nom du client ou prospect' },
         industry: { type: 'string', description: 'Secteur d\'activité (optionnel)' },
-        category: { type: 'string', enum: ['client', 'prospect'], description: 'client ou prospect' },
+        category: { type: 'string', enum: ['client', 'prospect'], description: 'client ou prospect. Utilise client par défaut sauf si le mail dit explicitement prospect.' },
       },
       required: ['name'],
     },
@@ -253,7 +253,8 @@ async function processEmailWithAgent(
 ${body}
 
 ---
-Traite ce mail : exécute les actions demandées (ajouter un client, un doc, une note, un lien, etc.) via tes outils. Sois concis.`
+Traite ce mail : exécute les actions demandées (ajouter un client, un doc, une note, un lien, etc.) via tes outils.
+Important : "nouveau client" ou "ajouter un client" → utilise category: client. Prospect uniquement si le mail dit explicitement "prospect". Sois concis.`
 
   const admin = createAdminClient()
 
