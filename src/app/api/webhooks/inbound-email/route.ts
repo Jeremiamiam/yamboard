@@ -10,6 +10,7 @@
  * Event = email.received
  */
 import { NextResponse } from 'next/server'
+import { Webhook } from 'svix'
 import { Resend } from 'resend'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { buildAgencyContextForUser } from '@/lib/context-builders'
@@ -142,15 +143,11 @@ export async function POST(req: Request) {
 
     // Vérifier la signature Resend (Svix)
     try {
-      const resend = new Resend(resendApiKey)
-      resend.webhooks.verify({
-        payload: rawBody,
-        headers: {
-          id: req.headers.get('svix-id') ?? '',
-          timestamp: req.headers.get('svix-timestamp') ?? '',
-          signature: req.headers.get('svix-signature') ?? '',
-        },
-        webhookSecret,
+      const wh = new Webhook(webhookSecret)
+      wh.verify(rawBody, {
+        'svix-id': req.headers.get('svix-id') ?? '',
+        'svix-timestamp': req.headers.get('svix-timestamp') ?? '',
+        'svix-signature': req.headers.get('svix-signature') ?? '',
       })
     } catch (verifyErr) {
       console.warn('[inbound-email] Signature webhook invalide:', verifyErr)
@@ -174,9 +171,14 @@ export async function POST(req: Request) {
     }
 
     // Récupérer le corps du mail via l'API Resend Receiving
+    // Le SDK Resend v4 n'expose pas emails.receiving → appel direct à l'API
     const resend = new Resend(resendApiKey)
-    const { data: receivedData, error: receivedErr } = await resend.emails.receiving.get(emailId)
+    const result = await resend.get<{ text?: string; html?: string }>(
+      `/emails/receiving/${emailId}`,
+    )
 
+    const receivedData = result.data
+    const receivedErr = result.error
     if (receivedErr || !receivedData) {
       console.error('[inbound-email] Impossible de récupérer le corps:', receivedErr)
       return NextResponse.json({ ok: true })
