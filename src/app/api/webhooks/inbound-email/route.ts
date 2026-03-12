@@ -1,10 +1,14 @@
 /**
  * Webhook Resend Inbound — Email → Agent Yam
  *
- * Quand tu envoies un mail à ton adresse agent (ex: agent@ton-domaine.com),
- * Resend reçoit le mail et POST ce webhook. On identifie l'utilisateur par
- * l'email expéditeur, puis on envoie le contenu à Claude en mode agency
- * avec les outils (create_client, create_project, create_note, etc.).
+ * FLUX (Resend n'envoie rien à l'agent directement) :
+ * 1. Resend reçoit le mail → POST ce webhook (payload = metadata seulement : from, subject, email_id)
+ * 2. On récupère le corps via API Resend GET /emails/receiving/{email_id}
+ * 3. On identifie l'utilisateur par l'email expéditeur (Supabase Auth)
+ * 4. On envoie (subject + body) à Claude (Anthropic) en mode "agency"
+ * 5. Claude utilise les outils (create_client, create_project, etc.) → écrit dans Supabase
+ *
+ * "Agent" = Claude (claude-haiku-4-5) avec les outils Yam. L'orchestration est dans ce fichier.
  *
  * Config Resend : Receiving → Webhook → URL = https://ton-app.com/api/webhooks/inbound-email
  * Event = email.received
@@ -193,15 +197,25 @@ export async function POST(req: Request) {
 
     if (!body.trim()) body = event.data?.subject ?? '(sans contenu)'
 
-    if (process.env.INBOUND_DEBUG === '1') {
-      console.log('[inbound-email] body length:', body.length, 'preview:', body.slice(0, 100))
-    }
+    const debugTrace = process.env.INBOUND_DEBUG === '1' ? [] as string[] : null
 
-    await processEmailWithAgent(user.id, event.data?.subject ?? '(sans sujet)', body)
+    await processEmailWithAgent(
+      user.id,
+      event.data?.subject ?? '(sans sujet)',
+      body,
+      debugTrace,
+    )
 
-    const response: { ok: boolean; debug?: { bodyLength: number; bodyPreview?: string } } = { ok: true }
+    const response: {
+      ok: boolean
+      debug?: { bodyLength: number; bodyPreview?: string; agentTrace?: string[] }
+    } = { ok: true }
     if (process.env.INBOUND_DEBUG === '1') {
-      response.debug = { bodyLength: body.length, bodyPreview: body.slice(0, 150) }
+      response.debug = {
+        bodyLength: body.length,
+        bodyPreview: body.slice(0, 150),
+        agentTrace: debugTrace ?? [],
+      }
     }
     return NextResponse.json(response)
   } catch (err) {
@@ -218,8 +232,22 @@ export async function POST(req: Request) {
   }
 }
 
-async function processEmailWithAgent(userId: string, subject: string, body: string): Promise<void> {
+function trace(debugTrace: string[] | null, msg: string): void {
+  if (debugTrace) debugTrace.push(msg)
+  console.log('[inbound-email]', msg)
+}
+
+async function processEmailWithAgent(
+  userId: string,
+  subject: string,
+  body: string,
+  debugTrace: string[] | null,
+): Promise<void> {
+  trace(debugTrace, `input → userId=${userId} subject="${subject}" bodyLen=${body.length}`)
+
   const systemPrompt = await buildAgencyContextForUser(userId)
+  trace(debugTrace, `context built, ${systemPrompt.length} chars`)
+
   const userMessage = `[Email reçu — Sujet: ${subject}]
 
 ${body}
@@ -230,7 +258,7 @@ Traite ce mail : exécute les actions demandées (ajouter un client, un doc, une
   const admin = createAdminClient()
 
   if (!process.env.ANTHROPIC_API_KEY) {
-    console.error('[inbound-email] ANTHROPIC_API_KEY manquante')
+    trace(debugTrace, 'ERROR: ANTHROPIC_API_KEY manquante')
     return
   }
 
@@ -242,8 +270,11 @@ Traite ce mail : exécute les actions demandées (ajouter un client, un doc, une
   > = [{ role: 'user', content: userMessage }]
 
   let lastMessage: Awaited<ReturnType<typeof anthropic.messages.create>>
+  let turn = 0
 
   while (true) {
+    turn++
+    trace(debugTrace, `claude turn ${turn} (${apiMessages.length} messages)`)
     lastMessage = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 4096,
@@ -258,7 +289,7 @@ Traite ce mail : exécute les actions demandées (ajouter un client, un doc, une
         .filter((b) => b.type === 'text')
         .map((b) => ('text' in b ? b.text : ''))
         .join('')
-      console.log('[inbound-email] Réponse agent:', text)
+      trace(debugTrace, `agent done → "${text.slice(0, 200)}"`)
       return
     }
 
@@ -267,6 +298,7 @@ Traite ce mail : exécute les actions demandées (ajouter un client, un doc, une
 
     for (const block of toolUses) {
       const input = block.input as Record<string, unknown>
+      trace(debugTrace, `tool ${block.name} input=${JSON.stringify(input)}`)
       let result: string
       try {
         if (block.name === 'create_client') {
@@ -374,7 +406,7 @@ Traite ce mail : exécute les actions demandées (ajouter un client, un doc, une
         result = `Erreur : ${err instanceof Error ? err.message : 'Erreur inconnue'}`
       }
       toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: result })
-      console.log('[inbound-email] Tool', block.name, '→', result)
+      trace(debugTrace, `tool ${block.name} → ${result}`)
     }
 
     const assistantContent = lastMessage.content
