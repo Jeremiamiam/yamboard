@@ -1,0 +1,218 @@
+"use client";
+
+import { useState, useEffect, useTransition } from "react";
+import { redirect } from "next/navigation";
+import { DocumentsTab } from "@/components/tabs/DocumentsTab";
+import { BudgetsTab } from "@/components/tabs/BudgetsTab";
+import { ProductDrawer } from "@/components/ProductDrawer";
+import { type Client, type Project, type Document, type BudgetProduct } from "@/lib/types";
+import { updateProjectAction, deleteProjectAction } from "@/lib/store/actions";
+import { ClientBreadcrumbNav } from "@/components/ClientBreadcrumbNav";
+import { EditMenu } from "@/components/EditMenu";
+import { projectHasLockedPotentiel } from "@/lib/budget-utils";
+import { useStore } from "@/lib/store";
+
+type Props = {
+  client: Client
+  project: Project | null
+  projectDocs: Document[]
+  clientDocs: Document[]
+  budgetProducts: BudgetProduct[]
+  clientId: string
+  projectId: string
+}
+
+export function ProjectPageShell({
+  client,
+  project: propProject,
+  projectDocs,
+  clientDocs,
+  budgetProducts,
+  clientId,
+  projectId,
+}: Props) {
+  const [potentiel, setPotentiel] = useState<number | undefined>(propProject?.potentialAmount);
+  const [isEditingPotentiel, setIsEditingPotentiel] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editName, setEditName] = useState(propProject?.name ?? "");
+  const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (propProject) {
+      setPotentiel(propProject.potentialAmount);
+      setEditName(propProject.name);
+    }
+  }, [propProject?.potentialAmount, propProject?.name]);
+
+  // If project is null (invalid UUID in URL) → redirect to client page
+  if (!propProject) {
+    redirect(`/${clientId}`)
+  }
+
+  const project = propProject
+  const potentielLocked = projectHasLockedPotentiel(budgetProducts, project.id);
+  const [selectedProduct, setSelectedProduct] = useState<BudgetProduct | null>(null);
+
+  function handlePotentielSave() {
+    setIsEditingPotentiel(false);
+    startTransition(async () => {
+      await updateProjectAction(project.id, { potentialAmount: potentiel });
+    });
+  }
+
+  function handleNameSave() {
+    const name = editName.trim();
+    if (!name || name === project.name) {
+      setIsEditingName(false);
+      setEditName(project.name);
+      return;
+    }
+    setIsEditingName(false);
+    startTransition(async () => {
+      await updateProjectAction(project.id, { name });
+    });
+  }
+
+  const navigateTo = useStore((s) => s.navigateTo);
+  const toggleDetailSidebar = useStore((s) => s.toggleDetailSidebar);
+
+  function handleDeleteProject() {
+    startTransition(async () => {
+      const result = await deleteProjectAction(project.id);
+      if (!result.error) navigateTo(clientId);
+    });
+  }
+
+  return (
+    <>
+      <div
+        className="flex flex-col h-screen bg-zinc-50 dark:bg-zinc-950"
+        style={{ paddingLeft: "calc(var(--sidebar-w) + var(--client-detail-sidebar-w))", paddingTop: "calc(var(--nav-h) + var(--breadcrumb-h))" }}
+      >
+        <ClientBreadcrumbNav
+          client={client}
+          project={project}
+          clientId={clientId}
+          rightSlot={
+            <div className="flex items-center gap-2 sm:gap-5">
+              <button
+                onClick={toggleDetailSidebar}
+                className="md:hidden w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-zinc-200 dark:hover:bg-zinc-800 transition-colors"
+                aria-label="Contacts et infos"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </button>
+              {/* Éditer projet — titre déjà dans le breadcrumb à gauche */}
+              <div className="flex items-center gap-2">
+                {isEditingName ? (
+                  <div className="flex items-center gap-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-2.5 py-1.5 focus-within:border-zinc-400 dark:focus-within:border-zinc-500">
+                    <input
+                      type="text"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleNameSave();
+                        if (e.key === "Escape") {
+                          setIsEditingName(false);
+                          setEditName(project.name);
+                        }
+                      }}
+                      autoFocus
+                      placeholder="Nom du projet"
+                      className="bg-transparent text-sm text-zinc-800 dark:text-zinc-200 outline-none min-w-[120px]"
+                    />
+                    <button onClick={handleNameSave} className="text-xs text-emerald-600 hover:text-emerald-500">OK</button>
+                    <button onClick={() => { setIsEditingName(false); setEditName(project.name); }} className="text-xs text-zinc-400 hover:text-zinc-600">✕</button>
+                  </div>
+                ) : (
+                  <EditMenu
+                    onRename={() => setIsEditingName(true)}
+                    onDelete={handleDeleteProject}
+                    confirmDeleteLabel="Supprimer ce projet ? Les produits et documents seront supprimés."
+                    disabled={isPending}
+                  />
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <label className="text-[11px] text-zinc-500 dark:text-zinc-600 uppercase tracking-wider hidden sm:inline">
+                  Potentiel
+                </label>
+                {potentielLocked ? (
+                  <span
+                    className="text-sm text-zinc-500 dark:text-zinc-600 italic"
+                    title="Devis payé ou mouvement d'argent — le potentiel n'a plus d'intérêt"
+                  >
+                    Projet déjà actif
+                  </span>
+                ) : isEditingPotentiel ? (
+                <div className="flex items-center gap-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-2.5 py-1.5 focus-within:border-zinc-400 dark:focus-within:border-zinc-500 w-24">
+                  <input
+                    type="number"
+                    value={potentiel ?? ""}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setPotentiel(v === "" ? undefined : parseFloat(v) || undefined);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handlePotentielSave();
+                      if (e.key === "Escape") {
+                        setIsEditingPotentiel(false);
+                        setPotentiel(project.potentialAmount);
+                      }
+                    }}
+                    autoFocus
+                    className="bg-transparent text-sm text-zinc-800 dark:text-zinc-200 outline-none text-right w-full"
+                  />
+                  <span className="text-xs text-zinc-500 dark:text-zinc-600">€</span>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setIsEditingPotentiel(true)}
+                  className="text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-colors"
+                >
+                  {potentiel != null && !isNaN(potentiel)
+                    ? `${potentiel.toLocaleString("fr-FR")} €`
+                    : "—"}
+                </button>
+              )}
+              </div>
+            </div>
+          }
+        />
+
+        {/* ── Split: produits à gauche, produit ou documents à droite ── */}
+        <div className="flex-1 overflow-hidden flex flex-col lg:flex-row min-h-0">
+          <div className="flex-1 min-w-0 flex flex-col min-h-0 overflow-hidden lg:border-r border-b lg:border-b-0 border-zinc-200 dark:border-zinc-800">
+            <BudgetsTab
+              project={project}
+              clientColor={client.color}
+              budgetProducts={budgetProducts}
+              selectedProduct={selectedProduct}
+              onSelectProduct={setSelectedProduct}
+            />
+          </div>
+          <div className="flex-1 min-w-0 flex flex-col min-h-0 overflow-hidden">
+            {selectedProduct ? (
+              <ProductDrawer
+                product={selectedProduct}
+                onClose={() => setSelectedProduct(null)}
+                clientColor={client.color}
+                variant="inline"
+              />
+            ) : (
+              <DocumentsTab
+                project={project}
+                clientId={clientId}
+                clientColor={client.color}
+                projectDocs={projectDocs}
+                clientDocs={clientDocs}
+              />
+            )}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}

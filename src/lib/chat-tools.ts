@@ -1,0 +1,222 @@
+/**
+ * Exécution serveur des outils du chat (tool use).
+ * Utilise le client Supabase serveur — pas de store, pas de toast.
+ */
+
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+export type ToolResult =
+  | { ok: true; type: "create_client"; clientId: string; name: string }
+  | { ok: true; type: "create_project"; projectId: string; clientId: string; name: string }
+  | { ok: true; type: "create_product"; productId: string; projectId: string; name: string; devisAmount?: number }
+  | { ok: true; type: "create_contact"; contactId: string; clientId: string; name: string }
+  | { ok: true; type: "create_note"; documentId: string; clientId: string; name: string }
+  | { ok: true; type: "create_link"; linkId: string; clientId: string; name: string }
+  | { ok: false; error: string };
+
+export function getToolResultMessage(r: ToolResult): string {
+  if (!r.ok) return `Erreur : ${r.error}`;
+  if (r.type === "create_client") return `Client créé : ${r.name} (id: ${r.clientId})`;
+  if (r.type === "create_project") return `Projet créé : ${r.name} (id: ${r.projectId})`;
+  if (r.type === "create_product")
+    return `Produit créé : ${r.name} (id: ${r.productId})${r.devisAmount ? ` — devis ${r.devisAmount} €` : ""}`;
+  if (r.type === "create_contact") return `Contact ajouté : ${r.name} (client ${r.clientId})`;
+  if (r.type === "create_note") return `Note créée : ${r.name} (client ${r.clientId})`;
+  if (r.type === "create_link") return `Lien ajouté : ${r.name} (client ${r.clientId})`;
+  return "Erreur inconnue";
+}
+
+export async function executeCreateContact(
+  supabase: SupabaseClient,
+  userId: string,
+  params: { clientId: string; name: string; email?: string; role?: string; isPrimary?: boolean }
+): Promise<ToolResult> {
+  const name = params.name?.trim();
+  if (!name) return { ok: false, error: "Le nom du contact est requis." };
+  if (!params.clientId) return { ok: false, error: "L'ID du client est requis." };
+
+  const { data, error } = await supabase
+    .from("contacts")
+    .insert({
+      client_id: params.clientId,
+      name,
+      email: params.email?.trim() || null,
+      role: params.role?.trim() || null,
+      is_primary: params.isPrimary ?? false,
+      owner_id: userId,
+    })
+    .select("id")
+    .single();
+
+  if (error) return { ok: false, error: error.message };
+  return {
+    ok: true,
+    type: "create_contact",
+    contactId: data.id,
+    clientId: params.clientId,
+    name,
+  };
+}
+
+export async function executeCreateClient(
+  supabase: SupabaseClient,
+  userId: string,
+  params: { name: string; industry?: string; category?: "client" | "prospect" }
+): Promise<ToolResult> {
+  const name = params.name?.trim();
+  if (!name) return { ok: false, error: "Le nom du client est requis." };
+
+  const { data, error } = await supabase
+    .from("clients")
+    .insert({
+      name,
+      industry: params.industry ?? null,
+      category: params.category ?? "client",
+      status: "active",
+      color: null,
+      owner_id: userId,
+    })
+    .select("id")
+    .single();
+
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, type: "create_client", clientId: data.id, name };
+}
+
+export async function executeCreateProject(
+  supabase: SupabaseClient,
+  userId: string,
+  params: { clientId: string; name: string; potentialAmount?: number }
+): Promise<ToolResult> {
+  const name = params.name?.trim();
+  if (!name) return { ok: false, error: "Le nom du projet est requis." };
+  if (!params.clientId) return { ok: false, error: "L'ID du client est requis." };
+
+  const { data, error } = await supabase
+    .from("projects")
+    .insert({
+      client_id: params.clientId,
+      name,
+      type: "other",
+      status: "active",
+      description: null,
+      potential_amount: params.potentialAmount ?? null,
+      owner_id: userId,
+    })
+    .select("id")
+    .single();
+
+  if (error) return { ok: false, error: error.message };
+  return {
+    ok: true,
+    type: "create_project",
+    projectId: data.id,
+    clientId: params.clientId,
+    name,
+  };
+}
+
+export async function executeCreateProduct(
+  supabase: SupabaseClient,
+  userId: string,
+  params: { projectId: string; name: string; devisAmount?: number }
+): Promise<ToolResult> {
+  const name = params.name?.trim();
+  if (!name) return { ok: false, error: "Le nom du produit est requis." };
+  if (!params.projectId) return { ok: false, error: "L'ID du projet est requis." };
+
+  const devisAmount = params.devisAmount != null ? Number(params.devisAmount) : undefined;
+  const totalAmount = devisAmount ?? 0;
+  const devis =
+    devisAmount != null && devisAmount > 0
+      ? { amount: devisAmount, status: "pending" as const }
+      : null;
+
+  const { data, error } = await supabase
+    .from("budget_products")
+    .insert({
+      project_id: params.projectId,
+      name,
+      total_amount: totalAmount,
+      devis,
+      owner_id: userId,
+    })
+    .select("id")
+    .single();
+
+  if (error) return { ok: false, error: error.message };
+  return {
+    ok: true,
+    type: "create_product",
+    productId: data.id,
+    projectId: params.projectId,
+    name,
+    devisAmount: devisAmount ?? undefined,
+  };
+}
+
+export async function executeCreateNote(
+  supabase: SupabaseClient,
+  userId: string,
+  params: { clientId: string; projectId?: string; name: string; content: string }
+): Promise<ToolResult> {
+  const name = params.name?.trim();
+  const content = params.content?.trim() ?? "";
+  if (!name) return { ok: false, error: "Le nom de la note est requis." };
+  if (!params.clientId) return { ok: false, error: "L'ID du client est requis." };
+
+  const { data, error } = await supabase
+    .from("documents")
+    .insert({
+      client_id: params.clientId,
+      project_id: params.projectId ?? null,
+      name,
+      type: "other",
+      storage_path: null,
+      content,
+      owner_id: userId,
+    })
+    .select("id")
+    .single();
+
+  if (error) return { ok: false, error: error.message };
+  return {
+    ok: true,
+    type: "create_note",
+    documentId: data.id,
+    clientId: params.clientId,
+    name,
+  };
+}
+
+export async function executeCreateLink(
+  supabase: SupabaseClient,
+  userId: string,
+  params: { clientId: string; projectId?: string; name: string; url: string }
+): Promise<ToolResult> {
+  const name = params.name?.trim();
+  const url = params.url?.trim() ?? "";
+  if (!name) return { ok: false, error: "Le nom du lien est requis." };
+  if (!url) return { ok: false, error: "L'URL est requise." };
+  if (!params.clientId) return { ok: false, error: "L'ID du client est requis." };
+
+  const { data, error } = await supabase
+    .from("client_links")
+    .insert({
+      client_id: params.clientId,
+      label: name,
+      url,
+      owner_id: userId,
+    })
+    .select("id")
+    .single();
+
+  if (error) return { ok: false, error: error.message };
+  return {
+    ok: true,
+    type: "create_link",
+    linkId: data.id,
+    clientId: params.clientId,
+    name,
+  };
+}
