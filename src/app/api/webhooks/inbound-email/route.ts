@@ -18,17 +18,7 @@ import { Webhook } from 'svix'
 import { Resend } from 'resend'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { buildAgencyContextForUser } from '@/lib/context-builders'
-import {
-  executeCreateClient,
-  executeCreateProject,
-  executeCreateProduct,
-  executeCreateNote,
-  executeCreateLink,
-  executeCreateContact,
-  executeUpdatePaymentStage,
-  executeAddAvancement,
-  getToolResultMessage,
-} from '@/lib/chat-tools'
+import { executeCreateContact, executeCreateNote, getToolResultMessage } from '@/lib/chat-tools'
 import { insertClientActivity } from '@/lib/activity-log'
 import type { ContentBlock, ToolUseBlock } from '@anthropic-ai/sdk/resources/messages/messages'
 import Anthropic from '@anthropic-ai/sdk'
@@ -38,75 +28,8 @@ export const dynamic = 'force-dynamic'
 
 const AGENCY_TOOLS = [
   {
-    name: 'create_client',
-    description: "Crée un nouveau client ou prospect dans Yam. Par défaut: client.",
-    input_schema: {
-      type: 'object' as const,
-      properties: {
-        name: { type: 'string', description: 'Nom du client ou prospect' },
-        industry: { type: 'string', description: 'Secteur d\'activité (optionnel)' },
-        category: { type: 'string', enum: ['client', 'prospect'], description: 'client ou prospect. Utilise client par défaut sauf si le mail dit explicitement prospect.' },
-      },
-      required: ['name'],
-    },
-  },
-  {
-    name: 'create_project',
-    description: 'Crée un nouveau projet pour un client existant.',
-    input_schema: {
-      type: 'object' as const,
-      properties: {
-        clientId: { type: 'string', description: 'UUID du client' },
-        name: { type: 'string', description: 'Nom du projet' },
-        potentialAmount: { type: 'number', description: 'Montant potentiel en € (optionnel)' },
-      },
-      required: ['clientId', 'name'],
-    },
-  },
-  {
-    name: 'create_product',
-    description: 'Crée un produit/prestation pour un projet.',
-    input_schema: {
-      type: 'object' as const,
-      properties: {
-        projectId: { type: 'string', description: 'UUID du projet' },
-        name: { type: 'string', description: 'Nom de la prestation' },
-        devisAmount: { type: 'number', description: 'Montant du devis en € (optionnel)' },
-      },
-      required: ['projectId', 'name'],
-    },
-  },
-  {
-    name: 'create_note',
-    description: 'Ajoute une note/document texte pour un client.',
-    input_schema: {
-      type: 'object' as const,
-      properties: {
-        clientId: { type: 'string', description: 'UUID du client' },
-        projectId: { type: 'string', description: 'UUID du projet (optionnel)' },
-        name: { type: 'string', description: 'Nom du document' },
-        content: { type: 'string', description: 'Contenu texte de la note' },
-      },
-      required: ['clientId', 'name', 'content'],
-    },
-  },
-  {
-    name: 'create_link',
-    description: 'Ajoute un lien externe pour un client.',
-    input_schema: {
-      type: 'object' as const,
-      properties: {
-        clientId: { type: 'string', description: 'UUID du client' },
-        projectId: { type: 'string', description: 'UUID du projet (optionnel)' },
-        name: { type: 'string', description: 'Nom du lien' },
-        url: { type: 'string', description: 'URL complète (https://...)' },
-      },
-      required: ['clientId', 'name', 'url'],
-    },
-  },
-  {
     name: 'create_contact',
-    description: 'Ajoute un contact (nom, email) à un client. Utilise pour l\'expéditeur du mail.',
+    description: 'Ajoute un contact dans la section CONTACTS du client. OBLIGATOIRE pour chaque expéditeur de mail.',
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -120,30 +43,17 @@ const AGENCY_TOOLS = [
     },
   },
   {
-    name: 'update_payment_stage',
-    description: 'Met à jour devis, acompte ou solde d\'un produit. Status: pending, sent, paid.',
+    name: 'create_note',
+    description: 'Résumé des échanges mail. Crée une note affichée dans l\'activité (cliquable). Points clés, décisions, prochaines étapes. 5-10 lignes synthétiques.',
     input_schema: {
       type: 'object' as const,
       properties: {
-        productId: { type: 'string', description: 'UUID du produit' },
-        stage: { type: 'string', enum: ['devis', 'acompte', 'solde'], description: 'Étape à mettre à jour' },
-        amount: { type: 'number', description: 'Montant en € (optionnel)' },
-        status: { type: 'string', enum: ['pending', 'sent', 'paid'], description: 'pending=à faire, sent=envoyé, paid=payé' },
+        clientId: { type: 'string', description: 'UUID du client' },
+        projectId: { type: 'string', description: 'UUID du projet (optionnel)' },
+        name: { type: 'string', description: 'Titre (ex: "Échange - Sujet du mail")' },
+        content: { type: 'string', description: 'RÉSUMÉ SYNTHÉTIQUE des échanges (5-10 lignes). Obligatoire.' },
       },
-      required: ['productId', 'stage'],
-    },
-  },
-  {
-    name: 'add_avancement',
-    description: 'Ajoute un avancement (facture intermédiaire) à un produit.',
-    input_schema: {
-      type: 'object' as const,
-      properties: {
-        productId: { type: 'string', description: 'UUID du produit' },
-        amount: { type: 'number', description: 'Montant en € (optionnel)' },
-        status: { type: 'string', enum: ['pending', 'sent', 'paid'], description: 'pending par défaut' },
-      },
-      required: ['productId'],
+      required: ['clientId', 'name', 'content'],
     },
   },
 ]
@@ -161,66 +71,90 @@ function extractEmailFromFromField(from: string): string | null {
 }
 
 export async function POST(req: Request) {
+  const log = (msg: string, data?: unknown) => {
+    console.log('[inbound-email]', msg, data ?? '')
+  }
+
   try {
     const webhookSecret = process.env.RESEND_WEBHOOK_SECRET
     const resendApiKey = process.env.RESEND_API_KEY
 
     if (!webhookSecret || !resendApiKey) {
-      console.error('[inbound-email] RESEND_WEBHOOK_SECRET ou RESEND_API_KEY manquant')
+      log('ERREUR: RESEND_WEBHOOK_SECRET ou RESEND_API_KEY manquant')
       return NextResponse.json({ error: 'Config manquante' }, { status: 500 })
     }
 
     const rawBody = await req.text()
-    let event: { type?: string; data?: { email_id?: string; from?: string; subject?: string } }
+    let event: { type?: string; data?: { email_id?: string; from?: string; subject?: string }; __test?: boolean }
 
     try {
       event = JSON.parse(rawBody) as typeof event
     } catch {
+      log('ERREUR: Invalid JSON')
       return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
     }
 
+    const isTest = event.__test === true && process.env.INBOUND_TEST_SECRET && req.headers.get('x-test-secret') === process.env.INBOUND_TEST_SECRET
+
+    log('Event reçu', { type: event.type, emailId: event.data?.email_id, from: event.data?.from, isTest })
+
     if (event.type !== 'email.received') {
-      return NextResponse.json({ ok: true }) // Ignorer les autres events
+      log('Ignoré: type != email.received')
+      return NextResponse.json({ ok: true })
     }
 
     const emailId = event.data?.email_id
     const from = event.data?.from ?? ''
 
     if (!emailId) {
+      log('ERREUR: email_id manquant')
       return NextResponse.json({ error: 'email_id manquant' }, { status: 400 })
     }
 
-    // Vérifier la signature Resend (Svix)
-    try {
-      const wh = new Webhook(webhookSecret)
-      wh.verify(rawBody, {
-        'svix-id': req.headers.get('svix-id') ?? '',
-        'svix-timestamp': req.headers.get('svix-timestamp') ?? '',
-        'svix-signature': req.headers.get('svix-signature') ?? '',
-      })
-    } catch (verifyErr) {
-      console.warn('[inbound-email] Signature webhook invalide:', verifyErr)
-      return NextResponse.json({ error: 'Signature invalide' }, { status: 401 })
+    // Vérifier la signature Resend (Svix) — sauf en mode test
+    if (!isTest) {
+      try {
+        const wh = new Webhook(webhookSecret)
+        wh.verify(rawBody, {
+          'svix-id': req.headers.get('svix-id') ?? '',
+          'svix-timestamp': req.headers.get('svix-timestamp') ?? '',
+          'svix-signature': req.headers.get('svix-signature') ?? '',
+        })
+      } catch (verifyErr) {
+        log('ERREUR: Signature webhook invalide (Replay Resend ? Le timestamp Svix expire après ~5 min)', verifyErr)
+        return NextResponse.json({ error: 'Signature invalide' }, { status: 401 })
+      }
+    } else {
+      log('Mode test: signature ignorée')
     }
 
     const senderEmail = extractEmailFromFromField(from)
     if (!senderEmail) {
-      console.warn('[inbound-email] Impossible d\'extraire l\'email expéditeur:', from)
-      return NextResponse.json({ ok: true }) // 200 pour éviter les retries
-    }
-
-    // Trouver l'utilisateur par email
-    const admin = createAdminClient()
-    const { data: listData } = await admin.auth.admin.listUsers({ perPage: 1000 })
-    const user = listData?.users?.find((u) => u.email?.toLowerCase() === senderEmail)
-
-    if (!user) {
-      console.warn('[inbound-email] Aucun utilisateur Yam pour:', senderEmail)
+      log('ERREUR: Impossible d\'extraire l\'email expéditeur', from)
       return NextResponse.json({ ok: true })
     }
 
+    log('Recherche utilisateur', senderEmail)
+
+    // Trouver l'utilisateur par email (exact, puis fallback domaine @agence-yam.fr)
+    const admin = createAdminClient()
+    const { data: listData } = await admin.auth.admin.listUsers({ perPage: 1000 })
+    let user = listData?.users?.find((u) => u.email?.toLowerCase() === senderEmail)
+    if (!user && senderEmail.endsWith('@agence-yam.fr')) {
+      const domainUsers = listData?.users?.filter((u) => u.email?.toLowerCase().endsWith('@agence-yam.fr')) ?? []
+      if (domainUsers.length === 1) {
+        user = domainUsers[0]
+        log('Fallback: 1 seul user @agence-yam.fr, utilisation', user.email)
+      }
+    }
+    if (!user) {
+      log('ERREUR: Aucun utilisateur Yam pour', { from, senderEmail })
+      return NextResponse.json({ ok: true })
+    }
+
+    log('Utilisateur trouvé', { userId: user.id, email: user.email })
+
     // Récupérer le corps du mail via l'API Resend Receiving
-    // Le SDK Resend v4 n'expose pas emails.receiving → appel direct à l'API
     let body = ''
     try {
       const resend = new Resend(resendApiKey)
@@ -230,17 +164,18 @@ export async function POST(req: Request) {
       const receivedData = result.data
       const receivedErr = result.error
       if (receivedErr || !receivedData) {
-        console.warn('[inbound-email] API receiving échouée, fallback sujet seul:', receivedErr)
+        log('API receiving échouée, fallback sujet seul', receivedErr)
         body = `(Corps non récupéré — sujet: ${event.data?.subject ?? ''})`
       } else {
         body = receivedData.text ?? receivedData.html ?? ''
       }
     } catch (apiErr) {
-      console.warn('[inbound-email] Exception API receiving:', apiErr)
+      log('Exception API receiving', apiErr)
       body = `(Corps non récupéré — sujet: ${event.data?.subject ?? ''})`
     }
 
     if (!body.trim()) body = event.data?.subject ?? '(sans contenu)'
+    log('Corps mail', { bodyLen: body.length, preview: body.slice(0, 80) })
 
     const debugTrace = process.env.INBOUND_DEBUG === '1' ? [] as string[] : null
 
@@ -263,6 +198,7 @@ export async function POST(req: Request) {
         agentTrace: debugTrace ?? [],
       }
     }
+    log('Traitement terminé')
     return NextResponse.json(response)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
@@ -302,14 +238,15 @@ Sujet: ${subject}
 ${body}
 
 ---
-Traite ce mail :
-1. **Contact** : Extrais l'expéditeur (nom, email). Crée client si besoin, puis create_contact.
-2. **Résumé** : Pour les notes, rédige un RÉSUMÉ SYNTHÉTIQUE (points clés, décisions, prochaines étapes). Pas le mail brut.
-3. **Budget** : Tu peux créer des produits, mettre à jour devis/acompte/solde (amount, status: pending/sent/paid), ajouter des avancements.
-4. **"nouveau client"** → category: client.
-5. **Interdit** : Aucune suppression (delete). Création et mise à jour uniquement.
+RÈGLES :
+1. **Identifie le client** : Le sujet et le corps du mail indiquent souvent le client (ex: "deck light", "Light et pro" → client "Deck Light" ou similaire). Cherche dans le contexte la correspondance la plus probable.
+2. **NE JAMAIS créer de client** : Utilise UNIQUEMENT les IDs des clients présents dans le contexte. Si le nom dans le mail correspond à un client existant (ex: Forge, FORGE, forge = même client), utilise cet ID.
+3. **create_contact** : L'expéditeur (nom + email ci-dessus) DOIT être ajouté avec create_contact. C'est la section "Contacts" du client.
+4. **create_note** : En PLUS du contact, crée un RÉSUMÉ des échanges (points clés, décisions, prochaines étapes). 5-10 lignes. Ce résumé sera affiché dans l'activité (cliquable).
+5. Ordre : create_contact (expéditeur) → create_note (résumé des échanges).
+6. Si aucun client ne correspond, choisis le plus pertinent ou le premier du contexte.
 
-Exécute les actions via tes outils. Sois concis.`
+Exécute les actions. Sois concis.`
 
   const admin = createAdminClient()
 
@@ -346,6 +283,7 @@ Exécute les actions via tes outils. Sois concis.`
         .map((b) => ('text' in b ? b.text : ''))
         .join('')
       trace(debugTrace, `agent done → "${text.slice(0, 200)}"`)
+      console.log('[inbound-email] Agent terminé sans tool_use:', text.slice(0, 300))
       return
     }
 
@@ -357,73 +295,17 @@ Exécute les actions via tes outils. Sois concis.`
       trace(debugTrace, `tool ${block.name} input=${JSON.stringify(input)}`)
       let result: string
       try {
-        if (block.name === 'create_client') {
-          const r = await executeCreateClient(admin, userId, {
-            name: String(input.name ?? ''),
-            industry: input.industry ? String(input.industry) : undefined,
-            category: input.category === 'prospect' ? 'prospect' : 'client',
-          })
-          result = getToolResultMessage(r)
-          if (r.ok && r.type === 'create_client') {
-            await insertClientActivity(admin, {
-              clientId: r.clientId,
-              actionType: 'client_created',
-              source: 'email',
-              summary: `Client créé : ${r.name}`,
-              metadata: { name: r.name },
-              ownerId: userId,
-            })
-          }
-        } else if (block.name === 'create_project') {
-          const clientId = String(input.clientId ?? '')
-          const r = await executeCreateProject(admin, userId, {
-            clientId,
-            name: String(input.name ?? ''),
-            potentialAmount: input.potentialAmount != null ? Number(input.potentialAmount) : undefined,
-          })
-          result = getToolResultMessage(r)
-          if (r.ok && r.type === 'create_project') {
-            await insertClientActivity(admin, {
-              clientId,
-              projectId: r.projectId,
-              actionType: 'project_created',
-              source: 'email',
-              summary: `Projet créé : ${r.name}`,
-              metadata: { name: r.name, projectId: r.projectId },
-              ownerId: userId,
-            })
-          }
-        } else if (block.name === 'create_product') {
-          const projectId = String(input.projectId ?? '')
-          const r = await executeCreateProduct(admin, userId, {
-            projectId,
-            name: String(input.name ?? ''),
-            devisAmount: input.devisAmount != null ? Number(input.devisAmount) : undefined,
-          })
-          result = getToolResultMessage(r)
-          if (r.ok && r.type === 'create_product') {
-            const { data: proj } = await admin.from('projects').select('client_id').eq('id', projectId).single()
-            const clientIdFromProject = (proj as { client_id?: string } | null)?.client_id
-            if (clientIdFromProject) {
-              await insertClientActivity(admin, {
-                clientId: clientIdFromProject,
-                projectId,
-                actionType: 'product_added',
-                source: 'email',
-                summary: `Produit créé : ${r.name}`,
-                metadata: { name: r.name, projectId },
-                ownerId: userId,
-              })
-            }
-          }
-        } else if (block.name === 'create_note') {
+        if (block.name === 'create_note') {
           const clientId = String(input.clientId ?? '')
           const content = String(input.content ?? '')
+          const { data: clientRow } = await admin.from('clients').select('owner_id').eq('id', clientId).single()
+          const clientOwnerId = (clientRow as { owner_id?: string } | null)?.owner_id ?? userId
           const r = await executeCreateNote(admin, userId, {
             clientId,
             projectId: input.projectId ? String(input.projectId) : undefined,
             name: String(input.name ?? ''),
             content,
+            ownerId: clientOwnerId,
           })
           result = getToolResultMessage(r)
           if (r.ok && r.type === 'create_note') {
@@ -434,36 +316,20 @@ Exécute les actions via tes outils. Sois concis.`
               source: 'email',
               summary: `Note ajoutée : ${r.name}`,
               metadata: { name: r.name, content },
-              ownerId: userId,
-            })
-          }
-        } else if (block.name === 'create_link') {
-          const clientId = String(input.clientId ?? '')
-          const r = await executeCreateLink(admin, userId, {
-            clientId,
-            projectId: input.projectId ? String(input.projectId) : undefined,
-            name: String(input.name ?? ''),
-            url: String(input.url ?? ''),
-          })
-          result = getToolResultMessage(r)
-          if (r.ok && r.type === 'create_link') {
-            await insertClientActivity(admin, {
-              clientId,
-              actionType: 'link_added',
-              source: 'email',
-              summary: `Lien ajouté : ${r.name}`,
-              metadata: { name: r.name, url: input.url },
-              ownerId: userId,
+              ownerId: clientOwnerId,
             })
           }
         } else if (block.name === 'create_contact') {
           const clientId = String(input.clientId ?? '')
+          const { data: clientRow } = await admin.from('clients').select('owner_id').eq('id', clientId).single()
+          const clientOwnerId = (clientRow as { owner_id?: string } | null)?.owner_id ?? userId
           const r = await executeCreateContact(admin, userId, {
             clientId,
             name: String(input.name ?? ''),
             email: input.email ? String(input.email) : undefined,
             role: input.role ? String(input.role) : undefined,
             isPrimary: input.isPrimary === true,
+            ownerId: clientOwnerId,
           })
           result = getToolResultMessage(r)
           if (r.ok && r.type === 'create_contact') {
@@ -473,64 +339,8 @@ Exécute les actions via tes outils. Sois concis.`
               source: 'email',
               summary: `Contact ajouté : ${r.name}`,
               metadata: { name: r.name },
-              ownerId: userId,
+              ownerId: clientOwnerId,
             })
-          }
-        } else if (block.name === 'update_payment_stage') {
-          const productId = String(input.productId ?? '')
-          const stage = input.stage === 'acompte' ? 'acompte' : input.stage === 'solde' ? 'solde' : 'devis'
-          const r = await executeUpdatePaymentStage(admin, userId, {
-            productId,
-            stage,
-            amount: input.amount != null ? Number(input.amount) : undefined,
-            status: input.status === 'sent' ? 'sent' : input.status === 'paid' ? 'paid' : undefined,
-          })
-          result = getToolResultMessage(r)
-          if (r.ok && r.type === 'update_payment_stage') {
-            const { data: proj } = await admin.from('budget_products').select('project_id').eq('id', productId).single()
-            const projectId = (proj as { project_id?: string } | null)?.project_id
-            const { data: projRow } = projectId
-              ? await admin.from('projects').select('client_id').eq('id', projectId).single()
-              : { data: null }
-            const clientId = (projRow as { client_id?: string } | null)?.client_id
-            if (clientId) {
-              await insertClientActivity(admin, {
-                clientId,
-                projectId: projectId ?? undefined,
-                actionType: 'payment_updated',
-                source: 'email',
-                summary: `${stage} mis à jour`,
-                metadata: { productId, stage },
-                ownerId: userId,
-              })
-            }
-          }
-        } else if (block.name === 'add_avancement') {
-          const productId = String(input.productId ?? '')
-          const r = await executeAddAvancement(admin, userId, {
-            productId,
-            amount: input.amount != null ? Number(input.amount) : undefined,
-            status: input.status === 'sent' ? 'sent' : input.status === 'paid' ? 'paid' : undefined,
-          })
-          result = getToolResultMessage(r)
-          if (r.ok && r.type === 'add_avancement') {
-            const { data: proj } = await admin.from('budget_products').select('project_id').eq('id', productId).single()
-            const projectId = (proj as { project_id?: string } | null)?.project_id
-            const { data: projRow } = projectId
-              ? await admin.from('projects').select('client_id').eq('id', projectId).single()
-              : { data: null }
-            const clientId = (projRow as { client_id?: string } | null)?.client_id
-            if (clientId) {
-              await insertClientActivity(admin, {
-                clientId,
-                projectId: projectId ?? undefined,
-                actionType: 'payment_updated',
-                source: 'email',
-                summary: 'Avancement ajouté',
-                metadata: { productId },
-                ownerId: userId,
-              })
-            }
           }
         } else {
           result = `Outil inconnu : ${block.name}`
@@ -540,6 +350,9 @@ Exécute les actions via tes outils. Sois concis.`
       }
       toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: result })
       trace(debugTrace, `tool ${block.name} → ${result}`)
+      if (block.name === 'create_contact' || block.name === 'create_note') {
+        console.log('[inbound-email]', block.name, '→', result)
+      }
     }
 
     const assistantContent = lastMessage.content

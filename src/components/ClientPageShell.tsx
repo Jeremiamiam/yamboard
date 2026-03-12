@@ -11,7 +11,7 @@ import { updateClientAction, archiveClientAction, deleteClientAction } from "@/l
 import { deleteDocument } from "@/app/(dashboard)/actions/documents";
 import { removeClientLogo } from "@/app/(dashboard)/actions/clients";
 import { useStore } from "@/lib/store";
-import { ClientMissionsSection, ClientActivityFeed } from "@/components/client";
+import { ClientMissionsSection } from "@/components/client";
 import { ClientBreadcrumbNav } from "@/components/ClientBreadcrumbNav";
 import { EditMenu } from "@/components/EditMenu";
 import { invalidateLogoCache } from "@/components/ClientAvatar";
@@ -174,7 +174,6 @@ export function ClientPageShell({
           }
         />
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 sm:space-y-8">
-          <ClientActivityFeed clientId={clientId} />
           <ClientMissionsSection
             clientId={clientId}
             clientColor={client.color}

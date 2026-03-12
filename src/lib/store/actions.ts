@@ -835,3 +835,25 @@ export async function deleteClientLinkAction(linkId: string): Promise<{ error: s
   invalidateCache()
   return { error: null }
 }
+
+// ─── Logs d'activité ────────────────────────────────────────────
+
+export async function deleteActivityLogAction(logId: string): Promise<{ error: string | null }> {
+  const auth = await getAuth()
+  if (!auth) return { error: 'Not authenticated' }
+  const { supabase, userId } = auth
+
+  const { error } = await supabase
+    .from('client_activity_logs')
+    .delete()
+    .eq('id', logId)
+    .eq('owner_id', userId)
+
+  if (error) {
+    toast.error(error.message)
+    return { error: error.message }
+  }
+  toast.success('Log supprimé')
+  invalidateCache()
+  return { error: null }
+}

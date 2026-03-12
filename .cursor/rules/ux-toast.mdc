@@ -1,0 +1,13 @@
+---
+description: Toast succès/erreur pour chaque action — feedback utilisateur immédiat
+alwaysApply: true
+---
+
+# UX — Toast pour chaque action
+
+Chaque action (création, suppression, mise à jour, etc.) doit afficher un **toast** de succès ou d’erreur pour donner un retour immédiat à l’utilisateur.
+
+- **Succès** : toast vert/positif après une action réussie (ex. « Client créé », « Document supprimé »)
+- **Erreur** : toast rouge/échec après une action échouée (ex. « Erreur lors de la suppression »)
+
+Actions concernées : clients, projets, documents, conversations, budget, contacts, etc.

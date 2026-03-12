@@ -23,7 +23,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   return (
     <>
       {children}
-      <Toaster position="bottom-right" richColors />
+      <Toaster
+        position="top-right"
+        offset={{ top: "5.5rem", right: "1rem" }}
+        richColors
+        toastOptions={{ className: "shadow-lg border" }}
+      />
     </>
   );
 }

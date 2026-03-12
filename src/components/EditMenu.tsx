@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 
 /**
  * Bouton "Éditer" au niveau du titre — ouvre un menu Renommer / Supprimer.
  * Cohérent pour client, projet, produit.
+ * Rendu en portal pour éviter le clipping (overflow) et les conflits de z-index.
  */
 export function EditMenu({
   onRename,
@@ -25,11 +27,14 @@ export function EditMenu({
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (ref.current?.contains(target) || menuRef.current?.contains(target)) return;
+      setOpen(false);
     };
     document.addEventListener("click", handler);
     return () => document.removeEventListener("click", handler);
@@ -47,6 +52,17 @@ export function EditMenu({
     }
   }
 
+  const rect = ref.current?.getBoundingClientRect();
+  const menuStyle =
+    rect && typeof document !== "undefined"
+      ? {
+          position: "fixed" as const,
+          top: rect.bottom + 4,
+          left: rect.left,
+          zIndex: 9998,
+        }
+      : undefined;
+
   return (
     <div className={`relative ${className}`} ref={ref}>
       <button
@@ -57,38 +73,46 @@ export function EditMenu({
       >
         Éditer
       </button>
-      {open && (
-        <div className="absolute left-0 top-full mt-0.5 py-0.5 min-w-[140px] rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-lg z-50">
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); handleRename(); }}
-            className="w-full px-3 py-1.5 text-left text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+      {open &&
+        rect &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            ref={menuRef}
+            style={menuStyle}
+            className="py-0.5 min-w-[140px] rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-lg"
           >
-            Renommer
-          </button>
-          {extraItems.map((item, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setOpen(false); item.onClick(); }}
-              className={`w-full px-3 py-1.5 text-left text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800 ${
-                item.destructive ? "text-red-600 dark:text-red-400" : "text-zinc-700 dark:text-zinc-300"
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-          {!hideDelete && (
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); handleDelete(); }}
-              className="w-full px-3 py-1.5 text-left text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
+              onClick={(e) => { e.stopPropagation(); handleRename(); }}
+              className="w-full px-3 py-1.5 text-left text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
             >
-              Supprimer
+              Renommer
             </button>
-          )}
-        </div>
-      )}
+            {extraItems.map((item, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setOpen(false); item.onClick(); }}
+                className={`w-full px-3 py-1.5 text-left text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800 ${
+                  item.destructive ? "text-red-600 dark:text-red-400" : "text-zinc-700 dark:text-zinc-300"
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+            {!hideDelete && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); handleDelete(); }}
+                className="w-full px-3 py-1.5 text-left text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
+              >
+                Supprimer
+              </button>
+            )}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

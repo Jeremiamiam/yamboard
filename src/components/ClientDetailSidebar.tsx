@@ -15,6 +15,7 @@ import {
 import { deleteDocument } from "@/app/(dashboard)/actions/documents";
 import { AddDocForm } from "@/components/AddDocForm";
 import { DeleteMenu } from "@/components/DeleteMenu";
+import { ClientActivityFeed } from "@/components/client/ClientActivityFeed";
 import { useStore } from "@/lib/store";
 
 type Props = {
@@ -233,6 +234,11 @@ export function ClientDetailSidebar({ clientId }: Props) {
                 </div>
               ))}
             </div>
+          </section>
+
+          {/* Logs d'activité — scrollable */}
+          <section>
+            <ClientActivityFeed clientId={clientId} compact scrollable />
           </section>
 
         </div>

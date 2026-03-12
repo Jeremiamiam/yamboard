@@ -7,9 +7,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type ToolResult =
   | { ok: true; type: "create_client"; clientId: string; name: string }
+  | { ok: true; type: "client_exists"; clientId: string; name: string }
   | { ok: true; type: "create_project"; projectId: string; clientId: string; name: string }
   | { ok: true; type: "create_product"; productId: string; projectId: string; name: string; devisAmount?: number }
   | { ok: true; type: "create_contact"; contactId: string; clientId: string; name: string }
+  | { ok: true; type: "contact_exists"; contactId: string; clientId: string; name: string }
   | { ok: true; type: "create_note"; documentId: string; clientId: string; name: string }
   | { ok: true; type: "create_link"; linkId: string; clientId: string; name: string }
   | { ok: true; type: "update_payment_stage"; productId: string; stage: string }
@@ -19,10 +21,12 @@ export type ToolResult =
 export function getToolResultMessage(r: ToolResult): string {
   if (!r.ok) return `Erreur : ${r.error}`;
   if (r.type === "create_client") return `Client créé : ${r.name} (id: ${r.clientId})`;
+  if (r.type === "client_exists") return `Client déjà existant : ${r.name} (id: ${r.clientId}) — utilise cet ID`;
   if (r.type === "create_project") return `Projet créé : ${r.name} (id: ${r.projectId})`;
   if (r.type === "create_product")
     return `Produit créé : ${r.name} (id: ${r.productId})${r.devisAmount ? ` — devis ${r.devisAmount} €` : ""}`;
   if (r.type === "create_contact") return `Contact ajouté : ${r.name} (client ${r.clientId})`;
+  if (r.type === "contact_exists") return `Contact déjà enregistré : ${r.name}`;
   if (r.type === "create_note") return `Note créée : ${r.name} (client ${r.clientId})`;
   if (r.type === "create_link") return `Lien ajouté : ${r.name} (client ${r.clientId})`;
   if (r.type === "update_payment_stage") return `${r.stage} mis à jour (produit ${r.productId})`;
@@ -33,21 +37,55 @@ export function getToolResultMessage(r: ToolResult): string {
 export async function executeCreateContact(
   supabase: SupabaseClient,
   userId: string,
-  params: { clientId: string; name: string; email?: string; role?: string; isPrimary?: boolean }
+  params: {
+    clientId: string;
+    name: string;
+    email?: string;
+    role?: string;
+    isPrimary?: boolean;
+    /** Si fourni (webhook email), utilise cet owner pour visibilité côté propriétaire du client */
+    ownerId?: string;
+  }
 ): Promise<ToolResult> {
   const name = params.name?.trim();
   if (!name) return { ok: false, error: "Le nom du contact est requis." };
   if (!params.clientId) return { ok: false, error: "L'ID du client est requis." };
+
+  const email = params.email?.trim() || null;
+  const ownerId = params.ownerId ?? userId;
+
+  // Vérifier si un contact existe déjà (même nom ou même email, insensible à la casse)
+  const orConditions = [`name.ilike.${name}`];
+  if (email) orConditions.push(`email.ilike.${email}`);
+
+  const { data: existing } = await supabase
+    .from("contacts")
+    .select("id")
+    .eq("client_id", params.clientId)
+    .eq("owner_id", ownerId)
+    .or(orConditions.join(","))
+    .limit(1)
+    .maybeSingle();
+
+  if (existing) {
+    return {
+      ok: true,
+      type: "contact_exists",
+      contactId: existing.id,
+      clientId: params.clientId,
+      name,
+    };
+  }
 
   const { data, error } = await supabase
     .from("contacts")
     .insert({
       client_id: params.clientId,
       name,
-      email: params.email?.trim() || null,
+      email,
       role: params.role?.trim() || null,
       is_primary: params.isPrimary ?? false,
-      owner_id: userId,
+      owner_id: ownerId,
     })
     .select("id")
     .single();
@@ -69,6 +107,23 @@ export async function executeCreateClient(
 ): Promise<ToolResult> {
   const name = params.name?.trim();
   if (!name) return { ok: false, error: "Le nom du client est requis." };
+
+  // Vérifier si un client avec le même nom existe déjà (insensible à la casse)
+  const { data: existing } = await supabase
+    .from("clients")
+    .select("id")
+    .ilike("name", name)
+    .limit(1)
+    .maybeSingle();
+
+  if (existing) {
+    return {
+      ok: true,
+      type: "client_exists",
+      clientId: existing.id,
+      name,
+    };
+  }
 
   const { data, error } = await supabase
     .from("clients")
@@ -162,12 +217,21 @@ export async function executeCreateProduct(
 export async function executeCreateNote(
   supabase: SupabaseClient,
   userId: string,
-  params: { clientId: string; projectId?: string; name: string; content: string }
+  params: {
+    clientId: string;
+    projectId?: string;
+    name: string;
+    content: string;
+    /** Si fourni (webhook email), utilise cet owner pour visibilité côté propriétaire du client */
+    ownerId?: string;
+  }
 ): Promise<ToolResult> {
   const name = params.name?.trim();
   const content = params.content?.trim() ?? "";
   if (!name) return { ok: false, error: "Le nom de la note est requis." };
   if (!params.clientId) return { ok: false, error: "L'ID du client est requis." };
+
+  const ownerId = params.ownerId ?? userId;
 
   const { data, error } = await supabase
     .from("documents")
@@ -178,7 +242,7 @@ export async function executeCreateNote(
       type: "other",
       storage_path: null,
       content,
-      owner_id: userId,
+      owner_id: ownerId,
     })
     .select("id")
     .single();

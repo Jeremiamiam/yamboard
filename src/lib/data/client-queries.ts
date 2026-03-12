@@ -241,3 +241,24 @@ export async function fetchClientActivityLogs(clientId: string, limit = 20): Pro
     createdAt: row.created_at ?? '',
   }))
 }
+
+/** Activité récente pour la cloche (RLS filtre par owner_id = auth.uid()) */
+export async function fetchRecentActivityForNotifications(limit = 20): Promise<ClientActivityRow[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('client_activity_logs')
+    .select('id, client_id, project_id, action_type, source, summary, metadata, created_at')
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  if (error) throw new Error(error.message)
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    clientId: row.client_id,
+    projectId: row.project_id ?? null,
+    actionType: row.action_type ?? '',
+    source: row.source ?? 'manual',
+    summary: row.summary ?? '',
+    metadata: (row.metadata as Record<string, unknown>) ?? null,
+    createdAt: row.created_at ?? '',
+  }))
+}

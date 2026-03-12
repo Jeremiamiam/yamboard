@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { logout } from "@/app/login/actions";
 import { useStore } from "@/lib/store";
+import { NotificationBell } from "@/components/NotificationBell";
 
 export function GlobalNav() {
   const toggle = useStore((s) => s.toggleSidebar);
@@ -60,6 +61,7 @@ export function GlobalNav() {
 
         {/* Right */}
         <div className="flex items-center gap-2 sm:gap-3">
+          <NotificationBell />
           <button
             onClick={navigateToCompta}
             className={`px-3 py-1.5 rounded-md text-sm transition-colors cursor-pointer ${

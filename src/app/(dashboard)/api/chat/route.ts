@@ -2,13 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { ContentBlock, ToolUseBlock } from "@anthropic-ai/sdk/resources/messages/messages";
 import { buildAgencyContext, buildClientContext, buildProjectContext } from "@/lib/context-builders";
 import { createClient as createSupabaseClient } from "@/lib/supabase/server";
-import {
-  executeCreateClient,
-  executeCreateProject,
-  executeCreateProduct,
-  executeCreateContact,
-  getToolResultMessage,
-} from "@/lib/chat-tools";
+import { executeCreateContact, getToolResultMessage } from "@/lib/chat-tools";
 import { insertClientActivity } from "@/lib/activity-log";
 
 export const runtime = "nodejs";
@@ -27,58 +21,6 @@ const MODEL_BY_SCOPE: Record<"agency" | "client" | "project", string> = {
 };
 
 const AGENCY_TOOLS = [
-  {
-    name: "create_client",
-    description:
-      "Crée un nouveau client ou prospect dans Yam. Utilise quand l'utilisateur demande d'ajouter un client.",
-    input_schema: {
-      type: "object" as const,
-      properties: {
-        name: { type: "string", description: "Nom du client ou prospect" },
-        industry: { type: "string", description: "Secteur d'activité (optionnel)" },
-        category: {
-          type: "string",
-          enum: ["client", "prospect"],
-          description: "client ou prospect",
-        },
-      },
-      required: ["name"],
-    },
-  },
-  {
-    name: "create_project",
-    description:
-      "Crée un nouveau projet pour un client existant. Nécessite l'ID du client (UUID).",
-    input_schema: {
-      type: "object" as const,
-      properties: {
-        clientId: { type: "string", description: "UUID du client" },
-        name: { type: "string", description: "Nom du projet" },
-        potentialAmount: {
-          type: "number",
-          description: "Montant potentiel en € (optionnel)",
-        },
-      },
-      required: ["clientId", "name"],
-    },
-  },
-  {
-    name: "create_product",
-    description:
-      "Crée un produit/prestation pour un projet. Ajoute le montant du devis si connu.",
-    input_schema: {
-      type: "object" as const,
-      properties: {
-        projectId: { type: "string", description: "UUID du projet" },
-        name: { type: "string", description: "Nom de la prestation" },
-        devisAmount: {
-          type: "number",
-          description: "Montant du devis en € (optionnel)",
-        },
-      },
-      required: ["projectId", "name"],
-    },
-  },
   {
     name: "create_contact",
     description:
@@ -105,12 +47,6 @@ function isToolUseBlock(block: ContentBlock): block is ToolUseBlock {
 }
 
 function getToolLabel(block: ToolUseBlock, input: Record<string, unknown>): string {
-  if (block.name === "create_client") return `client « ${String(input.name ?? "?")} »`;
-  if (block.name === "create_project") return `projet « ${String(input.name ?? "?")} »`;
-  if (block.name === "create_product") {
-    const amt = input.devisAmount != null ? ` (${Number(input.devisAmount).toLocaleString("fr-FR")} €)` : "";
-    return `produit « ${String(input.name ?? "?")} »${amt}`;
-  }
   if (block.name === "create_contact") return `contact « ${String(input.name ?? "?")} »`;
   return block.name;
 }
@@ -166,66 +102,7 @@ async function* runAgencyChatWithTools(
 
       let result: string;
       try {
-        if (block.name === "create_client") {
-          const r = await executeCreateClient(supabase, userId, {
-            name: String(input.name ?? ""),
-            industry: input.industry ? String(input.industry) : undefined,
-            category: input.category === "prospect" ? "prospect" : "client",
-          });
-          result = getToolResultMessage(r);
-          if (r.ok && r.type === "create_client") {
-            await insertClientActivity(supabase, {
-              clientId: r.clientId,
-              actionType: "client_created",
-              source: "chat",
-              summary: `Client créé : ${r.name}`,
-              metadata: { name: r.name },
-              ownerId: userId,
-            });
-          }
-        } else if (block.name === "create_project") {
-          const clientId = String(input.clientId ?? "");
-          const r = await executeCreateProject(supabase, userId, {
-            clientId,
-            name: String(input.name ?? ""),
-            potentialAmount: input.potentialAmount != null ? Number(input.potentialAmount) : undefined,
-          });
-          result = getToolResultMessage(r);
-          if (r.ok && r.type === "create_project") {
-            await insertClientActivity(supabase, {
-              clientId,
-              projectId: r.projectId,
-              actionType: "project_created",
-              source: "chat",
-              summary: `Projet créé : ${r.name}`,
-              metadata: { name: r.name, projectId: r.projectId },
-              ownerId: userId,
-            });
-          }
-        } else if (block.name === "create_product") {
-          const projectId = String(input.projectId ?? "");
-          const r = await executeCreateProduct(supabase, userId, {
-            projectId,
-            name: String(input.name ?? ""),
-            devisAmount: input.devisAmount != null ? Number(input.devisAmount) : undefined,
-          });
-          result = getToolResultMessage(r);
-          if (r.ok && r.type === "create_product") {
-            const { data: proj } = await supabase.from("projects").select("client_id").eq("id", projectId).single();
-            const clientIdFromProject = (proj as { client_id?: string } | null)?.client_id;
-            if (clientIdFromProject) {
-              await insertClientActivity(supabase, {
-                clientId: clientIdFromProject,
-                projectId,
-                actionType: "product_added",
-                source: "chat",
-                summary: `Produit créé : ${r.name}`,
-                metadata: { name: r.name, projectId },
-                ownerId: userId,
-              });
-            }
-          }
-        } else if (block.name === "create_contact") {
+        if (block.name === "create_contact") {
           const clientId = String(input.clientId ?? "");
           const r = await executeCreateContact(supabase, userId, {
             clientId,

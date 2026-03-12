@@ -1,25 +1,34 @@
 "use client";
 
 import { useEffect } from "react";
-import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { useStore } from "@/lib/store";
+import { useNotificationsStore } from "@/lib/notifications-store";
+import { fetchRecentActivityForNotifications } from "@/lib/data/client-queries";
 
-const ACTION_LABELS: Record<string, string> = {
-  client_created: "Client créé",
-  project_created: "Projet créé",
-  product_added: "Produit ajouté",
-  payment_updated: "Budget mis à jour",
-  note_added: "Note ajoutée",
-  link_added: "Lien ajouté",
-  contact_added: "Contact ajouté",
-  document_uploaded: "Document uploadé",
-  email_summary: "Email traité",
-};
-
-/** Realtime : toast quand un log d'activité (source=email) est créé. */
+/** Realtime + chargement initial pour la cloche de notifications. */
 export function useEmailActivityRealtime() {
   const loadData = useStore((s) => s.loadData);
+  const addNotification = useNotificationsStore((s) => s.add);
+  const hydrate = useNotificationsStore((s) => s.hydrate);
+
+  // Chargement initial au montage (évite de dépendre uniquement du Realtime)
+  useEffect(() => {
+    fetchRecentActivityForNotifications(20)
+      .then((rows) => {
+        hydrate(
+          rows.map((r) => ({
+            id: r.id,
+            clientId: r.clientId,
+            actionType: r.actionType,
+            summary: r.summary,
+            source: r.source,
+            createdAt: r.createdAt,
+          }))
+        );
+      })
+      .catch((err) => console.error("[useEmailActivityRealtime] fetch initial failed:", err));
+  }, [hydrate]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -37,12 +46,13 @@ export function useEmailActivityRealtime() {
           const source = row.source as string;
           if (source !== "email") return;
 
-          const actionType = row.action_type as string;
-          const summary = row.summary as string;
-          const label = ACTION_LABELS[actionType] ?? actionType;
-
-          toast.success(label, {
-            description: summary,
+          addNotification({
+            id: row.id as string,
+            clientId: row.client_id as string,
+            actionType: row.action_type as string,
+            summary: row.summary as string,
+            source,
+            createdAt: (row.created_at as string) ?? new Date().toISOString(),
           });
 
           loadData().catch((err) => {
@@ -55,5 +65,5 @@ export function useEmailActivityRealtime() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [loadData]);
+  }, [loadData, addNotification]);
 }

@@ -292,12 +292,9 @@ export async function buildAgencyContext(): Promise<string> {
 
 Style : réponses ultra-minimalistes. Pas de paraphrase ni d'introduction du type "Basé sur les données…". Va directement à l'essentiel. Ne termine jamais par une question ou une proposition de suivi.
 
-OUTILS DISPONIBLES : Tu peux créer des clients, projets, produits et contacts via create_client, create_project, create_product, create_contact.
-- create_client : nouveau client ou prospect (nom requis, category: "client" ou "prospect")
-- create_project : nouveau projet pour un client existant (clientId, nom requis ; potentialAmount optionnel)
-- create_product : nouveau produit/prestation pour un projet (projectId, nom requis ; devisAmount = montant du devis en €)
+OUTILS DISPONIBLES : create_contact uniquement.
 - create_contact : ajouter un contact à un client (clientId, name requis ; email, role optionnels). Utilise l'ID du client depuis le contexte.
-Utilise ces outils quand l'utilisateur demande explicitement de créer un élément. Après exécution, confirme brièvement.
+Pas de création de clients, projets, produits, notes ou liens. Après exécution, confirme brièvement.
 ${'═'.repeat(60)}`
 
   for (const truncLevel of [0, 1, 2, 3] as const) {
@@ -331,13 +328,12 @@ ${'═'.repeat(60)}`
   return [PREAMBLE, intro, wrapData(dataSection, 'agency_data')].join('\n\n')
 }
 
-/** Agency context pour webhook email (sans session) — filtre par owner_id */
+/** Agency context pour webhook email (sans session) — TOUS les clients de l'agence (collaborateurs partagent le portefeuille) */
 export async function buildAgencyContextForUser(userId: string): Promise<string> {
   const admin = createAdminClient()
   const { data: clientRows } = await admin
     .from('clients')
     .select('id, name, industry, category, color, since')
-    .eq('owner_id', userId)
     .in('category', ['client', 'prospect'])
     .order('created_at', { ascending: true })
 
@@ -355,7 +351,7 @@ export async function buildAgencyContextForUser(userId: string): Promise<string>
 
   const clientIds = clients.map((c) => c.id)
   if (clientIds.length === 0) {
-    return [PREAMBLE, '\nAucun client. Tu peux en créer via create_client.'].join('\n\n')
+    return [PREAMBLE, '\nAucun client dans l\'agence. Tu ne peux pas ajouter de contacts ni de notes.'].join('\n\n')
   }
 
   const { data: projectRows } = await admin
@@ -410,9 +406,9 @@ export async function buildAgencyContextForUser(userId: string): Promise<string>
 
 Style : réponses ultra-minimalistes. Pas de paraphrase ni d'introduction du type "Basé sur les données…". Va directement à l'essentiel. Ne termine jamais par une question ou une proposition de suivi.
 
-OUTILS DISPONIBLES : create_client, create_project, create_product, create_contact, create_note, create_link.
-- create_note : ajouter une note/document texte (clientId, name, content requis ; projectId optionnel)
-- create_link : ajouter un lien externe (clientId, name, url requis ; projectId optionnel)
+OUTILS DISPONIBLES : create_contact, create_note.
+- create_contact : ajouter un contact à un client (clientId, name requis ; email, role optionnels).
+- create_note : résumé des échanges mail (clientId, name, content requis ; projectId optionnel). Points clés, décisions, prochaines étapes.
 ${'═'.repeat(60)}`
 
   const dataSection = buildAgencyDataSection(clients, allProjects, allProducts, 0)
