@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { Toaster } from "sonner";
 import { useStore } from "@/lib/store";
 import { useDocumentExtractionRealtime } from "@/hooks/useDocumentExtractionRealtime";
+import { useEmailActivityRealtime } from "@/hooks/useEmailActivityRealtime";
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const loadData = useStore((s) => s.loadData);
@@ -17,6 +18,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, [loadData, initTheme]);
 
   useDocumentExtractionRealtime();
+  useEmailActivityRealtime();
 
   return (
     <>
