@@ -333,7 +333,7 @@ export async function buildAgencyContextForUser(userId: string, debugTrace?: str
   const admin = createAdminClient()
   const { data: clientRows, error: clientsError } = await admin
     .from('clients')
-    .select('id, name, industry, category, color, since')
+    .select('id, name, category, color, since')
     .in('category', ['client', 'prospect'])
     .order('created_at', { ascending: true })
 
@@ -341,11 +341,11 @@ export async function buildAgencyContextForUser(userId: string, debugTrace?: str
     debugTrace.push(`ctx query clients: count=${clientRows?.length ?? 0} error=${clientsError?.message ?? 'null'} code=${clientsError?.code ?? 'null'} details=${clientsError?.details ?? 'null'}`)
   }
 
-  type ClientRow = { id: string; name: string; industry: string | null; category: string; color: string | null; since: string | null }
+  type ClientRow = { id: string; name: string; category: string; color: string | null; since: string | null }
   const clients: Client[] = ((clientRows ?? []) as ClientRow[]).map((c) => ({
     id: c.id,
     name: c.name,
-    industry: c.industry ?? '',
+    industry: '',
     category: c.category as Client['category'],
     status: 'active' as const,
     contact: { name: '—', role: '—', email: '—' },
