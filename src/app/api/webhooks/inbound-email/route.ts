@@ -300,7 +300,7 @@ ${body}
 RÈGLES :
 1. **Identifie le client** : Le sujet et le corps du mail indiquent souvent le client (ex: "deck light", "Light et pro" → client "Deck Light" ou similaire). Cherche dans le contexte la correspondance la plus probable.
 2. **NE JAMAIS créer de client** : Utilise UNIQUEMENT les IDs des clients présents dans le contexte. Si le nom dans le mail correspond à un client existant (ex: Forge, FORGE, forge = même client), utilise cet ID.
-3. **create_contact** : L'expéditeur (nom + email ci-dessus) DOIT être ajouté avec create_contact. C'est la section "Contacts" du client.
+3. **create_contact** : Crée un contact pour CHAQUE personne mentionnée dans le mail (expéditeur, interlocuteurs dans le thread, signatures). Cherche les emails dans tout le corps du mail (champs "De:", signatures, threads forwarded). L'email est OBLIGATOIRE si visible quelque part dans le mail.
 4. **create_note** : En PLUS du contact, crée un RÉSUMÉ STRUCTURÉ en markdown des échanges. Format attendu :
    - **Contexte** : 1 phrase situant l'échange
    - **Points clés** : liste à puces des infos importantes (chiffres, noms, décisions)
