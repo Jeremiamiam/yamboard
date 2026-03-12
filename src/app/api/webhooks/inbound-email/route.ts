@@ -172,12 +172,19 @@ export async function POST(req: Request) {
     // Trouver l'utilisateur par email (exact, puis fallback domaine @agence-yam.fr)
     const admin = createAdminClient()
     const { data: listData } = await admin.auth.admin.listUsers({ perPage: 1000 })
-    let user = listData?.users?.find((u) => u.email?.toLowerCase() === senderEmail)
+    const allUsers = listData?.users ?? []
+    log('Users Supabase', allUsers.map((u) => u.email))
+
+    let user = allUsers.find((u) => u.email?.toLowerCase() === senderEmail)
     if (!user && senderEmail.endsWith('@agence-yam.fr')) {
-      const domainUsers = listData?.users?.filter((u) => u.email?.toLowerCase().endsWith('@agence-yam.fr')) ?? []
-      if (domainUsers.length === 1) {
+      // Fallback domaine : prend le premier user @agence-yam.fr (même s'il y en a plusieurs)
+      // Préférence : le plus ancien (présumé owner principal de l'agence)
+      const domainUsers = allUsers
+        .filter((u) => u.email?.toLowerCase().endsWith('@agence-yam.fr'))
+        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+      if (domainUsers.length > 0) {
         user = domainUsers[0]
-        log('Fallback: 1 seul user @agence-yam.fr, utilisation', user.email)
+        log('Fallback domaine @agence-yam.fr → premier user créé', user.email)
       }
     }
     if (!user) {
