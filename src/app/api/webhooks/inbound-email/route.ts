@@ -172,25 +172,41 @@ export async function POST(req: Request) {
 
     // Récupérer le corps du mail via l'API Resend Receiving
     // Le SDK Resend v4 n'expose pas emails.receiving → appel direct à l'API
-    const resend = new Resend(resendApiKey)
-    const result = await resend.get<{ text?: string; html?: string }>(
-      `/emails/receiving/${emailId}`,
-    )
-
-    const receivedData = result.data
-    const receivedErr = result.error
-    if (receivedErr || !receivedData) {
-      console.error('[inbound-email] Impossible de récupérer le corps:', receivedErr)
-      return NextResponse.json({ ok: true })
+    let body = ''
+    try {
+      const resend = new Resend(resendApiKey)
+      const result = await resend.get<{ text?: string; html?: string }>(
+        `/emails/receiving/${emailId}`,
+      )
+      const receivedData = result.data
+      const receivedErr = result.error
+      if (receivedErr || !receivedData) {
+        console.warn('[inbound-email] API receiving échouée, fallback sujet seul:', receivedErr)
+        body = `(Corps non récupéré — sujet: ${event.data?.subject ?? ''})`
+      } else {
+        body = receivedData.text ?? receivedData.html ?? ''
+      }
+    } catch (apiErr) {
+      console.warn('[inbound-email] Exception API receiving:', apiErr)
+      body = `(Corps non récupéré — sujet: ${event.data?.subject ?? ''})`
     }
 
-    const body = receivedData.text ?? receivedData.html ?? ''
+    if (!body.trim()) body = event.data?.subject ?? '(sans contenu)'
+
     await processEmailWithAgent(user.id, event.data?.subject ?? '(sans sujet)', body)
 
     return NextResponse.json({ ok: true })
   } catch (err) {
-    console.error('[inbound-email] Erreur:', err)
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+    const msg = err instanceof Error ? err.message : String(err)
+    const stack = err instanceof Error ? err.stack : undefined
+    console.error('[inbound-email] Erreur:', msg, stack)
+    return NextResponse.json(
+      {
+        error: 'Erreur serveur',
+        debug: process.env.INBOUND_DEBUG === '1' ? msg : undefined,
+      },
+      { status: 500 },
+    )
   }
 }
 
