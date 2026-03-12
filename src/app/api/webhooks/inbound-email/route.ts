@@ -13,8 +13,9 @@
  * Config Resend : Receiving → Webhook → URL = https://ton-app.com/api/webhooks/inbound-email
  * Event = email.received
  */
+import { createHmac } from 'crypto'
 import { NextResponse } from 'next/server'
-import { Webhook } from 'svix'
+import { Webhook, WebhookVerificationError } from 'svix'
 import { Resend } from 'resend'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { buildAgencyContextForUser } from '@/lib/context-builders'
@@ -70,6 +71,26 @@ function extractEmailFromFromField(from: string): string | null {
   return null
 }
 
+/** Vérifie la signature Svix sans contrôle du timestamp (pour replay Resend). */
+function verifyWebhookReplay(
+  rawBody: string,
+  secret: string,
+  headers: { 'svix-id': string; 'svix-timestamp': string; 'svix-signature': string }
+): void {
+  const msgId = headers['svix-id'] ?? ''
+  const timestamp = headers['svix-timestamp'] ?? ''
+  const sigHeader = headers['svix-signature'] ?? ''
+  if (!msgId || !timestamp || !sigHeader) {
+    throw new WebhookVerificationError('Missing required headers')
+  }
+  const secretBase64 = secret.startsWith('whsec_') ? secret.slice(6) : secret
+  const key = Buffer.from(secretBase64, 'base64')
+  const toSign = `${msgId}.${timestamp}.${rawBody}`
+  const expected = 'v1,' + createHmac('sha256', key).update(toSign).digest('base64')
+  const passed = sigHeader.split(' ').some((s) => s.startsWith('v1,') && s === expected)
+  if (!passed) throw new WebhookVerificationError('No matching signature found')
+}
+
 export async function POST(req: Request) {
   const log = (msg: string, data?: unknown) => {
     console.log('[inbound-email]', msg, data ?? '')
@@ -113,16 +134,28 @@ export async function POST(req: Request) {
 
     // Vérifier la signature Resend (Svix) — sauf en mode test
     if (!isTest) {
+      const svixHeaders = {
+        'svix-id': req.headers.get('svix-id') ?? '',
+        'svix-timestamp': req.headers.get('svix-timestamp') ?? '',
+        'svix-signature': req.headers.get('svix-signature') ?? '',
+      }
       try {
         const wh = new Webhook(webhookSecret)
-        wh.verify(rawBody, {
-          'svix-id': req.headers.get('svix-id') ?? '',
-          'svix-timestamp': req.headers.get('svix-timestamp') ?? '',
-          'svix-signature': req.headers.get('svix-signature') ?? '',
-        })
+        wh.verify(rawBody, svixHeaders)
       } catch (verifyErr) {
-        log('ERREUR: Signature webhook invalide (Replay Resend ? Le timestamp Svix expire après ~5 min)', verifyErr)
-        return NextResponse.json({ error: 'Signature invalide' }, { status: 401 })
+        const msg = verifyErr instanceof Error ? verifyErr.message : String(verifyErr)
+        if (msg.includes('timestamp too old')) {
+          try {
+            verifyWebhookReplay(rawBody, webhookSecret, svixHeaders)
+            log('Replay Resend accepté (signature OK, timestamp ignoré)')
+          } catch (replayErr) {
+            log('ERREUR: Replay — signature invalide', replayErr)
+            return NextResponse.json({ error: 'Signature invalide' }, { status: 401 })
+          }
+        } else {
+          log('ERREUR: Signature webhook invalide', verifyErr)
+          return NextResponse.json({ error: 'Signature invalide' }, { status: 401 })
+        }
       }
     } else {
       log('Mode test: signature ignorée')
