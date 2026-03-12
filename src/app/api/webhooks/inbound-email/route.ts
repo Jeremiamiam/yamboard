@@ -219,6 +219,16 @@ export async function POST(req: Request) {
 
     const debugTrace = process.env.INBOUND_DEBUG === '1' ? [] as string[] : null
 
+    // Diagnostic: vérifier que l'admin peut lire les clients
+    if (debugTrace) {
+      const { data: diagClients, error: diagErr } = await admin
+        .from('clients')
+        .select('id, name, category')
+        .in('category', ['client', 'prospect'])
+        .limit(3)
+      debugTrace.push(`diag clients: count=${diagClients?.length ?? 0} error=${diagErr?.message ?? 'null'} sample=${JSON.stringify(diagClients?.map((c: { name: string }) => c.name) ?? [])}`)
+    }
+
     await processEmailWithAgent(
       user.id,
       event.data?.subject ?? '(sans sujet)',
