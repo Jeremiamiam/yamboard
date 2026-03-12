@@ -34,6 +34,7 @@ export type StoreState = {
   selectedProjectId: string | null
   // ── UI state ────────────────────────────────────────────────
   sidebarOpen: boolean
+  detailSidebarOpen: boolean
   theme: ThemePreference
   resolvedTheme: ResolvedTheme
 }
@@ -53,6 +54,8 @@ type StoreActions = {
   // ── UI state ────────────────────────────────────────────────
   toggleSidebar: () => void
   closeSidebar: () => void
+  toggleDetailSidebar: () => void
+  closeDetailSidebar: () => void
   initTheme: () => void
   setTheme: (theme: ThemePreference) => void
   toggleTheme: () => void
@@ -93,6 +96,7 @@ export const useStore = create<StoreState & StoreActions>((set, get) => ({
   selectedClientId: null,
   selectedProjectId: null,
   sidebarOpen: false,
+  detailSidebarOpen: false,
   theme: 'system',
   resolvedTheme: 'light',
 
@@ -126,6 +130,7 @@ export const useStore = create<StoreState & StoreActions>((set, get) => ({
         selectedClientId: get().selectedClientId,
         selectedProjectId: get().selectedProjectId,
         sidebarOpen: get().sidebarOpen,
+        detailSidebarOpen: get().detailSidebarOpen,
         theme: get().theme,
         resolvedTheme: get().resolvedTheme,
       }
@@ -149,24 +154,26 @@ export const useStore = create<StoreState & StoreActions>((set, get) => ({
 
   navigateTo: (clientId, projectId) => {
     if (projectId) {
-      set({ currentView: 'project', selectedClientId: clientId, selectedProjectId: projectId })
+      set({ currentView: 'project', selectedClientId: clientId, selectedProjectId: projectId, detailSidebarOpen: false })
       if (typeof window !== 'undefined') window.history.pushState(null, '', `/${clientId}/${projectId}`)
     } else {
-      set({ currentView: 'client', selectedClientId: clientId, selectedProjectId: null })
+      set({ currentView: 'client', selectedClientId: clientId, selectedProjectId: null, detailSidebarOpen: false })
       if (typeof window !== 'undefined') window.history.pushState(null, '', `/${clientId}`)
     }
   },
   navigateToCompta: () => {
-    set({ currentView: 'compta', selectedClientId: null, selectedProjectId: null })
+    set({ currentView: 'compta', selectedClientId: null, selectedProjectId: null, detailSidebarOpen: false })
     if (typeof window !== 'undefined') window.history.pushState(null, '', '/compta')
   },
   navigateHome: () => {
-    set({ currentView: 'home', selectedClientId: null, selectedProjectId: null })
+    set({ currentView: 'home', selectedClientId: null, selectedProjectId: null, detailSidebarOpen: false })
     if (typeof window !== 'undefined') window.history.pushState(null, '', '/')
   },
 
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   closeSidebar: () => set({ sidebarOpen: false }),
+  toggleDetailSidebar: () => set((s) => ({ detailSidebarOpen: !s.detailSidebarOpen })),
+  closeDetailSidebar: () => set({ detailSidebarOpen: false }),
 
   initTheme: () => {
     if (typeof window === 'undefined') return

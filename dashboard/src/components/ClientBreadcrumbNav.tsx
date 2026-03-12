@@ -16,7 +16,7 @@ export function ClientBreadcrumbNav({ client, project, clientId, rightSlot }: Pr
 
   return (
     <header
-      className="fixed right-0 flex items-center justify-between gap-4 px-6 py-4 border-b"
+      className="fixed right-0 flex items-center justify-between gap-2 sm:gap-4 px-3 sm:px-6 py-3 sm:py-4 border-b overflow-hidden"
       style={{
         top: "var(--nav-h)",
         left: "var(--sidebar-w)",
@@ -26,21 +26,21 @@ export function ClientBreadcrumbNav({ client, project, clientId, rightSlot }: Pr
         borderColor: "var(--color-mist)",
       }}
     >
-      <nav className="flex items-center gap-2 min-w-0 flex-1" aria-label="Fil d'Ariane">
+      <nav className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden" aria-label="Fil d'Ariane">
         <button
           onClick={() => navigateTo(clientId)}
           className="flex items-center gap-2 shrink-0 hover:opacity-90 transition-opacity cursor-pointer"
           style={{ color: "var(--color-text)" }}
         >
           <ClientAvatar client={client} size="sm" rounded="lg" />
-          <span className="font-medium">{client.name}</span>
+          <span className="font-medium truncate max-w-[120px] sm:max-w-none">{client.name}</span>
         </button>
         {project && (
           <>
             <span className="shrink-0" style={{ color: "var(--color-text-supporting)" }}>/</span>
             <button
               onClick={() => navigateTo(clientId, project.id)}
-              className="font-medium truncate hover:opacity-90 transition-opacity cursor-pointer"
+              className="font-medium truncate hover:opacity-90 transition-opacity cursor-pointer max-w-[100px] sm:max-w-[200px] md:max-w-none"
               style={{ color: "var(--color-text)" }}
             >
               {project.name}
@@ -48,7 +48,7 @@ export function ClientBreadcrumbNav({ client, project, clientId, rightSlot }: Pr
           </>
         )}
       </nav>
-      {rightSlot && <div className="shrink-0">{rightSlot}</div>}
+      {rightSlot && <div className="shrink-0 flex items-center">{rightSlot}</div>}
     </header>
   );
 }

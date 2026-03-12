@@ -167,7 +167,7 @@ export function ClientMissionsSection({
         </h2>
         <button
           onClick={() => setShowAddProject((v) => !v)}
-          className={`px-3 py-1.5 rounded-lg border text-sm transition-colors cursor-pointer ${
+          className={`px-3 py-1.5 rounded-lg border text-xs sm:text-sm transition-colors cursor-pointer whitespace-nowrap ${
             showAddProject
               ? "bg-zinc-200 border-zinc-300 text-zinc-700 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-300"
               : "bg-zinc-100 border-zinc-200 text-zinc-600 hover:border-zinc-300 hover:text-zinc-800 dark:bg-zinc-900 dark:border-zinc-800 dark:text-zinc-400 dark:hover:border-zinc-700 dark:hover:text-zinc-200"
@@ -182,8 +182,8 @@ export function ClientMissionsSection({
           <p className="text-sm font-semibold text-zinc-600 dark:text-zinc-400 mb-3">
             Nouveau projet
           </p>
-          <div className="flex gap-3 items-end">
-            <div className="flex-1 min-w-[200px]">
+          <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
+            <div className="flex-1 min-w-0">
               <label className="block text-sm text-zinc-500 dark:text-zinc-600 mb-1">Nom</label>
               <input
                 type="text"

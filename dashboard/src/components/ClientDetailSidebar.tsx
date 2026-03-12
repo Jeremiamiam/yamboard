@@ -80,19 +80,24 @@ export function ClientDetailSidebar({ clientId }: Props) {
     });
   }
 
-  const open = useStore((s) => s.sidebarOpen);
-  const close = useStore((s) => s.closeSidebar);
+  const detailOpen = useStore((s) => s.detailSidebarOpen);
+  const closeDetail = useStore((s) => s.closeDetailSidebar);
 
   if (!client) return null;
 
   return (
     <>
-      {open && (
-        <div className="fixed inset-0 z-30 bg-black/40 md:hidden" onClick={() => close()} />
+      {detailOpen && (
+        <div className="fixed inset-0 z-30 bg-black/40 md:hidden" onClick={closeDetail} />
       )}
       <aside
-        className={`fixed bottom-0 z-40 flex flex-col border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 transition-transform duration-200 ${open ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}
-        style={{ left: "var(--sidebar-w)", top: "calc(var(--nav-h) + var(--breadcrumb-h))", width: "var(--client-detail-sidebar-w)" }}
+        className={`fixed bottom-0 z-40 flex flex-col border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 transition-transform duration-200 md:translate-x-0 ${
+          detailOpen ? "translate-x-0" : "-translate-x-full"
+        } md:!translate-x-0 w-[min(320px,85vw)] md:w-[var(--client-detail-sidebar-w)]`}
+        style={{
+          left: "var(--sidebar-w)",
+          top: "calc(var(--nav-h) + var(--breadcrumb-h))",
+        }}
       >
         {/* ── Sections scrollables (nav top = breadcrumb commun) ── */}
         <div className="flex-1 overflow-y-auto p-3 space-y-6">

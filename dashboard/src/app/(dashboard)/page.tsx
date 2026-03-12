@@ -40,7 +40,7 @@ function HomeView() {
       className="flex flex-col min-h-screen bg-zinc-50 dark:bg-zinc-950"
       style={{ paddingLeft: "var(--sidebar-w)", paddingTop: "var(--nav-h)" }}
     >
-      <div className="flex-1 flex flex-col items-center justify-center px-6">
+      <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6">
         <h1 className="text-xl font-semibold text-zinc-900 dark:text-white mb-2">Accueil</h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-600 text-center max-w-md">
           {loaded
