@@ -329,7 +329,7 @@ ${'═'.repeat(60)}`
 }
 
 /** Agency context pour webhook email (sans session) — TOUS les clients de l'agence (collaborateurs partagent le portefeuille) */
-export async function buildAgencyContextForUser(userId: string): Promise<string> {
+export async function buildAgencyContextForUser(userId: string, debugTrace?: string[] | null): Promise<string> {
   const admin = createAdminClient()
   const { data: clientRows, error: clientsError } = await admin
     .from('clients')
@@ -337,10 +337,9 @@ export async function buildAgencyContextForUser(userId: string): Promise<string>
     .in('category', ['client', 'prospect'])
     .order('created_at', { ascending: true })
 
-  if (clientsError) {
-    console.error('[context-builders] Erreur query clients:', clientsError.message, clientsError.code, clientsError.details)
+  if (debugTrace) {
+    debugTrace.push(`ctx query clients: count=${clientRows?.length ?? 0} error=${clientsError?.message ?? 'null'} code=${clientsError?.code ?? 'null'} details=${clientsError?.details ?? 'null'}`)
   }
-  console.log('[context-builders] clients query:', { count: clientRows?.length ?? 0, error: clientsError?.message ?? null })
 
   type ClientRow = { id: string; name: string; industry: string | null; category: string; color: string | null; since: string | null }
   const clients: Client[] = ((clientRows ?? []) as ClientRow[]).map((c) => ({

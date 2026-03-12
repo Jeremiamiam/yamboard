@@ -278,7 +278,7 @@ async function processEmailWithAgent(
 ): Promise<void> {
   trace(debugTrace, `input → userId=${userId} subject="${subject}" bodyLen=${body.length}`)
 
-  const systemPrompt = await buildAgencyContextForUser(userId)
+  const systemPrompt = await buildAgencyContextForUser(userId, debugTrace)
   trace(debugTrace, `context built, ${systemPrompt.length} chars`)
 
   const userMessage = `[Email reçu]
