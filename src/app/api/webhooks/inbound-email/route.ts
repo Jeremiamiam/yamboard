@@ -193,9 +193,17 @@ export async function POST(req: Request) {
 
     if (!body.trim()) body = event.data?.subject ?? '(sans contenu)'
 
+    if (process.env.INBOUND_DEBUG === '1') {
+      console.log('[inbound-email] body length:', body.length, 'preview:', body.slice(0, 100))
+    }
+
     await processEmailWithAgent(user.id, event.data?.subject ?? '(sans sujet)', body)
 
-    return NextResponse.json({ ok: true })
+    const response: { ok: boolean; debug?: { bodyLength: number; bodyPreview?: string } } = { ok: true }
+    if (process.env.INBOUND_DEBUG === '1') {
+      response.debug = { bodyLength: body.length, bodyPreview: body.slice(0, 150) }
+    }
+    return NextResponse.json(response)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     const stack = err instanceof Error ? err.stack : undefined
