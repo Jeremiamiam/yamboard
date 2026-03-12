@@ -2,13 +2,13 @@
  * Diagnostic webhook inbound : vérifie que l'admin peut écrire dans Supabase.
  * GET /api/debug/inbound?secret=XXX (INBOUND_TEST_SECRET)
  */
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   const secret = req.nextUrl.searchParams.get('secret')
   const expected = process.env.INBOUND_TEST_SECRET
   if (!expected || secret !== expected) {
@@ -35,7 +35,8 @@ export async function GET(req: Request) {
       return NextResponse.json(result, { status: 200 })
     }
 
-    const { data: inserted, error } = await admin
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: inserted, error } = await (admin as any)
       .from('client_activity_logs')
       .insert({
         client_id: client.id,
