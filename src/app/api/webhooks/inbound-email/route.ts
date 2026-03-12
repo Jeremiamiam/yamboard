@@ -25,6 +25,8 @@ import {
   executeCreateNote,
   executeCreateLink,
   executeCreateContact,
+  executeUpdatePaymentStage,
+  executeAddAvancement,
   getToolResultMessage,
 } from '@/lib/chat-tools'
 import { insertClientActivity } from '@/lib/activity-log'
@@ -115,6 +117,33 @@ const AGENCY_TOOLS = [
         isPrimary: { type: 'boolean', description: 'Contact principal (défaut true si premier)' },
       },
       required: ['clientId', 'name'],
+    },
+  },
+  {
+    name: 'update_payment_stage',
+    description: 'Met à jour devis, acompte ou solde d\'un produit. Status: pending, sent, paid.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        productId: { type: 'string', description: 'UUID du produit' },
+        stage: { type: 'string', enum: ['devis', 'acompte', 'solde'], description: 'Étape à mettre à jour' },
+        amount: { type: 'number', description: 'Montant en € (optionnel)' },
+        status: { type: 'string', enum: ['pending', 'sent', 'paid'], description: 'pending=à faire, sent=envoyé, paid=payé' },
+      },
+      required: ['productId', 'stage'],
+    },
+  },
+  {
+    name: 'add_avancement',
+    description: 'Ajoute un avancement (facture intermédiaire) à un produit.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        productId: { type: 'string', description: 'UUID du produit' },
+        amount: { type: 'number', description: 'Montant en € (optionnel)' },
+        status: { type: 'string', enum: ['pending', 'sent', 'paid'], description: 'pending par défaut' },
+      },
+      required: ['productId'],
     },
   },
 ]
@@ -274,9 +303,11 @@ ${body}
 
 ---
 Traite ce mail :
-1. **Contact** : Extrais l'expéditeur (nom, email) du mail. Crée le client si nécessaire, puis create_contact avec ces infos.
-2. **Résumé** : Pour les notes, rédige un RÉSUMÉ SYNTHÉTIQUE des échanges (points clés, décisions, prochaines étapes). Pas le mail brut.
-3. **"nouveau client"** → category: client.
+1. **Contact** : Extrais l'expéditeur (nom, email). Crée client si besoin, puis create_contact.
+2. **Résumé** : Pour les notes, rédige un RÉSUMÉ SYNTHÉTIQUE (points clés, décisions, prochaines étapes). Pas le mail brut.
+3. **Budget** : Tu peux créer des produits, mettre à jour devis/acompte/solde (amount, status: pending/sent/paid), ajouter des avancements.
+4. **"nouveau client"** → category: client.
+5. **Interdit** : Aucune suppression (delete). Création et mise à jour uniquement.
 
 Exécute les actions via tes outils. Sois concis.`
 
@@ -444,6 +475,62 @@ Exécute les actions via tes outils. Sois concis.`
               metadata: { name: r.name },
               ownerId: userId,
             })
+          }
+        } else if (block.name === 'update_payment_stage') {
+          const productId = String(input.productId ?? '')
+          const stage = input.stage === 'acompte' ? 'acompte' : input.stage === 'solde' ? 'solde' : 'devis'
+          const r = await executeUpdatePaymentStage(admin, userId, {
+            productId,
+            stage,
+            amount: input.amount != null ? Number(input.amount) : undefined,
+            status: input.status === 'sent' ? 'sent' : input.status === 'paid' ? 'paid' : undefined,
+          })
+          result = getToolResultMessage(r)
+          if (r.ok && r.type === 'update_payment_stage') {
+            const { data: proj } = await admin.from('budget_products').select('project_id').eq('id', productId).single()
+            const projectId = (proj as { project_id?: string } | null)?.project_id
+            const { data: projRow } = projectId
+              ? await admin.from('projects').select('client_id').eq('id', projectId).single()
+              : { data: null }
+            const clientId = (projRow as { client_id?: string } | null)?.client_id
+            if (clientId) {
+              await insertClientActivity(admin, {
+                clientId,
+                projectId: projectId ?? undefined,
+                actionType: 'payment_updated',
+                source: 'email',
+                summary: `${stage} mis à jour`,
+                metadata: { productId, stage },
+                ownerId: userId,
+              })
+            }
+          }
+        } else if (block.name === 'add_avancement') {
+          const productId = String(input.productId ?? '')
+          const r = await executeAddAvancement(admin, userId, {
+            productId,
+            amount: input.amount != null ? Number(input.amount) : undefined,
+            status: input.status === 'sent' ? 'sent' : input.status === 'paid' ? 'paid' : undefined,
+          })
+          result = getToolResultMessage(r)
+          if (r.ok && r.type === 'add_avancement') {
+            const { data: proj } = await admin.from('budget_products').select('project_id').eq('id', productId).single()
+            const projectId = (proj as { project_id?: string } | null)?.project_id
+            const { data: projRow } = projectId
+              ? await admin.from('projects').select('client_id').eq('id', projectId).single()
+              : { data: null }
+            const clientId = (projRow as { client_id?: string } | null)?.client_id
+            if (clientId) {
+              await insertClientActivity(admin, {
+                clientId,
+                projectId: projectId ?? undefined,
+                actionType: 'payment_updated',
+                source: 'email',
+                summary: 'Avancement ajouté',
+                metadata: { productId },
+                ownerId: userId,
+              })
+            }
           }
         } else {
           result = `Outil inconnu : ${block.name}`

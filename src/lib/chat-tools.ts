@@ -12,6 +12,8 @@ export type ToolResult =
   | { ok: true; type: "create_contact"; contactId: string; clientId: string; name: string }
   | { ok: true; type: "create_note"; documentId: string; clientId: string; name: string }
   | { ok: true; type: "create_link"; linkId: string; clientId: string; name: string }
+  | { ok: true; type: "update_payment_stage"; productId: string; stage: string }
+  | { ok: true; type: "add_avancement"; productId: string }
   | { ok: false; error: string };
 
 export function getToolResultMessage(r: ToolResult): string {
@@ -23,6 +25,8 @@ export function getToolResultMessage(r: ToolResult): string {
   if (r.type === "create_contact") return `Contact ajouté : ${r.name} (client ${r.clientId})`;
   if (r.type === "create_note") return `Note créée : ${r.name} (client ${r.clientId})`;
   if (r.type === "create_link") return `Lien ajouté : ${r.name} (client ${r.clientId})`;
+  if (r.type === "update_payment_stage") return `${r.stage} mis à jour (produit ${r.productId})`;
+  if (r.type === "add_avancement") return `Avancement ajouté (produit ${r.productId})`;
   return "Erreur inconnue";
 }
 
@@ -219,4 +223,77 @@ export async function executeCreateLink(
     clientId: params.clientId,
     name,
   };
+}
+
+type PaymentStage = { amount?: number; date?: string; status: "pending" | "sent" | "paid" };
+
+export async function executeUpdatePaymentStage(
+  supabase: SupabaseClient,
+  userId: string,
+  params: {
+    productId: string;
+    stage: "devis" | "acompte" | "solde";
+    amount?: number;
+    status?: "pending" | "sent" | "paid";
+  }
+): Promise<ToolResult> {
+  const { productId, stage, amount, status } = params;
+  if (!productId) return { ok: false, error: "productId requis." };
+
+  const { data: product } = await supabase
+    .from("budget_products")
+    .select("id, devis, acompte, solde")
+    .eq("id", productId)
+    .eq("owner_id", userId)
+    .single();
+
+  if (!product) return { ok: false, error: "Produit non trouvé." };
+
+  const current = ((product as Record<string, unknown>)[stage] as PaymentStage | null) ?? {};
+  const value: Record<string, unknown> = {
+    ...current,
+    ...(amount != null && { amount }),
+    ...(status && { status }),
+  };
+  if (!value.status) value.status = "pending";
+
+  const { error } = await supabase
+    .from("budget_products")
+    .update({ [stage]: value })
+    .eq("id", productId)
+    .eq("owner_id", userId);
+
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, type: "update_payment_stage", productId, stage };
+}
+
+export async function executeAddAvancement(
+  supabase: SupabaseClient,
+  userId: string,
+  params: { productId: string; amount?: number; status?: "pending" | "sent" | "paid" }
+): Promise<ToolResult> {
+  const { productId, amount, status } = params;
+  if (!productId) return { ok: false, error: "productId requis." };
+
+  const { data: product } = await supabase
+    .from("budget_products")
+    .select("id, avancement")
+    .eq("id", productId)
+    .eq("owner_id", userId)
+    .single();
+
+  if (!product) return { ok: false, error: "Produit non trouvé." };
+
+  const current = Array.isArray(product.avancement) ? product.avancement : product.avancement ? [product.avancement] : [];
+  const newStage: PaymentStage = { amount: amount ?? 0, status: status ?? "pending" };
+  const avancements = [...(current as PaymentStage[]), newStage];
+
+  const { error } = await supabase
+    .from("budget_products")
+    .update({ avancement: avancements })
+    .eq("id", productId)
+    .eq("owner_id", userId);
+
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, type: "add_avancement", productId };
 }

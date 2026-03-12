@@ -9,6 +9,7 @@ const ACTION_LABELS: Record<string, string> = {
   client_created: "Client créé",
   project_created: "Projet créé",
   product_added: "Produit ajouté",
+  payment_updated: "Budget mis à jour",
   note_added: "Note ajoutée",
   link_added: "Lien ajouté",
   contact_added: "Contact ajouté",

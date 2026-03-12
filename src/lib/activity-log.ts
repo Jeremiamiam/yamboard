@@ -12,6 +12,7 @@ export type ActivityActionType =
   | 'link_added'
   | 'project_created'
   | 'product_added'
+  | 'payment_updated'
   | 'client_created'
   | 'document_uploaded'
 
