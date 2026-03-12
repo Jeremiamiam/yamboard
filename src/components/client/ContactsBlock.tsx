@@ -175,7 +175,7 @@ export function ContactsBlock({
               <>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">{c.name}</p>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-600 truncate">{c.email || c.role || "—"}</p>
+                  <p className={`text-xs truncate ${c.email ? "text-zinc-500 dark:text-zinc-600" : "text-amber-500 dark:text-amber-600"}`}>{c.email || "e-mail manquant"}</p>
                 </div>
                 <div className="flex gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
