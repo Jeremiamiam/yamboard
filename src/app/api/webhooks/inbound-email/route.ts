@@ -292,7 +292,11 @@ RÈGLES :
 1. **Identifie le client** : Le sujet et le corps du mail indiquent souvent le client (ex: "deck light", "Light et pro" → client "Deck Light" ou similaire). Cherche dans le contexte la correspondance la plus probable.
 2. **NE JAMAIS créer de client** : Utilise UNIQUEMENT les IDs des clients présents dans le contexte. Si le nom dans le mail correspond à un client existant (ex: Forge, FORGE, forge = même client), utilise cet ID.
 3. **create_contact** : L'expéditeur (nom + email ci-dessus) DOIT être ajouté avec create_contact. C'est la section "Contacts" du client.
-4. **create_note** : En PLUS du contact, crée un RÉSUMÉ des échanges (points clés, décisions, prochaines étapes). 5-10 lignes. Ce résumé sera affiché dans l'activité (cliquable).
+4. **create_note** : En PLUS du contact, crée un RÉSUMÉ STRUCTURÉ en markdown des échanges. Format attendu :
+   - **Contexte** : 1 phrase situant l'échange
+   - **Points clés** : liste à puces des infos importantes (chiffres, noms, décisions)
+   - **Actions / Prochaines étapes** : liste à puces des TODO ou livrables attendus
+   Le contenu sera rendu en markdown dans l'app. Sois synthétique (8-15 lignes max).
 5. Ordre : create_contact (expéditeur) → create_note (résumé des échanges).
 6. Si aucun client ne correspond, choisis le plus pertinent ou le premier du contexte.
 
