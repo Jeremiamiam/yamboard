@@ -36,8 +36,8 @@ const AGENCY_TOOLS = [
       properties: {
         clientId: { type: 'string', description: 'UUID du client' },
         name: { type: 'string', description: 'Nom complet du contact' },
-        email: { type: 'string', description: 'Email du contact (optionnel)' },
-        role: { type: 'string', description: 'Rôle/fonction (optionnel)' },
+        email: { type: 'string', description: 'Email du contact — TOUJOURS le remplir si disponible dans le mail' },
+        role: { type: 'string', description: 'Rôle/fonction (optionnel, ex: Directeur artistique)' },
         isPrimary: { type: 'boolean', description: 'Contact principal (défaut true si premier)' },
       },
       required: ['clientId', 'name'],
