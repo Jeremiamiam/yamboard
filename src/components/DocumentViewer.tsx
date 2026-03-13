@@ -36,18 +36,19 @@ export function DocumentViewer({
     const isBinaryFile = ["pdf", "png", "jpg", "jpeg", "gif", "webp", "doc", "docx"].includes(ext);
 
     if (doc?.storagePath) {
+      const storagePath = doc.storagePath;
       if (isBinaryFile) {
-        getDocumentSignedUrl(doc.storagePath).then((r) => {
+        getDocumentSignedUrl(storagePath).then((r) => {
           if ("signedUrl" in r) setPdfUrl(r.signedUrl);
         });
       } else {
         setFetchedContent("loading");
-        getDocumentFileContent(doc.storagePath).then((result) => {
+        getDocumentFileContent(storagePath).then((result) => {
           if ("content" in result && (isHtmlFile || isHtmlContent(result.content))) {
             setFetchedContent(result.content);
           } else {
             setFetchedContent(null);
-            getDocumentSignedUrl(doc.storagePath).then((r) => {
+            getDocumentSignedUrl(storagePath).then((r) => {
               if ("signedUrl" in r) setPdfUrl(r.signedUrl);
             });
           }
