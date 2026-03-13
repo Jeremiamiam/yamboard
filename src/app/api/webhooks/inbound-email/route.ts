@@ -235,6 +235,9 @@ export async function POST(req: Request) {
 
     if (!body.trim()) body = event.data?.subject ?? '(sans contenu)'
     addDebug('6. body récupéré, len=' + body.length)
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
+    const supabaseProject = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] ?? '?'
+    addDebug('6b. Supabase project: ' + supabaseProject)
     log('Corps mail', { bodyLen: body.length, preview: body.slice(0, 80) })
 
     const debugTrace = process.env.INBOUND_DEBUG === '1' ? [] as string[] : null
@@ -250,15 +253,16 @@ export async function POST(req: Request) {
     }
 
     addDebug('7. appel processEmailWithAgent...')
-    await processEmailWithAgent(
+    const agentResult = await processEmailWithAgent(
       user.id,
       event.data?.subject ?? '(sans sujet)',
       body,
       event.data?.from ?? '',
       debugTrace,
+      debug,
     )
 
-    addDebug('8. agent terminé, suggestions créées')
+    addDebug('8. ' + (agentResult?.summary ?? 'agent terminé'))
     const response: {
       ok: boolean
       _debug?: string[]
@@ -305,13 +309,19 @@ function trace(debugTrace: string[] | null, msg: string): void {
   console.log('[inbound-email]', msg)
 }
 
+type AgentResult = { summary: string } | void
+
 async function processEmailWithAgent(
   userId: string,
   subject: string,
   body: string,
   from: string,
   debugTrace: string[] | null,
-): Promise<void> {
+  mainDebug?: string[],
+): Promise<AgentResult> {
+  const addMain = (msg: string) => {
+    if (mainDebug) mainDebug.push(msg)
+  }
   trace(debugTrace, `input → userId=${userId} subject="${subject}" bodyLen=${body.length}`)
 
   const systemPrompt = await buildAgencyContextForUser(userId, debugTrace)
@@ -335,6 +345,7 @@ RÈGLES :
    Le contenu sera rendu en markdown dans l'app. Sois synthétique (8-15 lignes max).
 5. Ordre : suggest_contact (expéditeur) → suggest_note (résumé des échanges).
 6. Si aucun client ne correspond, choisis le plus pertinent ou le premier du contexte.
+7. MÊME si le corps est court ou "(Corps non récupéré)", appelle AU MOINS suggest_note avec un résumé minimal (Contexte, Points clés, Actions) basé sur le sujet et l'expéditeur.
 
 Exécute les actions. Sois concis.`
 
@@ -355,6 +366,7 @@ Exécute les actions. Sois concis.`
 
   let lastMessage: Awaited<ReturnType<typeof anthropic.messages.create>>
   let turn = 0
+  let suggestionsCreated = 0
 
   while (true) {
     turn++
@@ -374,8 +386,13 @@ Exécute les actions. Sois concis.`
         .map((b) => ('text' in b ? b.text : ''))
         .join('')
       trace(debugTrace, `agent done → "${text.slice(0, 200)}"`)
-      console.log('[inbound-email] Agent terminé sans tool_use:', text.slice(0, 300))
-      return
+      const summary =
+        suggestionsCreated > 0
+          ? `${suggestionsCreated} suggestion(s) créée(s)`
+          : 'agent terminé SANS tool_use — pas de suggestions (corps mail trop court?)'
+      addMain('8. ' + summary)
+      console.log('[inbound-email] Agent terminé:', summary, text.slice(0, 300))
+      return { summary }
     }
 
     const toolUses = lastMessage.content.filter(isToolUseBlock)
@@ -403,6 +420,7 @@ Exécute les actions. Sois concis.`
           if (insertErr) {
             result = `Erreur : ${insertErr.message}`
           } else {
+            suggestionsCreated++
             result = `Suggestion note créée : ${name} — l'utilisateur validera via la cloche`
           }
         } else if (block.name === 'suggest_contact') {
@@ -429,6 +447,7 @@ Exécute les actions. Sois concis.`
             if (insertErr) {
               result = `Erreur : ${insertErr.message}`
             } else {
+              suggestionsCreated++
               result = `Suggestion contact créée : ${name} — l'utilisateur validera via la cloche`
             }
           }
@@ -440,6 +459,9 @@ Exécute les actions. Sois concis.`
       }
       toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: result })
       trace(debugTrace, `tool ${block.name} → ${result}`)
+      if (mainDebug && (block.name === 'suggest_contact' || block.name === 'suggest_note')) {
+        mainDebug.push(`  tool ${block.name}: ${result.startsWith('Erreur') ? result : 'OK'}`)
+      }
       if (block.name === 'suggest_contact' || block.name === 'suggest_note') {
         console.log('[inbound-email]', block.name, '→', result)
       }
