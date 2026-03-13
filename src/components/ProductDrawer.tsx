@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { PAYMENT_STAGE_LABEL, type BudgetProduct, type PaymentStage, type Subcontract } from "@/lib/types";
 import {
   updatePaymentStageAction,
+  removePaymentStageAction,
   setAvancementsAction,
   setSubcontractsAction,
   updateBudgetProductAction,
   deleteBudgetProductAction,
+  moveProductAction,
+  extractProductToNewMissionAction,
 } from "@/lib/store/actions";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { EditMenu } from "@/components/EditMenu";
@@ -16,8 +19,10 @@ import { Button } from "@/components/ui/Button";
 import { Surface } from "@/components/ui/Surface";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Progress } from "@/components/ui/Progress";
+import { DateInput } from "@/components/ui/DateInput";
 import { Backdrop } from "@/components/ui/Dialog";
 import { cn } from "@/lib/cn";
+import { toast } from "sonner";
 
 const FIXED_STAGE_KEYS = ["devis", "acompte", "solde"] as const;
 type FixedStageKey = typeof FIXED_STAGE_KEYS[number];
@@ -88,6 +93,7 @@ function ProductDrawerContent({
   const [editName, setEditName] = useState(liveProduct.name);
   const [editAmount, setEditAmount] = useState(String(liveProduct.totalAmount));
   const [isPending, startTransition] = useTransition();
+  const [autoFocusStage, setAutoFocusStage] = useState<string | null>(null);
 
   function saveHeader() {
     const name = editName.trim();
@@ -152,7 +158,24 @@ function ProductDrawerContent({
               <h2 className="text-base font-semibold text-zinc-900 dark:text-white truncate">
                 {liveProduct.name}
               </h2>
-              <p className="text-sm text-zinc-500 mt-0.5">{liveProduct.totalAmount.toLocaleString("fr-FR")} €</p>
+              {(() => {
+                const productTotal = liveProduct.devis?.amount ?? liveProduct.totalAmount;
+                const st = (liveProduct.subcontracts ?? []).reduce((s, sub) => s + (sub.amount ?? 0), 0);
+                const net = productTotal - st;
+                return (
+                  <p className="text-sm text-zinc-500 mt-0.5">
+                    {productTotal.toLocaleString("fr-FR")} €
+                    {st > 0 && (
+                      <>
+                        {" "}
+                        <span className="text-zinc-400 dark:text-zinc-600">(dont {st.toLocaleString("fr-FR")} € sous-traitance)</span>
+                        {" · "}
+                        <span className="text-emerald-600 dark:text-emerald-400 font-medium">À toucher : {net.toLocaleString("fr-FR")} €</span>
+                      </>
+                    )}
+                  </p>
+                );
+              })()}
             </div>
             <EditMenu
               onRename={() => { setEditName(liveProduct.name); setEditAmount(String(liveProduct.totalAmount)); setEditingHeader(true); }}
@@ -185,49 +208,126 @@ function ProductDrawerContent({
           </p>
         )}
 
-        {/* Fixed stages: devis, acompte, solde */}
-        {FIXED_STAGE_KEYS.filter((k) => liveProduct[k] != null).map((key) => (
+        {/* Ordre logique : devis → acompte → avancements → solde */}
+        {liveProduct.devis != null && (
           <FixedStageRow
-            key={key}
-            stageKey={key}
-            stage={liveProduct[key]!}
+            key="devis"
+            stageKey="devis"
+            stage={liveProduct.devis}
             productId={product.id}
             clientColor={clientColor}
+            autoFocusAmount={autoFocusStage === "devis"}
+            onAutoFocused={() => setAutoFocusStage(null)}
+            onRemove={() =>
+              startTransition(() => void removePaymentStageAction(product.id, "devis"))
+            }
           />
-        ))}
-
-        {/* Avancements — N rows */}
+        )}
+        {liveProduct.acompte != null && (
+          <FixedStageRow
+            key="acompte"
+            stageKey="acompte"
+            stage={liveProduct.acompte}
+            productId={product.id}
+            clientColor={clientColor}
+            autoFocusAmount={autoFocusStage === "acompte"}
+            onAutoFocused={() => setAutoFocusStage(null)}
+            onRemove={() =>
+              startTransition(() => void removePaymentStageAction(product.id, "acompte"))
+            }
+          />
+        )}
         <AvancementsSection
           productId={product.id}
           avancements={liveProduct.avancements ?? []}
           clientColor={clientColor}
+          autoFocusLast={autoFocusStage === "avancement"}
+          onAutoFocused={() => setAutoFocusStage(null)}
         />
+        {liveProduct.solde != null && (
+          <FixedStageRow
+            key="solde"
+            stageKey="solde"
+            stage={liveProduct.solde}
+            productId={product.id}
+            clientColor={clientColor}
+            autoFocusAmount={autoFocusStage === "solde"}
+            onAutoFocused={() => setAutoFocusStage(null)}
+            onRemove={() =>
+              startTransition(() => void removePaymentStageAction(product.id, "solde"))
+            }
+          />
+        )}
 
-        {/* Add missing fixed stages */}
-        {missingFixed.length > 0 && (
-          <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800">
+        {/* Ajouter une étape — ordre : Devis, Acompte, Avancement, Solde */}
+        <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800">
             <SectionHeader level="label" className="mb-2">
               Ajouter une étape
             </SectionHeader>
             <div className="flex flex-wrap gap-2">
-              {missingFixed.map((key) => (
+              {missingFixed.includes("devis") && (
                 <Button
-                  key={key}
                   variant="dashed"
                   size="sm"
                   disabled={isPending}
-                  onClick={() =>
+                  onClick={() => {
+                    setAutoFocusStage("devis");
                     startTransition(() =>
-                      void updatePaymentStageAction(product.id, key, { status: "pending" })
-                    )
-                  }
+                      void updatePaymentStageAction(product.id, "devis", { status: "pending" })
+                    );
+                  }}
                 >
-                  + {PAYMENT_STAGE_LABEL[key]}
+                  + Devis
                 </Button>
-              ))}
+              )}
+              {missingFixed.includes("acompte") && (
+                <Button
+                  variant="dashed"
+                  size="sm"
+                  disabled={isPending}
+                  onClick={() => {
+                    setAutoFocusStage("acompte");
+                    startTransition(() =>
+                      void updatePaymentStageAction(product.id, "acompte", { status: "pending" })
+                    );
+                  }}
+                >
+                  + Acompte
+                </Button>
+              )}
+              <Button
+                variant="dashed"
+                size="sm"
+                disabled={isPending}
+                onClick={() => {
+                  setAutoFocusStage("avancement");
+                  startTransition(() =>
+                    void setAvancementsAction(product.id, [
+                      ...(liveProduct.avancements ?? []),
+                      { status: "pending" },
+                    ])
+                  );
+                }}
+              >
+                + Avancement
+              </Button>
+              {missingFixed.includes("solde") && (
+                <Button
+                  variant="dashed"
+                  size="sm"
+                  disabled={isPending}
+                  onClick={() => {
+                    setAutoFocusStage("solde");
+                    startTransition(() =>
+                      void updatePaymentStageAction(product.id, "solde", { status: "pending" })
+                    );
+                  }}
+                >
+                  + Solde
+                </Button>
+              )}
             </div>
           </div>
-        )}
 
         {/* Sous-traitance */}
         <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800">
@@ -238,6 +338,11 @@ function ProductDrawerContent({
             productId={product.id}
             subcontracts={liveProduct.subcontracts ?? []}
           />
+        </div>
+
+        {/* Déplacer vers... */}
+        <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800">
+          <MoveProductSection productId={product.id} />
         </div>
       </div>
     </div>
@@ -250,18 +355,16 @@ function AvancementsSection({
   productId,
   avancements,
   clientColor,
+  autoFocusLast,
+  onAutoFocused,
 }: {
   productId: string;
   avancements: PaymentStage[];
   clientColor?: string;
+  autoFocusLast?: boolean;
+  onAutoFocused?: () => void;
 }) {
   const [isPending, startTransition] = useTransition();
-
-  function addAvancement() {
-    startTransition(() =>
-      void setAvancementsAction(productId, [...avancements, { status: "pending" }])
-    );
-  }
 
   function updateAt(index: number, patch: Partial<PaymentStage>) {
     const next = avancements.map((av, i) => (i === index ? { ...av, ...patch } : av));
@@ -270,7 +373,10 @@ function AvancementsSection({
 
   function removeAt(index: number) {
     const next = avancements.filter((_, i) => i !== index);
-    startTransition(() => void setAvancementsAction(productId, next));
+    startTransition(async () => {
+      const result = await setAvancementsAction(productId, next);
+      if (!result.error) toast.success("Avancement supprimé");
+    });
   }
 
   return (
@@ -285,17 +391,10 @@ function AvancementsSection({
           onRemove={() => removeAt(i)}
           isPending={isPending}
           clientColor={clientColor}
+          autoFocusAmount={autoFocusLast && i === avancements.length - 1}
+          onAutoFocused={onAutoFocused}
         />
       ))}
-      <Button
-        variant="dashed"
-        size="sm"
-        className="w-full"
-        onClick={addAvancement}
-        disabled={isPending}
-      >
-        + Avancement
-      </Button>
     </>
   );
 }
@@ -310,6 +409,8 @@ function AvancementRow({
   onRemove,
   isPending,
   clientColor,
+  autoFocusAmount,
+  onAutoFocused,
 }: {
   index: number;
   total: number;
@@ -318,9 +419,21 @@ function AvancementRow({
   onRemove: () => void;
   isPending: boolean;
   clientColor?: string;
+  autoFocusAmount?: boolean;
+  onAutoFocused?: () => void;
 }) {
+  const amountRef = useRef<HTMLInputElement>(null);
   const [editAmount, setEditAmount] = useState(stage.amount != null ? String(stage.amount) : "");
-  const [editDate, setEditDate] = useState(stage.date ?? "");
+
+  useEffect(() => {
+    if (autoFocusAmount) {
+      requestAnimationFrame(() => {
+        amountRef.current?.focus();
+        amountRef.current?.select();
+      });
+      onAutoFocused?.();
+    }
+  }, [autoFocusAmount, onAutoFocused]);
 
   const label = total > 1 ? `Avancement ${index + 1}` : "Avancement";
 
@@ -370,6 +483,7 @@ function AvancementRow({
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
         <div className="flex items-center gap-1 flex-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 focus-within:border-zinc-400 dark:focus-within:border-zinc-500 transition-colors">
           <input
+            ref={amountRef}
             type="number"
             value={editAmount}
             onChange={(e) => setEditAmount(e.target.value)}
@@ -390,15 +504,11 @@ function AvancementRow({
           />
           <span className="text-sm text-zinc-400 dark:text-zinc-600 ml-1 shrink-0">€</span>
         </div>
-        <input
-          type="text"
-          value={editDate}
-          onChange={(e) => setEditDate(e.target.value)}
-          onBlur={() => { if (editDate !== (stage.date ?? "")) onUpdate({ date: editDate || undefined }); }}
-          onKeyDown={(e) => { if (e.key === "Enter") { onUpdate({ date: editDate || undefined }); (e.target as HTMLInputElement).blur(); } }}
-          placeholder="Date (ex: 15 jan.)"
+        <DateInput
+          value={stage.date}
+          onChange={(d) => onUpdate({ date: d })}
           disabled={isPending}
-          className="flex-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 placeholder-zinc-400 dark:placeholder-zinc-600 outline-none focus:border-zinc-400 dark:focus:border-zinc-500 transition-colors disabled:opacity-50"
+          className="flex-1"
         />
       </div>
 
@@ -416,15 +526,31 @@ function FixedStageRow({
   stage,
   productId,
   clientColor,
+  onRemove,
+  autoFocusAmount,
+  onAutoFocused,
 }: {
   stageKey: FixedStageKey;
   stage: PaymentStage;
   productId: string;
   clientColor?: string;
+  onRemove?: () => void;
+  autoFocusAmount?: boolean;
+  onAutoFocused?: () => void;
 }) {
+  const amountRef = useRef<HTMLInputElement>(null);
   const [editAmount, setEditAmount] = useState(stage.amount != null ? String(stage.amount) : "");
-  const [editDate, setEditDate] = useState(stage.date ?? "");
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (autoFocusAmount) {
+      requestAnimationFrame(() => {
+        amountRef.current?.focus();
+        amountRef.current?.select();
+      });
+      onAutoFocused?.();
+    }
+  }, [autoFocusAmount, onAutoFocused]);
 
   function save(patch: Partial<PaymentStage>) {
     startTransition(() =>
@@ -437,18 +563,31 @@ function FixedStageRow({
     save({ status: STATUS_CYCLE[(idx + 1) % STATUS_CYCLE.length] });
   }
 
+  const isDevis = stageKey === "devis";
   const statusConfig = {
     pending: { dot: "bg-zinc-400", label: "En attente" },
     sent: { dot: "bg-yellow-500", label: "Envoyé" },
-    paid: { dot: "bg-emerald-500", label: "Payé ✓" },
+    paid: { dot: "bg-emerald-500", label: isDevis ? "Signé ✓" : "Payé ✓" },
   }[stage.status];
 
   return (
     <Surface variant="muted" padding="sm" className="space-y-3 bg-zinc-50 dark:bg-zinc-900">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-          {PAYMENT_STAGE_LABEL[stageKey]}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+            {PAYMENT_STAGE_LABEL[stageKey]}
+          </span>
+          {onRemove && (
+            <ConfirmButton
+              onConfirm={onRemove}
+              confirmLabel="Retirer cette étape ?"
+              className="text-[11px] text-zinc-400 hover:text-red-500 transition-colors px-1 disabled:opacity-40"
+              disabled={isPending}
+            >
+              ✕
+            </ConfirmButton>
+          )}
+        </div>
         <button
           onClick={cycleStatus}
           disabled={isPending}
@@ -470,6 +609,7 @@ function FixedStageRow({
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
         <div className="flex items-center gap-1 flex-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 focus-within:border-zinc-400 dark:focus-within:border-zinc-500 transition-colors">
           <input
+            ref={amountRef}
             type="number"
             value={editAmount}
             onChange={(e) => setEditAmount(e.target.value)}
@@ -490,15 +630,11 @@ function FixedStageRow({
           />
           <span className="text-sm text-zinc-400 dark:text-zinc-600 ml-1 shrink-0">€</span>
         </div>
-        <input
-          type="text"
-          value={editDate}
-          onChange={(e) => setEditDate(e.target.value)}
-          onBlur={() => { if (editDate !== (stage.date ?? "")) save({ date: editDate || undefined }); }}
-          onKeyDown={(e) => { if (e.key === "Enter") { save({ date: editDate || undefined }); (e.target as HTMLInputElement).blur(); } }}
-          placeholder="Date (ex: 15 jan.)"
+        <DateInput
+          value={stage.date}
+          onChange={(d) => save({ date: d })}
           disabled={isPending}
-          className="flex-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 placeholder-zinc-400 dark:placeholder-zinc-600 outline-none focus:border-zinc-400 dark:focus:border-zinc-500 transition-colors disabled:opacity-50"
+          className="flex-1"
         />
       </div>
 
@@ -649,5 +785,108 @@ function SubcontractRow({
         <span className="text-sm text-zinc-400 dark:text-zinc-600 ml-1 shrink-0">€</span>
       </div>
     </Surface>
+  );
+}
+
+// ─── Move product section ─────────────────────────────────────────
+
+function MoveProductSection({ productId }: { productId: string }) {
+  const product = useStore((s) => s.budgetProducts.find((p) => p.id === productId));
+  const projects = useStore((s) => s.projects);
+
+  const [open, setOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [isPending, startTransition] = useTransition();
+
+  if (!product) return null;
+
+  // Find the client that owns this product's project
+  const currentProject = projects.find((p) => p.id === product.projectId);
+  if (!currentProject) return null;
+
+  const clientId = currentProject.clientId;
+  const siblingProjects = projects.filter(
+    (p) => p.clientId === clientId && p.id !== product.projectId
+  );
+
+  function handleMove(targetProjectId: string) {
+    startTransition(async () => {
+      await moveProductAction(productId, targetProjectId);
+      setOpen(false);
+    });
+  }
+
+  function handleExtract() {
+    const name = newName.trim();
+    if (!name) return;
+    startTransition(async () => {
+      await extractProductToNewMissionAction(productId, clientId, name);
+      setOpen(false);
+      setNewName("");
+    });
+  }
+
+  if (!open) {
+    return (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="w-full text-zinc-500 dark:text-zinc-500"
+        onClick={() => setOpen(true)}
+      >
+        Déplacer vers une autre mission…
+      </Button>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <SectionHeader level="label">Déplacer vers…</SectionHeader>
+
+      {/* Existing missions */}
+      {siblingProjects.length > 0 && (
+        <div className="space-y-1">
+          {siblingProjects.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => handleMove(p.id)}
+              disabled={isPending}
+              className="w-full text-left px-3 py-2 rounded-lg text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              {p.name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* New mission */}
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") handleExtract(); if (e.key === "Escape") { setOpen(false); setNewName(""); } }}
+          placeholder="Nouvelle mission…"
+          autoFocus
+          disabled={isPending}
+          className="flex-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-700 dark:text-zinc-300 placeholder-zinc-400 dark:placeholder-zinc-600 outline-none focus:border-zinc-400 dark:focus:border-zinc-500 transition-colors disabled:opacity-50"
+        />
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={handleExtract}
+          disabled={!newName.trim() || isPending}
+        >
+          Créer
+        </Button>
+      </div>
+
+      <button
+        onClick={() => { setOpen(false); setNewName(""); }}
+        className="text-[11px] text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors cursor-pointer"
+      >
+        Annuler
+      </button>
+    </div>
   );
 }

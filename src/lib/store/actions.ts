@@ -487,6 +487,42 @@ export async function updatePaymentStageAction(
   return { error: null }
 }
 
+/** Supprime une étape de paiement fixe (devis, acompte, solde). */
+export async function removePaymentStageAction(
+  productId: string,
+  stage: 'devis' | 'acompte' | 'solde'
+): Promise<{ error: string | null }> {
+  const auth = await getAuth()
+  if (!auth) return { error: 'Not authenticated' }
+  const { supabase, userId } = auth
+
+  const product = useStore.getState().budgetProducts.find((p) => p.id === productId)
+  if (!product) return { error: 'Product not found' }
+
+  useStore.setState((s) => ({
+    budgetProducts: s.budgetProducts.map((p) =>
+      p.id === productId ? { ...p, [stage]: undefined } : p
+    ),
+  }))
+
+  const { error } = await supabase
+    .from('budget_products')
+    .update({ [stage]: null })
+    .eq('id', productId)
+    .eq('owner_id', userId)
+
+  if (error) {
+    useStore.setState((s) => ({
+      budgetProducts: s.budgetProducts.map((p) => (p.id === productId ? product : p)),
+    }))
+    toast.error(error.message)
+    return { error: error.message }
+  }
+  invalidateCache()
+  toast.success('Étape supprimée')
+  return { error: null }
+}
+
 /** Met à jour la liste complète des avancements (tableau stocké dans la colonne `avancement`). */
 export async function setAvancementsAction(
   productId: string,
@@ -555,6 +591,63 @@ export async function setSubcontractsAction(
   }
   invalidateCache()
   return { error: null }
+}
+
+// ─── Product move / extract ─────────────────────────────────────
+
+/** Déplace un produit vers une autre mission (change project_id). */
+export async function moveProductAction(
+  productId: string,
+  targetProjectId: string
+): Promise<{ error: string | null }> {
+  const auth = await getAuth()
+  if (!auth) return { error: 'Not authenticated' }
+  const { supabase, userId } = auth
+
+  const product = useStore.getState().budgetProducts.find((p) => p.id === productId)
+  if (!product) return { error: 'Product not found' }
+  if (product.projectId === targetProjectId) return { error: null }
+
+  // Optimistic
+  useStore.setState((s) => ({
+    budgetProducts: s.budgetProducts.map((p) =>
+      p.id === productId ? { ...p, projectId: targetProjectId } : p
+    ),
+  }))
+
+  const { error } = await supabase
+    .from('budget_products')
+    .update({ project_id: targetProjectId })
+    .eq('id', productId)
+    .eq('owner_id', userId)
+
+  if (error) {
+    useStore.setState((s) => ({
+      budgetProducts: s.budgetProducts.map((p) => (p.id === productId ? product : p)),
+    }))
+    toast.error(error.message)
+    return { error: error.message }
+  }
+  toast.success('Produit déplacé')
+  invalidateCache()
+  return { error: null }
+}
+
+/** Extrait un produit vers une nouvelle mission mono-produit. */
+export async function extractProductToNewMissionAction(
+  productId: string,
+  clientId: string,
+  missionName: string
+): Promise<{ error: string | null; projectId?: string }> {
+  // 1. Créer la mission
+  const result = await createProjectAction({ clientId, name: missionName })
+  if (result.error || !result.projectId) return { error: result.error ?? 'Impossible de créer la mission' }
+
+  // 2. Déplacer le produit
+  const moveResult = await moveProductAction(productId, result.projectId)
+  if (moveResult.error) return { error: moveResult.error }
+
+  return { error: null, projectId: result.projectId }
 }
 
 // ─── Contacts ───────────────────────────────────────────────────
