@@ -43,13 +43,13 @@ export function EditMenu({
 
   function handleRename() {
     setOpen(false);
-    onRename();
+    queueMicrotask(() => onRename());
   }
 
   function handleDelete() {
     if (confirm(confirmDeleteLabel)) {
       setOpen(false);
-      onDelete();
+      queueMicrotask(() => onDelete());
     }
   }
 
@@ -94,7 +94,11 @@ export function EditMenu({
               <button
                 key={i}
                 type="button"
-                onClick={(e) => { e.stopPropagation(); setOpen(false); item.onClick(); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpen(false);
+                  queueMicrotask(() => item.onClick());
+                }}
                 className={`w-full px-3 py-1.5 text-left text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800 ${
                   item.destructive ? "text-red-600 dark:text-red-400" : "text-zinc-700 dark:text-zinc-300"
                 }`}
