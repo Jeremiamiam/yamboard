@@ -360,7 +360,8 @@ Exécute les actions. Sois concis.`
           const clientId = String(input.clientId ?? '')
           const content = String(input.content ?? '')
           const name = String(input.name ?? 'Résumé échange')
-          const { error: insertErr } = await admin.from('pending_email_suggestions').insert({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- pending_email_suggestions pas encore dans les types générés
+          const { error: insertErr } = await (admin as any).from('pending_email_suggestions').insert({
             client_id: clientId,
             project_id: input.projectId ? String(input.projectId) : null,
             type: 'note',
@@ -381,7 +382,8 @@ Exécute les actions. Sois concis.`
           } else {
             const clientId = String(input.clientId ?? '')
             const name = String(input.name ?? '')
-            const { error: insertErr } = await admin.from('pending_email_suggestions').insert({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- pending_email_suggestions pas encore dans les types générés
+            const { error: insertErr } = await (admin as any).from('pending_email_suggestions').insert({
               client_id: clientId,
               project_id: null,
               type: 'contact',
