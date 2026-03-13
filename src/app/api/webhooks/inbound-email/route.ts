@@ -103,6 +103,22 @@ export async function POST(req: Request) {
     console.log('[inbound-email]', msg, data ?? '')
   }
 
+  const rawBody = await req.text()
+  let event: { type?: string; data?: { email_id?: string; from?: string; subject?: string }; __test?: boolean }
+  try {
+    event = JSON.parse(rawBody) as typeof event
+  } catch {
+    log('ERREUR: Invalid JSON')
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+  }
+
+  const isTest = event.__test === true && process.env.INBOUND_TEST_SECRET && req.headers.get('x-test-secret') === process.env.INBOUND_TEST_SECRET
+  const debug: string[] = isTest ? [] : (null as unknown as string[])
+
+  const addDebug = (msg: string) => {
+    if (debug) debug.push(msg)
+  }
+
   try {
     const webhookSecret = process.env.RESEND_WEBHOOK_SECRET
     const resendApiKey = process.env.RESEND_API_KEY
@@ -112,31 +128,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Config manquante' }, { status: 500 })
     }
 
-    const rawBody = await req.text()
-    let event: { type?: string; data?: { email_id?: string; from?: string; subject?: string }; __test?: boolean }
-
-    try {
-      event = JSON.parse(rawBody) as typeof event
-    } catch {
-      log('ERREUR: Invalid JSON')
-      return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
-    }
-
-    const isTest = event.__test === true && process.env.INBOUND_TEST_SECRET && req.headers.get('x-test-secret') === process.env.INBOUND_TEST_SECRET
-
+    addDebug('1. Event reçu')
     log('Event reçu', { type: event.type, emailId: event.data?.email_id, from: event.data?.from, isTest })
 
     if (event.type !== 'email.received') {
+      addDebug('2. STOP: type != email.received')
       log('Ignoré: type != email.received')
-      return NextResponse.json({ ok: true })
+      return NextResponse.json({ ok: true, _debug: debug })
     }
 
     const emailId = event.data?.email_id
     const from = event.data?.from ?? ''
 
     if (!emailId) {
+      addDebug('2. STOP: email_id manquant')
       log('ERREUR: email_id manquant')
-      return NextResponse.json({ error: 'email_id manquant' }, { status: 400 })
+      return NextResponse.json({ error: 'email_id manquant', _debug: debug }, { status: 400 })
     }
 
     // Vérifier la signature Resend (Svix) — sauf en mode test
@@ -168,12 +175,15 @@ export async function POST(req: Request) {
       log('Mode test: signature ignorée')
     }
 
+    addDebug('3. email_id OK, from=' + from)
     const senderEmail = extractEmailFromFromField(from)
     if (!senderEmail) {
+      addDebug('4. STOP: impossible d\'extraire l\'email de from')
       log('ERREUR: Impossible d\'extraire l\'email expéditeur', from)
-      return NextResponse.json({ ok: true })
+      return NextResponse.json({ ok: true, _debug: debug })
     }
 
+    addDebug('4. senderEmail=' + senderEmail)
     log('Recherche utilisateur', senderEmail)
 
     // Trouver l'utilisateur par email (exact, puis fallback domaine @agence-yam.fr)
@@ -195,10 +205,12 @@ export async function POST(req: Request) {
       }
     }
     if (!user) {
+      addDebug('5. STOP: aucun user Supabase pour ' + senderEmail + ' (users=' + allUsers.map((u) => u.email).join(', ') + ')')
       log('ERREUR: Aucun utilisateur Yam pour', { from, senderEmail })
-      return NextResponse.json({ ok: true })
+      return NextResponse.json({ ok: true, _debug: debug })
     }
 
+    addDebug('5. user trouvé: ' + user.email)
     log('Utilisateur trouvé', { userId: user.id, email: user.email })
 
     // Récupérer le corps du mail via l'API Resend Receiving
@@ -222,6 +234,7 @@ export async function POST(req: Request) {
     }
 
     if (!body.trim()) body = event.data?.subject ?? '(sans contenu)'
+    addDebug('6. body récupéré, len=' + body.length)
     log('Corps mail', { bodyLen: body.length, preview: body.slice(0, 80) })
 
     const debugTrace = process.env.INBOUND_DEBUG === '1' ? [] as string[] : null
@@ -236,6 +249,7 @@ export async function POST(req: Request) {
       debugTrace.push(`diag clients: count=${diagClients?.length ?? 0} error=${diagErr?.message ?? 'null'} sample=${JSON.stringify(diagClients?.map((c: { name: string }) => c.name) ?? [])}`)
     }
 
+    addDebug('7. appel processEmailWithAgent...')
     await processEmailWithAgent(
       user.id,
       event.data?.subject ?? '(sans sujet)',
@@ -244,10 +258,13 @@ export async function POST(req: Request) {
       debugTrace,
     )
 
+    addDebug('8. agent terminé, suggestions créées')
     const response: {
       ok: boolean
+      _debug?: string[]
       debug?: { bodyLength: number; bodyPreview?: string; agentTrace?: string[] }
     } = { ok: true }
+    if (debug) response._debug = debug
     if (process.env.INBOUND_DEBUG === '1') {
       response.debug = {
         bodyLength: body.length,
@@ -258,6 +275,7 @@ export async function POST(req: Request) {
     log('Traitement terminé')
     return NextResponse.json(response)
   } catch (err) {
+    addDebug('ERREUR: ' + (err instanceof Error ? err.message : String(err)))
     const msg = err instanceof Error ? err.message : String(err)
     const stack = err instanceof Error ? err.stack : undefined
     console.error('[inbound-email] Erreur:', msg, stack)
@@ -274,6 +292,7 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         error: 'Erreur serveur',
+        _debug: debug,
         debug: process.env.INBOUND_DEBUG === '1' ? msg : undefined,
       },
       { status: 500 },

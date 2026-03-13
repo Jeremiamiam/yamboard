@@ -151,6 +151,31 @@ export function NotificationBell() {
     }
   }
 
+  async function handleReplay() {
+    const emailId = window.prompt("email_id Resend (depuis le dashboard Resend > Emails reçus):");
+    if (!emailId?.trim()) return;
+    try {
+      const res = await fetch("/api/debug/replay", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email_id: emailId.trim() }),
+      });
+      const data = await res.json();
+      const lines = data.body?._debug ?? (data._debug ?? [data.error ?? JSON.stringify(data)]);
+      const msg = Array.isArray(lines) ? lines.join("\n") : String(lines);
+      if (data.body?._debug || data._debug) {
+        toast.info("Replay diagnostic", { description: msg, duration: 15000 });
+        console.log("[Replay]", data);
+      } else if (!res.ok) {
+        toast.error(data.error ?? msg);
+      } else {
+        toast.success("Replay OK", { description: msg });
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    }
+  }
+
   const getClientName = (clientId: string) =>
     clientId === "mock-client"
       ? "Client démo"
@@ -197,6 +222,14 @@ export function NotificationBell() {
           <div className="shrink-0 px-3 py-2 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-2">
             <SectionHeader level="sublabel">Notifications</SectionHeader>
             <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="xs"
+                onClick={handleReplay}
+                title="Rejouer un email Resend (email_id requis)"
+              >
+                Replay
+              </Button>
               <Button
                 variant="ghost"
                 size="xs"
