@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { useNotificationsStore } from "@/lib/notifications-store";
 import { usePendingSuggestionsStore } from "@/lib/pending-suggestions-store";
+import { useWebhookErrorsStore } from "@/lib/webhook-errors-store";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/Button";
 import { Surface } from "@/components/ui/Surface";
@@ -13,6 +14,7 @@ import {
   approveNoteSuggestion,
   rejectSuggestion,
 } from "@/app/(dashboard)/actions/email-suggestions";
+import { dismissWebhookError } from "@/app/(dashboard)/actions/webhook-errors";
 import { MOCK_PENDING_SUGGESTIONS } from "@/lib/pending-suggestions-store";
 import { MOCK_ACTIVITY_NOTIFICATIONS } from "@/lib/notifications-store";
 
@@ -58,13 +60,15 @@ export function NotificationBell() {
   const markAllRead = useNotificationsStore((s) => s.markAllRead);
   const pendingItems = usePendingSuggestionsStore((s) => s.items);
   const removePending = usePendingSuggestionsStore((s) => s.remove);
+  const webhookErrors = useWebhookErrorsStore((s) => s.items);
+  const removeWebhookError = useWebhookErrorsStore((s) => s.remove);
   const setPendingItems = usePendingSuggestionsStore((s) => s.setItems);
   const hydrateNotifications = useNotificationsStore((s) => s.hydrate);
   const navigateTo = useStore((s) => s.navigateTo);
   const loadData = useStore((s) => s.loadData);
   const clients = useStore((s) => s.clients);
 
-  const totalBadge = unreadCount + pendingItems.length;
+  const totalBadge = unreadCount + pendingItems.length + webhookErrors.length;
 
   useEffect(() => {
     if (!open) return;
@@ -138,7 +142,7 @@ export function NotificationBell() {
       ? "Client démo"
       : clients.find((c) => c.id === clientId)?.name ?? "Client";
 
-  const hasContent = pendingItems.length > 0 || items.length > 0;
+  const hasContent = pendingItems.length > 0 || items.length > 0 || webhookErrors.length > 0;
 
   return (
     <div className="relative" ref={ref}>
@@ -201,6 +205,52 @@ export function NotificationBell() {
               </p>
             ) : (
               <div className="py-1">
+                {webhookErrors.length > 0 && (
+                  <div className="border-b border-zinc-200 dark:border-zinc-800">
+                    <p className="px-3 py-1.5 text-[11px] font-medium text-red-600 dark:text-red-400 uppercase tracking-wide">
+                      Erreurs
+                    </p>
+                    <ul>
+                      {webhookErrors.map((e) => (
+                        <li
+                          key={e.id}
+                          className="px-3 py-2.5 border-b border-zinc-100 dark:border-zinc-800/50 last:border-0 bg-red-50/50 dark:bg-red-950/20"
+                        >
+                          <p className="text-sm font-medium text-red-600 dark:text-red-400">
+                            Erreur Resend / Agent
+                          </p>
+                          <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5 truncate">
+                            {e.errorMessage}
+                          </p>
+                          {e.details?.stack && (
+                            <pre className="mt-1.5 text-[10px] text-zinc-500 dark:text-zinc-500 overflow-x-auto max-h-24 overflow-y-auto break-all whitespace-pre-wrap">
+                              {String(e.details.stack)}
+                            </pre>
+                          )}
+                          <p className="text-[11px] text-zinc-400 dark:text-zinc-600 mt-1">
+                            {formatRelativeTime(e.createdAt)}
+                          </p>
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            className="mt-2 text-zinc-500"
+                            onClick={async () => {
+                              const result = await dismissWebhookError(e.id);
+                              if (result.error) {
+                                toast.error(result.error);
+                              } else {
+                                removeWebhookError(e.id);
+                                toast.success("Erreur retirée");
+                              }
+                            }}
+                          >
+                            Retirer
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 {pendingItems.length > 0 && (
                   <div className="border-b border-zinc-200 dark:border-zinc-800">
                     <p className="px-3 py-1.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-500 uppercase tracking-wide">

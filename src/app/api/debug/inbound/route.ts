@@ -1,6 +1,8 @@
 /**
- * Diagnostic webhook inbound : vérifie que l'admin peut écrire dans Supabase.
- * GET /api/debug/inbound?secret=XXX (INBOUND_TEST_SECRET)
+ * Diagnostic webhook inbound.
+ * GET /api/debug/inbound?secret=XXX — vérifie que l'admin peut écrire dans Supabase.
+ * POST /api/debug/inbound — rejoue le flux avec un email_id Resend (body: { email_id, from, subject }).
+ * Header: X-Test-Secret: <INBOUND_TEST_SECRET>
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -8,10 +10,63 @@ import { createAdminClient } from '@/lib/supabase/admin'
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-export async function GET(req: NextRequest) {
-  const secret = req.nextUrl.searchParams.get('secret')
+function checkSecret(req: NextRequest): boolean {
+  const secret = req.headers.get('x-test-secret') ?? req.nextUrl.searchParams.get('secret')
   const expected = process.env.INBOUND_TEST_SECRET
-  if (!expected || secret !== expected) {
+  return !!expected && secret === expected
+}
+
+export async function POST(req: NextRequest) {
+  if (!checkSecret(req)) {
+    return NextResponse.json({ error: 'Secret manquant ou invalide' }, { status: 401 })
+  }
+
+  let body: { email_id?: string; from?: string; subject?: string }
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: 'Body JSON invalide' }, { status: 400 })
+  }
+
+  const emailId = body.email_id
+  const from = body.from ?? 'jeremy@agence-yam.fr'
+  const subject = body.subject ?? '(sans sujet)'
+
+  if (!emailId) {
+    return NextResponse.json({ error: 'email_id requis' }, { status: 400 })
+  }
+
+  const webhookUrl = new URL('/api/webhooks/inbound-email', req.url).toString()
+  const payload = {
+    __test: true,
+    type: 'email.received',
+    data: { email_id: emailId, from, subject },
+  }
+
+  try {
+    const res = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Test-Secret': process.env.INBOUND_TEST_SECRET!,
+      },
+      body: JSON.stringify(payload),
+    })
+    const data = await res.json().catch(() => ({}))
+    return NextResponse.json({
+      status: res.status,
+      ok: res.ok,
+      body: data,
+    })
+  } catch (e) {
+    return NextResponse.json({
+      error: e instanceof Error ? e.message : String(e),
+    }, { status: 500 })
+  }
+}
+
+export async function GET(req: NextRequest) {
+  if (!checkSecret(req)) {
     return NextResponse.json({ error: 'Secret manquant ou invalide' }, { status: 401 })
   }
 

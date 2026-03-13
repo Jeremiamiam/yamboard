@@ -19,6 +19,7 @@ import { Webhook, WebhookVerificationError } from 'svix'
 import { Resend } from 'resend'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { buildAgencyContextForUser } from '@/lib/context-builders'
+import { insertWebhookError } from '@/lib/webhook-errors'
 import type { ContentBlock, ToolUseBlock } from '@anthropic-ai/sdk/resources/messages/messages'
 import Anthropic from '@anthropic-ai/sdk'
 
@@ -260,6 +261,16 @@ export async function POST(req: Request) {
     const msg = err instanceof Error ? err.message : String(err)
     const stack = err instanceof Error ? err.stack : undefined
     console.error('[inbound-email] Erreur:', msg, stack)
+    try {
+      const admin = createAdminClient()
+      await insertWebhookError(admin, {
+        source: 'inbound_email',
+        errorMessage: msg,
+        details: { stack: stack ?? undefined },
+      })
+    } catch (e) {
+      console.error('[inbound-email] Impossible de persister l\'erreur:', e)
+    }
     return NextResponse.json(
       {
         error: 'Erreur serveur',

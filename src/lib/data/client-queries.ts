@@ -329,3 +329,30 @@ export async function fetchAllTodos(): Promise<Todo[]> {
     createdAt: row.created_at as string,
   }))
 }
+
+// ─── Webhook errors ────────────────────────────────────────────
+
+export type WebhookErrorRow = {
+  id: string
+  source: string
+  errorMessage: string
+  details: Record<string, unknown> | null
+  createdAt: string
+}
+
+export async function fetchWebhookErrors(limit = 20): Promise<WebhookErrorRow[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('webhook_errors')
+    .select('id, source, error_message, details, created_at')
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  if (error) return []
+  return (data ?? []).map((row) => ({
+    id: row.id as string,
+    source: row.source as string,
+    errorMessage: row.error_message as string,
+    details: (row.details as Record<string, unknown>) ?? null,
+    createdAt: (row.created_at as string) ?? '',
+  }))
+}
