@@ -70,6 +70,50 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Secret manquant ou invalide' }, { status: 401 })
   }
 
+  // ?action=inject — injecte une erreur + une suggestion test pour vérifier notifs/toasts
+  const action = req.nextUrl.searchParams.get('action')
+  if (action === 'inject') {
+    try {
+      const admin = createAdminClient()
+      const { data: clients } = await admin.from('clients').select('id').limit(1)
+      const clientId = (clients?.[0] as { id: string } | undefined)?.id
+      if (!clientId) {
+        return NextResponse.json({ error: 'Aucun client en base' }, { status: 400 })
+      }
+      const { data: errRow, error: errErr } = await (admin as any)
+        .from('webhook_errors')
+        .insert({ source: 'inbound_email', error_message: '[TEST] Erreur Resend simulée', details: { test: true } })
+        .select('id')
+        .single()
+      if (errErr) {
+        return NextResponse.json({ error: 'webhook_errors insert failed: ' + errErr.message }, { status: 500 })
+      }
+      const { data: sugRow, error: sugErr } = await (admin as any)
+        .from('pending_email_suggestions')
+        .insert({
+          client_id: clientId,
+          type: 'contact',
+          data: { name: 'Contact Test', email: 'test@example.com' },
+          from_email: 'test@example.com',
+          subject: '[TEST] Suggestion simulée',
+          sender_name: 'Debug',
+        })
+        .select('id')
+        .single()
+      if (sugErr) {
+        return NextResponse.json({ error: 'pending_email_suggestions insert failed: ' + sugErr.message }, { status: 500 })
+      }
+      return NextResponse.json({
+        ok: true,
+        message: 'Données test injectées — rafraîchis la page ou attends le Realtime',
+        webhook_error_id: errRow?.id,
+        pending_suggestion_id: sugRow?.id,
+      })
+    } catch (e) {
+      return NextResponse.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 })
+    }
+  }
+
   const result: Record<string, unknown> = {
     env: {
       RESEND_WEBHOOK_SECRET: !!process.env.RESEND_WEBHOOK_SECRET,

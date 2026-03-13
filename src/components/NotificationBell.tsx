@@ -137,6 +137,20 @@ export function NotificationBell() {
     toast.success("Mock chargé — Oui/Non fonctionnent sur les suggestions");
   }
 
+  async function handleInjectTest() {
+    try {
+      const res = await fetch("/api/debug/inject-test", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error ?? "Erreur");
+        return;
+      }
+      toast.success("Données test injectées — toasts ou rafraîchis");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    }
+  }
+
   const getClientName = (clientId: string) =>
     clientId === "mock-client"
       ? "Client démo"
@@ -183,6 +197,14 @@ export function NotificationBell() {
           <div className="shrink-0 px-3 py-2 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-2">
             <SectionHeader level="sublabel">Notifications</SectionHeader>
             <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="xs"
+                onClick={handleInjectTest}
+                title="Injecter erreur + suggestion en base (test Realtime)"
+              >
+                Inject test
+              </Button>
               <Button
                 variant="ghost"
                 size="xs"
