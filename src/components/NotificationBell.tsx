@@ -54,6 +54,8 @@ function formatRelativeTime(dateStr: string): string {
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [replayExpanded, setReplayExpanded] = useState(false);
+  const [replayEmailId, setReplayEmailId] = useState("");
   const ref = useRef<HTMLDivElement>(null);
   const items = useNotificationsStore((s) => s.items);
   const unreadCount = useNotificationsStore((s) => s.unreadCount);
@@ -152,13 +154,15 @@ export function NotificationBell() {
   }
 
   async function handleReplay() {
-    const emailId = window.prompt("email_id Resend (depuis le dashboard Resend > Emails reçus):");
-    if (!emailId?.trim()) return;
+    if (!replayEmailId.trim()) {
+      setReplayExpanded(true);
+      return;
+    }
     try {
       const res = await fetch("/api/debug/replay", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email_id: emailId.trim() }),
+        body: JSON.stringify({ email_id: replayEmailId.trim() }),
       });
       const data = await res.json();
       const lines = data.body?._debug ?? (data._debug ?? [data.error ?? JSON.stringify(data)]);
@@ -221,15 +225,16 @@ export function NotificationBell() {
         <Surface variant="overlay" className="absolute right-0 top-full mt-1 w-80 max-h-[420px] overflow-hidden rounded-xl shadow-xl z-50 flex flex-col">
           <div className="shrink-0 px-3 py-2 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-2">
             <SectionHeader level="sublabel">Notifications</SectionHeader>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="xs"
-                onClick={handleReplay}
-                title="Rejouer un email Resend (email_id requis)"
-              >
-                Replay
-              </Button>
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-1 flex-wrap">
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  onClick={() => setReplayExpanded((v) => !v)}
+                  title="Rejouer un email Resend"
+                >
+                  Replay
+                </Button>
               <Button
                 variant="ghost"
                 size="xs"
@@ -250,6 +255,21 @@ export function NotificationBell() {
                 <Button variant="ghost" size="xs" onClick={markAllRead}>
                   Tout marquer lu
                 </Button>
+              )}
+              </div>
+              {replayExpanded && (
+                <div className="flex gap-1.5 items-center pt-1">
+                  <input
+                    type="text"
+                    placeholder="email_id Resend"
+                    value={replayEmailId}
+                    onChange={(e) => setReplayEmailId(e.target.value)}
+                    className="flex-1 min-w-0 text-xs px-2 py-1.5 rounded border border-zinc-200 dark:border-zinc-700 bg-transparent"
+                  />
+                  <Button variant="primary" size="xs" onClick={handleReplay}>
+                    Lancer
+                  </Button>
+                </div>
               )}
             </div>
           </div>
