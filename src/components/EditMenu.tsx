@@ -7,6 +7,7 @@ import { Button } from "@/components/ui";
 /**
  * Bouton "Éditer" au niveau du titre — ouvre un menu Renommer / Supprimer.
  * Cohérent pour client, projet, produit.
+ * Confirmation inline (2 clics) — pas de confirm() natif.
  * Rendu en portal pour éviter le clipping (overflow) et les conflits de z-index.
  */
 export function EditMenu({
@@ -27,6 +28,7 @@ export function EditMenu({
   hideDelete?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [deleteArmed, setDeleteArmed] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -36,21 +38,33 @@ export function EditMenu({
       const target = e.target as Node;
       if (ref.current?.contains(target) || menuRef.current?.contains(target)) return;
       setOpen(false);
+      setDeleteArmed(false);
     };
     document.addEventListener("click", handler);
     return () => document.removeEventListener("click", handler);
   }, [open]);
 
+  // Auto-reset armed state after 3s
+  useEffect(() => {
+    if (!deleteArmed) return;
+    const t = setTimeout(() => setDeleteArmed(false), 3000);
+    return () => clearTimeout(t);
+  }, [deleteArmed]);
+
   function handleRename() {
     setOpen(false);
+    setDeleteArmed(false);
     queueMicrotask(() => onRename());
   }
 
   function handleDelete() {
-    if (confirm(confirmDeleteLabel)) {
-      setOpen(false);
-      queueMicrotask(() => onDelete());
+    if (!deleteArmed) {
+      setDeleteArmed(true);
+      return;
     }
+    setOpen(false);
+    setDeleteArmed(false);
+    queueMicrotask(() => onDelete());
   }
 
   const rect = ref.current?.getBoundingClientRect();
@@ -69,7 +83,7 @@ export function EditMenu({
       <Button
         variant="ghost"
         size="xs"
-        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
+        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); setDeleteArmed(false); }}
         disabled={disabled}
       >
         Éditer
@@ -97,6 +111,7 @@ export function EditMenu({
                 onClick={(e) => {
                   e.stopPropagation();
                   setOpen(false);
+                  setDeleteArmed(false);
                   queueMicrotask(() => item.onClick());
                 }}
                 className={`w-full px-3 py-1.5 text-left text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800 ${
@@ -110,9 +125,13 @@ export function EditMenu({
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); handleDelete(); }}
-                className="w-full px-3 py-1.5 text-left text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
+                className={`w-full px-3 py-1.5 text-left text-xs transition-colors ${
+                  deleteArmed
+                    ? "bg-red-600 text-white font-medium"
+                    : "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
+                }`}
               >
-                Supprimer
+                {deleteArmed ? confirmDeleteLabel : "Supprimer"}
               </button>
             )}
           </div>,

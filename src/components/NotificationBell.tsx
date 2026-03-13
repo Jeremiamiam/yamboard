@@ -57,6 +57,7 @@ export function NotificationBell() {
   const items = useNotificationsStore((s) => s.items);
   const unreadCount = useNotificationsStore((s) => s.unreadCount);
   const markAllRead = useNotificationsStore((s) => s.markAllRead);
+  const removeNotification = useNotificationsStore((s) => s.remove);
   const pendingItems = usePendingSuggestionsStore((s) => s.items);
   const removePending = usePendingSuggestionsStore((s) => s.remove);
   const webhookErrors = useWebhookErrorsStore((s) => s.items);
@@ -676,11 +677,14 @@ export function NotificationBell() {
                     )}
                     <ul>
                       {items.map((n) => (
-                        <li key={n.id}>
+                        <li
+                          key={n.id}
+                          className="group px-3 py-2.5 border-b border-zinc-100 dark:border-zinc-800/50 last:border-0 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
+                        >
                           <button
                             type="button"
                             onClick={() => handleItemClick(n.clientId)}
-                            className="w-full px-3 py-2.5 text-left hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors border-b border-zinc-100 dark:border-zinc-800/50 last:border-0 cursor-pointer"
+                            className="w-full text-left cursor-pointer"
                           >
                             <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">
                               {ACTION_LABELS[n.actionType] ?? n.actionType} ·{" "}
@@ -694,6 +698,18 @@ export function NotificationBell() {
                               {formatRelativeTime(n.createdAt)}
                             </p>
                           </button>
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            className="mt-2 text-zinc-500"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeNotification(n.id);
+                              toast.success("Notification supprimée");
+                            }}
+                          >
+                            Supprimer
+                          </Button>
                         </li>
                       ))}
                     </ul>

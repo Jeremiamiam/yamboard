@@ -221,20 +221,17 @@ export type ClientActivityRow = {
 
 export async function fetchClientActivityLogs(clientId: string, limit = 20): Promise<ClientActivityRow[]> {
   const supabase = createClient()
-  const [logsResult, profilesResult] = await Promise.all([
+  const [logsResult, names] = await Promise.all([
     supabase
       .from('client_activity_logs')
       .select('id, client_id, project_id, action_type, source, summary, metadata, created_at, owner_id')
       .eq('client_id', clientId)
       .order('created_at', { ascending: false })
       .limit(limit),
-    supabase.from('profiles').select('id, full_name'),
+    getProfileNames(),
   ])
   if (logsResult.error) throw new Error(logsResult.error.message)
   const rows = logsResult.data ?? []
-  const names: Record<string, string> = Object.fromEntries(
-    (profilesResult.data ?? []).map((p) => [p.id, p.full_name])
-  )
   return rows.map((row) => ({
     id: row.id,
     clientId: row.client_id,
@@ -249,22 +246,41 @@ export async function fetchClientActivityLogs(clientId: string, limit = 20): Pro
   }))
 }
 
+// ─── Profiles cache (shared across activity queries) ──────────────
+let _profilesCache: Record<string, string> | null = null
+let _profilesPromise: Promise<Record<string, string>> | null = null
+
+function getProfileNames(): Promise<Record<string, string>> {
+  if (_profilesCache) return Promise.resolve(_profilesCache)
+  if (_profilesPromise) return _profilesPromise
+  const p = createClient()
+    .from('profiles')
+    .select('id, full_name')
+    .then(({ data }) => {
+      const names: Record<string, string> = Object.fromEntries(
+        (data ?? []).map((row) => [row.id, row.full_name])
+      )
+      _profilesCache = names
+      _profilesPromise = null
+      return names
+    })
+  _profilesPromise = Promise.resolve(p)
+  return _profilesPromise
+}
+
 /** Activité récente pour la cloche (RLS filtre par owner_id = auth.uid()) */
 export async function fetchRecentActivityForNotifications(limit = 20): Promise<ClientActivityRow[]> {
   const supabase = createClient()
-  const [logsResult, profilesResult] = await Promise.all([
+  const [logsResult, names] = await Promise.all([
     supabase
       .from('client_activity_logs')
       .select('id, client_id, project_id, action_type, source, summary, metadata, created_at, owner_id')
       .order('created_at', { ascending: false })
       .limit(limit),
-    supabase.from('profiles').select('id, full_name'),
+    getProfileNames(),
   ])
   if (logsResult.error) throw new Error(logsResult.error.message)
   const rows = logsResult.data ?? []
-  const names: Record<string, string> = Object.fromEntries(
-    (profilesResult.data ?? []).map((p) => [p.id, p.full_name])
-  )
   return rows.map((row) => ({
     id: row.id,
     clientId: row.client_id,
@@ -320,13 +336,14 @@ export async function fetchAllTodos(): Promise<Todo[]> {
   const supabase = createClient()
   const { data } = await supabase
     .from('todos')
-    .select('id, text, done, created_at')
+    .select('id, text, done, created_at, client_id')
     .order('created_at', { ascending: true })
   return (data ?? []).map((row) => ({
     id: row.id as string,
     text: row.text as string,
     done: row.done as boolean,
     createdAt: row.created_at as string,
+    clientId: (row.client_id as string | null) ?? undefined,
   }))
 }
 

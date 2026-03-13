@@ -13,7 +13,6 @@ import {
   extractProductToNewMissionAction,
 } from "@/lib/store/actions";
 import { ConfirmButton } from "@/components/ConfirmButton";
-import { EditMenu } from "@/components/EditMenu";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/Button";
 import { Surface } from "@/components/ui/Surface";
@@ -89,23 +88,29 @@ function ProductDrawerContent({
 }) {
   const liveProduct = useStore((s) => s.budgetProducts.find((p) => p.id === product.id)) ?? product;
 
-  const [editingHeader, setEditingHeader] = useState(false);
+  const [editingName, setEditingName] = useState(false);
   const [editName, setEditName] = useState(liveProduct.name);
+  const [editingPotentiel, setEditingPotentiel] = useState(false);
   const [editAmount, setEditAmount] = useState(String(liveProduct.totalAmount));
   const [isPending, startTransition] = useTransition();
   const [autoFocusStage, setAutoFocusStage] = useState<string | null>(null);
 
-  function saveHeader() {
+  function saveName() {
     const name = editName.trim();
+    if (!name) return;
+    setEditingName(false);
+    if (name !== liveProduct.name) {
+      startTransition(() => void updateBudgetProductAction(product.id, { name }));
+    }
+  }
+
+  function savePotentiel() {
     const amount = parseFloat(editAmount);
-    if (!name || isNaN(amount)) return;
-    setEditingHeader(false);
-    startTransition(() =>
-      void updateBudgetProductAction(product.id, {
-        name: name !== liveProduct.name ? name : undefined,
-        totalAmount: amount !== liveProduct.totalAmount ? amount : undefined,
-      })
-    );
+    if (isNaN(amount)) return;
+    setEditingPotentiel(false);
+    if (amount !== liveProduct.totalAmount) {
+      startTransition(() => void updateBudgetProductAction(product.id, { totalAmount: amount }));
+    }
   }
 
   function handleDelete() {
@@ -128,64 +133,44 @@ function ProductDrawerContent({
           : "fixed top-0 right-0 bottom-0 z-50 w-full sm:w-[480px] border-l border-zinc-200 dark:border-zinc-800 shadow-2xl"
       }`}
     >
-      {/* Header */}
-      <div className="shrink-0 flex items-start justify-between px-5 py-4 border-b border-zinc-200 dark:border-zinc-800">
-        {editingHeader ? (
-          <div className="flex-1 space-y-2 mr-3">
+      {/* Header — nom uniquement */}
+      <div className="shrink-0 flex items-center justify-between px-5 py-4 border-b border-zinc-200 dark:border-zinc-800">
+        {editingName ? (
+          <div className="flex-1 flex items-center gap-2 mr-3">
             <input
               autoFocus
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") saveHeader(); if (e.key === "Escape") setEditingHeader(false); }}
-              className="w-full text-base font-semibold bg-transparent border-b border-zinc-300 dark:border-zinc-600 outline-none pb-0.5 text-zinc-900 dark:text-white"
+              onKeyDown={(e) => { if (e.key === "Enter") saveName(); if (e.key === "Escape") setEditingName(false); }}
+              onBlur={saveName}
+              className="flex-1 text-base font-semibold bg-transparent border-b border-zinc-300 dark:border-zinc-600 outline-none pb-0.5 text-zinc-900 dark:text-white"
             />
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                value={editAmount}
-                onChange={(e) => setEditAmount(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") saveHeader(); }}
-                className="w-28 text-sm bg-transparent border-b border-zinc-300 dark:border-zinc-600 outline-none pb-0.5 text-zinc-600 dark:text-zinc-400 text-right"
-              />
-              <span className="text-sm text-zinc-500">€</span>
-              <button onClick={saveHeader} className="ml-2 text-xs font-medium text-emerald-600 hover:text-emerald-500">OK</button>
-              <button onClick={() => setEditingHeader(false)} className="text-xs text-zinc-400 hover:text-zinc-600">✕</button>
-            </div>
           </div>
         ) : (
-          <div className="flex-1 flex items-center gap-2 min-w-0">
-            <div className="min-w-0">
-              <h2 className="text-base font-semibold text-zinc-900 dark:text-white truncate">
-                {liveProduct.name}
-              </h2>
-              {(() => {
-                const productTotal = liveProduct.devis?.amount ?? liveProduct.totalAmount;
-                const st = (liveProduct.subcontracts ?? []).reduce((s, sub) => s + (sub.amount ?? 0), 0);
-                const net = productTotal - st;
-                return (
-                  <p className="text-sm text-zinc-500 mt-0.5">
-                    {productTotal.toLocaleString("fr-FR")} €
-                    {st > 0 && (
-                      <>
-                        {" "}
-                        <span className="text-zinc-400 dark:text-zinc-600">(dont {st.toLocaleString("fr-FR")} € sous-traitance)</span>
-                        {" · "}
-                        <span className="text-emerald-600 dark:text-emerald-400 font-medium">À toucher : {net.toLocaleString("fr-FR")} €</span>
-                      </>
-                    )}
-                  </p>
-                );
-              })()}
-            </div>
-            <EditMenu
-              onRename={() => { setEditName(liveProduct.name); setEditAmount(String(liveProduct.totalAmount)); setEditingHeader(true); }}
-              onDelete={handleDelete}
-              confirmDeleteLabel="Supprimer ce produit ?"
-              disabled={isPending}
-            />
+          <div
+            className="flex-1 min-w-0 cursor-pointer group flex items-center gap-1.5"
+            onClick={() => { setEditName(liveProduct.name); setEditingName(true); }}
+          >
+            <h2 className="text-base font-semibold text-zinc-900 dark:text-white truncate">
+              {liveProduct.name}
+            </h2>
+            <svg className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-600 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            </svg>
           </div>
         )}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1 shrink-0">
+          <ConfirmButton
+            onConfirm={handleDelete}
+            confirmLabel="Supprimer ?"
+            disabled={isPending}
+            className="p-1.5 rounded-md text-zinc-400 dark:text-zinc-600 hover:text-red-500 dark:hover:text-red-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-40"
+            title="Supprimer ce produit"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </ConfirmButton>
           <Button
             variant="secondary"
             size="icon_md"
@@ -198,6 +183,60 @@ function ProductDrawerContent({
 
       {/* Body */}
       <div className="flex-1 overflow-y-auto px-5 py-5 space-y-3">
+        {/* Potentiel — au-dessus des étapes */}
+        <div className="pb-3 border-b border-zinc-200 dark:border-zinc-800">
+          {(() => {
+            const devisLocked = liveProduct.devis?.status === "paid";
+            const productTotal = liveProduct.devis?.amount ?? liveProduct.totalAmount;
+            const st = (liveProduct.subcontracts ?? []).reduce((s, sub) => s + (sub.amount ?? 0), 0);
+            const net = productTotal - st;
+            return (
+              <>
+                <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-600">Potentiel</span>
+                {editingPotentiel && !devisLocked ? (
+                  <div className="flex items-center gap-2 mt-1">
+                    <input
+                      autoFocus
+                      type="number"
+                      value={editAmount}
+                      onChange={(e) => setEditAmount(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") savePotentiel(); if (e.key === "Escape") setEditingPotentiel(false); }}
+                      onBlur={savePotentiel}
+                      className="w-28 text-lg font-semibold bg-transparent border-b border-zinc-300 dark:border-zinc-600 outline-none pb-0.5 text-zinc-900 dark:text-white text-right"
+                    />
+                    <span className="text-sm text-zinc-500">€</span>
+                  </div>
+                ) : (
+                  <div
+                    className={devisLocked ? "" : "cursor-pointer group"}
+                    onClick={devisLocked ? undefined : () => { setEditAmount(String(liveProduct.totalAmount)); setEditingPotentiel(true); }}
+                  >
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className="text-lg font-semibold text-zinc-900 dark:text-white">
+                        {productTotal.toLocaleString("fr-FR")} €
+                      </span>
+                      {devisLocked ? (
+                        <span className="text-[10px] text-zinc-400 dark:text-zinc-600">(fixé par le devis signé)</span>
+                      ) : (
+                        <svg className="w-3 h-3 text-zinc-400 dark:text-zinc-600 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                      )}
+                    </div>
+                    {st > 0 && (
+                      <p className="text-xs text-zinc-500 mt-0.5">
+                        dont {st.toLocaleString("fr-FR")} € sous-traitance
+                        {" · "}
+                        <span className="text-emerald-600 dark:text-emerald-400 font-medium">À toucher : {net.toLocaleString("fr-FR")} €</span>
+                      </p>
+                    )}
+                  </div>
+                )}
+              </>
+            );
+          })()}
+        </div>
+
         <SectionHeader level="label" className="mb-1">
           Étapes de paiement
         </SectionHeader>
@@ -473,6 +512,7 @@ function AvancementRow({
               ? "border-yellow-500/30 bg-yellow-500/10 text-yellow-500"
               : "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-500"
           )}
+          tabIndex={-1}
           title="Cliquer pour changer le statut"
         >
           <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.dot}`} />
@@ -599,6 +639,7 @@ function FixedStageRow({
               ? "border-yellow-500/30 bg-yellow-500/10 text-yellow-500"
               : "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-500"
           )}
+          tabIndex={-1}
           title="Cliquer pour changer le statut"
         >
           <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.dot}`} />

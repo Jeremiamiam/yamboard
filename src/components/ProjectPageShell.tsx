@@ -173,7 +173,7 @@ export function ProjectPageShell({
               ) : (
                 <button
                   onClick={() => setIsEditingPotentiel(true)}
-                  className="text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-colors"
+                  className="text-sm font-medium text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
                 >
                   {potentiel != null && !isNaN(potentiel)
                     ? `${potentiel.toLocaleString("fr-FR")} €`

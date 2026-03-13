@@ -26,7 +26,7 @@ export function BudgetsTab({
   selectedProduct?: BudgetProduct | null;
   onSelectProduct?: (product: BudgetProduct | null) => void;
 }) {
-  const { total, paid, remaining, sousTraitance } = useMemo(() => {
+  const { total, paid, remaining, sousTraitance, hasSubcontracts } = useMemo(() => {
     // total = somme des montants du devis (étape Devis), fallback sur totalAmount
     const t = budgetProducts.reduce((s, p) => s + (p.devis?.amount ?? p.totalAmount), 0);
     const pd = budgetProducts.reduce((s, p) => {
@@ -38,11 +38,13 @@ export function BudgetsTab({
       if (p.solde?.status === "paid") amt += p.solde.amount ?? 0;
       return s + amt;
     }, 0);
+    // Sous-traitance = somme de TOUS les montants (payés + en attente) pour affichage "à toucher"
     const st = budgetProducts.reduce(
       (s, p) => s + (p.subcontracts ?? []).reduce((a, sub) => a + (sub.amount ?? 0), 0),
       0
     );
-    return { total: t, paid: pd, remaining: t - pd, sousTraitance: st };
+    const hasSubcontracts = budgetProducts.some((p) => (p.subcontracts?.length ?? 0) > 0);
+    return { total: t, paid: pd, remaining: t - pd, sousTraitance: st, hasSubcontracts };
   }, [budgetProducts]);
 
   const pct = total > 0 ? Math.round((paid / total) * 100) : 0;
@@ -70,8 +72,8 @@ export function BudgetsTab({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-zinc-50 dark:bg-zinc-950">
-      <div className="max-w-2xl">
+    <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 bg-zinc-50 dark:bg-zinc-950">
+      <div className="max-w-2xl w-full min-w-0">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -133,12 +135,15 @@ export function BudgetsTab({
               pct >= 100 && "border-emerald-500/40 dark:border-emerald-500/40 ring-1 ring-emerald-500/20"
             )}
           >
-            <div className={`grid gap-2 sm:gap-4 mb-4 ${sousTraitance > 0 ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}>
+            <div className={`grid gap-2 sm:gap-4 mb-4 ${hasSubcontracts ? "grid-cols-2 sm:grid-cols-5" : "grid-cols-3"}`}>
               <SumCard label="Budget" value={`${total.toLocaleString("fr-FR")} €`} />
               <SumCard label="Encaissé (sur devis validés)" value={`${paid.toLocaleString("fr-FR")} €`} highlight />
               <SumCard label="Restant" value={`${remaining.toLocaleString("fr-FR")} €`} />
-              {sousTraitance > 0 && (
-                <SumCard label="Sous-traitance" value={`${sousTraitance.toLocaleString("fr-FR")} €`} />
+              {hasSubcontracts && (
+                <>
+                  <SumCard label="Sous-traitance" value={`${sousTraitance.toLocaleString("fr-FR")} €`} />
+                  <SumCard label="À toucher (net)" value={`${(total - sousTraitance).toLocaleString("fr-FR")} €`} highlight />
+                </>
               )}
             </div>
             <Progress
@@ -162,7 +167,7 @@ export function BudgetsTab({
         {budgetProducts.length === 0 && !showForm ? (
           <EmptyBudget onAdd={() => setShowForm(true)} />
         ) : (
-          <div className="space-y-3">
+          <div className="flex flex-col gap-3 w-full min-w-0">
             {budgetProducts.map((product) => (
               <ProductCard
                 key={product.id}
@@ -238,6 +243,7 @@ function ProductCard({
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={onClick ? (e: React.KeyboardEvent) => e.key === "Enter" && onClick() : undefined}
       className={cn(
+        "w-full text-left",
         isSelected && "border-zinc-400 dark:border-zinc-600 ring-1 ring-zinc-300 dark:ring-zinc-600",
         onClick && "cursor-pointer hover:border-zinc-300 dark:hover:border-zinc-700 hover:shadow-md active:scale-[0.99]"
       )}
@@ -261,11 +267,20 @@ function ProductCard({
             <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
               {(product.devis?.amount ?? product.totalAmount).toLocaleString("fr-FR")} €
             </span>
-            {(product.subcontracts?.length ?? 0) > 0 && (
-              <span className="text-[11px] text-zinc-500 dark:text-zinc-600">
-                dont {(product.subcontracts ?? []).reduce((s, sub) => s + (sub.amount ?? 0), 0).toLocaleString("fr-FR")} € sous-traitance
-              </span>
-            )}
+            {(product.subcontracts?.length ?? 0) > 0 && (() => {
+              const st = (product.subcontracts ?? []).reduce((s, sub) => s + (sub.amount ?? 0), 0);
+              const net = (product.devis?.amount ?? product.totalAmount) - st;
+              return (
+                <>
+                  <span className="text-[11px] text-zinc-500 dark:text-zinc-600">
+                    dont {st.toLocaleString("fr-FR")} € sous-traitance
+                  </span>
+                  <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                    À toucher : {net.toLocaleString("fr-FR")} €
+                  </span>
+                </>
+              );
+            })()}
           </div>
           {onClick && (
             <svg className="w-4 h-4 text-zinc-400 dark:text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -317,10 +332,11 @@ function PaymentRow({
   stage: PaymentStage;
   clientColor: string;
 }) {
+  const isDevis = label === "Devis";
   const statusConfig = {
     pending: { dot: "bg-zinc-700", text: "text-zinc-600", label: "En attente" },
     sent: { dot: "bg-yellow-500", text: "text-yellow-500", label: "Envoyé" },
-    paid: { dot: "bg-emerald-500", text: "text-emerald-500", label: "Payé ✓" },
+    paid: { dot: "bg-emerald-500", text: "text-emerald-500", label: isDevis ? "Signé ✓" : "Payé ✓" },
   }[stage.status ?? "pending"];
 
   return (

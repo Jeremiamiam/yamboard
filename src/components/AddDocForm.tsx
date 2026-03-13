@@ -74,7 +74,7 @@ export function AddDocForm({
 
   return (
     <div className="space-y-3">
-      {/* Nom + bouton */}
+      {/* Nom + joindre + ajouter */}
       <div className="flex gap-2 items-center flex-wrap">
         <InputField
           type="text"
@@ -87,20 +87,8 @@ export function AddDocForm({
           autoFocus
           className="flex-1 min-w-[160px]"
         />
-        <Button
-          variant="primary"
-          onClick={handleSubmit}
-          disabled={!name.trim() || isPending}
-          style={name.trim() ? { background: clientColor, color: getContrastTextColor(clientColor) } : undefined}
-        >
-          {isPending ? "Enregistrement…" : "Ajouter"}
-        </Button>
-      </div>
-
-      {/* Joindre un fichier */}
-      <div className="flex items-center gap-2">
-        <label className="inline-flex items-center justify-center font-medium transition-colors cursor-pointer shrink-0 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:border-zinc-400 dark:hover:border-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 text-xs px-3 py-1.5 rounded-lg gap-1.5">
-          + Joindre un fichier
+        <label className="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:border-zinc-400 dark:hover:border-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 cursor-pointer transition-colors" title="Joindre un fichier">
+          <span className="text-lg leading-none">+</span>
           <input
             type="file"
             className="hidden"
@@ -111,13 +99,21 @@ export function AddDocForm({
             }}
           />
         </label>
-        {file && (
-          <>
-            <span className="text-xs text-zinc-600 dark:text-zinc-400 truncate">{file.name}</span>
-            <button onClick={() => setFile(null)} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 text-xs shrink-0">✕</button>
-          </>
-        )}
+        <Button
+          variant="primary"
+          onClick={handleSubmit}
+          disabled={!name.trim() || isPending}
+          style={name.trim() ? { background: clientColor, color: getContrastTextColor(clientColor) } : undefined}
+        >
+          {isPending ? "Enregistrement…" : "Ajouter"}
+        </Button>
       </div>
+      {file && (
+        <div className="flex items-center gap-2 text-xs">
+          <span className="text-zinc-600 dark:text-zinc-400 truncate">{file.name}</span>
+          <button onClick={() => setFile(null)} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 shrink-0">✕</button>
+        </div>
+      )}
 
       {/* Textarea note (masquée si fichier joint) */}
       {!file && (

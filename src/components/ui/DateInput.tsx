@@ -4,7 +4,7 @@ import { useRef, useState, useCallback, useEffect, type KeyboardEvent, type Focu
 import { cn } from "@/lib/cn";
 
 /* ═══════════════════════════════════════════════════════════════
-   DateInput — segmented day / month / year input.
+   DateInput — segmented day / month / year input (FR: JJ/MM/AAAA).
    Always visible segments (no display/edit toggle).
    Tab from amount input lands directly on day segment.
    ═══════════════════════════════════════════════════════════════ */
@@ -61,6 +61,12 @@ function toIso(parts: DateParts): string {
   return `${y}-${m}-${d}`;
 }
 
+function pad2(v: string): string {
+  const n = parseInt(v, 10);
+  if (isNaN(n) || n === 0) return v;
+  return String(n).padStart(2, "0");
+}
+
 function todayParts(): DateParts {
   const now = new Date();
   return {
@@ -81,6 +87,7 @@ export function DateInput({ value, onChange, disabled, className }: DateInputPro
   const initial = value ? parseDateString(value) ?? todayParts() : todayParts();
   const [parts, setParts] = useState<DateParts>(initial);
   const [dirty, setDirty] = useState(!!value);
+  const [focused, setFocused] = useState<"day" | "month" | "year" | null>(null);
   const dayRef = useRef<HTMLInputElement>(null);
   const monthRef = useRef<HTMLInputElement>(null);
   const yearRef = useRef<HTMLInputElement>(null);
@@ -104,11 +111,20 @@ export function DateInput({ value, onChange, disabled, className }: DateInputPro
     }
   }, [parts, onChange]);
 
-  function handleBlur(e: FocusEvent) {
+  function handleContainerBlur(e: FocusEvent) {
+    // If focus stays within the container, don't commit
     if (containerRef.current?.contains(e.relatedTarget as Node)) return;
+    setFocused(null);
     if (dirty || parts.day !== String(todayParts().day)) {
       commit();
     }
+  }
+
+  function handleSegmentFocus(segment: "day" | "month" | "year") {
+    return (e: FocusEvent<HTMLInputElement>) => {
+      setFocused(segment);
+      e.target.select();
+    };
   }
 
   function handleSegmentKey(
@@ -126,46 +142,71 @@ export function DateInput({ value, onChange, disabled, className }: DateInputPro
       (e.target as HTMLInputElement).blur();
       return;
     }
+
+    // Tab navigation between segments
     if (e.key === "Tab" && !e.shiftKey) {
       if (segment === "day") {
         e.preventDefault();
         monthRef.current?.focus();
-        monthRef.current?.select();
       } else if (segment === "month") {
         e.preventDefault();
         yearRef.current?.focus();
-        yearRef.current?.select();
       }
-      // year: natural tab out → blur → commit
+      // year → natural tab out (blur fires → commit)
     }
     if (e.key === "Tab" && e.shiftKey) {
       if (segment === "year") {
         e.preventDefault();
         monthRef.current?.focus();
-        monthRef.current?.select();
       } else if (segment === "month") {
         e.preventDefault();
         dayRef.current?.focus();
-        dayRef.current?.select();
       }
+      // day + shift → natural tab out
     }
-    // Auto-advance on 2 digits
-    if (segment === "day" && /^\d$/.test(e.key)) {
-      const next = parts.day + e.key;
-      if (next.length >= 2) {
-        requestAnimationFrame(() => {
-          monthRef.current?.focus();
-          monthRef.current?.select();
-        });
+
+    // Arrow up/down to increment/decrement
+    if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+      e.preventDefault();
+      const delta = e.key === "ArrowUp" ? 1 : -1;
+      setParts((p) => {
+        if (segment === "day") {
+          let d = (parseInt(p.day, 10) || 0) + delta;
+          if (d < 1) d = 31; if (d > 31) d = 1;
+          return { ...p, day: String(d) };
+        }
+        if (segment === "month") {
+          let m = (parseInt(p.month, 10) || 0) + delta;
+          if (m < 1) m = 12; if (m > 12) m = 1;
+          return { ...p, month: String(m) };
+        }
+        let y = (parseInt(p.year, 10) || 2026) + delta;
+        return { ...p, year: String(y) };
+      });
+      return;
+    }
+
+    // Auto-advance on digit entry
+    if (/^\d$/.test(e.key)) {
+      const input = e.target as HTMLInputElement;
+      const selAll = input.selectionStart === 0 && input.selectionEnd === input.value.length;
+      // Compute what the value will be after this keystroke
+      const currentVal = selAll ? "" : input.value;
+      const nextVal = currentVal + e.key;
+
+      if (segment === "day") {
+        const n = parseInt(nextVal, 10);
+        // Advance if: 2 digits typed, OR single digit >= 4 (can't be valid day start)
+        if (nextVal.length >= 2 || n >= 4) {
+          requestAnimationFrame(() => { monthRef.current?.focus(); });
+        }
       }
-    }
-    if (segment === "month" && /^\d$/.test(e.key)) {
-      const next = parts.month + e.key;
-      if (next.length >= 2) {
-        requestAnimationFrame(() => {
-          yearRef.current?.focus();
-          yearRef.current?.select();
-        });
+      if (segment === "month") {
+        const n = parseInt(nextVal, 10);
+        // Advance if: 2 digits typed, OR single digit >= 2 (can't be valid month start beyond 1x)
+        if (nextVal.length >= 2 || n >= 2) {
+          requestAnimationFrame(() => { yearRef.current?.focus(); });
+        }
       }
     }
   }
@@ -176,13 +217,19 @@ export function DateInput({ value, onChange, disabled, className }: DateInputPro
     setParts((p) => ({ ...p, [segment]: clean.slice(0, maxLen) }));
   }
 
+  // Display: pad day/month when not focused on that segment
+  const displayDay = focused === "day" ? parts.day : pad2(parts.day);
+  const displayMonth = focused === "month" ? parts.month : pad2(parts.month);
+  const displayYear = parts.year;
+
   const segmentCls = "bg-transparent outline-none text-center text-sm tabular-nums";
   const hasValue = dirty || !!value;
+  const colorCls = hasValue ? "text-zinc-700 dark:text-zinc-300" : "text-zinc-400 dark:text-zinc-600";
 
   return (
     <div
       ref={containerRef}
-      onBlur={handleBlur}
+      onBlur={handleContainerBlur}
       className={cn(
         "flex items-center bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 gap-0.5 transition-colors focus-within:border-zinc-400 dark:focus-within:border-zinc-500",
         className,
@@ -192,12 +239,12 @@ export function DateInput({ value, onChange, disabled, className }: DateInputPro
         ref={dayRef}
         type="text"
         inputMode="numeric"
-        value={parts.day}
+        value={displayDay}
         onChange={(e) => updatePart("day", e.target.value)}
         onKeyDown={(e) => handleSegmentKey(e, "day")}
-        onFocus={(e) => e.target.select()}
+        onFocus={handleSegmentFocus("day")}
         placeholder="JJ"
-        className={cn(segmentCls, "w-6", hasValue ? "text-zinc-700 dark:text-zinc-300" : "text-zinc-400 dark:text-zinc-600")}
+        className={cn(segmentCls, "w-6", colorCls)}
         disabled={disabled}
       />
       <span className="text-zinc-400 dark:text-zinc-600 text-sm">/</span>
@@ -205,12 +252,12 @@ export function DateInput({ value, onChange, disabled, className }: DateInputPro
         ref={monthRef}
         type="text"
         inputMode="numeric"
-        value={parts.month}
+        value={displayMonth}
         onChange={(e) => updatePart("month", e.target.value)}
         onKeyDown={(e) => handleSegmentKey(e, "month")}
-        onFocus={(e) => e.target.select()}
+        onFocus={handleSegmentFocus("month")}
         placeholder="MM"
-        className={cn(segmentCls, "w-6", hasValue ? "text-zinc-700 dark:text-zinc-300" : "text-zinc-400 dark:text-zinc-600")}
+        className={cn(segmentCls, "w-6", colorCls)}
         disabled={disabled}
       />
       <span className="text-zinc-400 dark:text-zinc-600 text-sm">/</span>
@@ -218,12 +265,12 @@ export function DateInput({ value, onChange, disabled, className }: DateInputPro
         ref={yearRef}
         type="text"
         inputMode="numeric"
-        value={parts.year}
+        value={displayYear}
         onChange={(e) => updatePart("year", e.target.value)}
         onKeyDown={(e) => handleSegmentKey(e, "year")}
-        onFocus={(e) => e.target.select()}
+        onFocus={handleSegmentFocus("year")}
         placeholder="AAAA"
-        className={cn(segmentCls, "w-10", hasValue ? "text-zinc-700 dark:text-zinc-300" : "text-zinc-400 dark:text-zinc-600")}
+        className={cn(segmentCls, "w-10", colorCls)}
         disabled={disabled}
       />
     </div>

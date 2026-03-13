@@ -14,6 +14,7 @@ export function ConfirmButton({
   className,
   confirmClassName,
   disabled,
+  ...rest
 }: {
   onConfirm: () => void;
   children: React.ReactNode;
@@ -21,7 +22,7 @@ export function ConfirmButton({
   className?: string;
   confirmClassName?: string;
   disabled?: boolean;
-}) {
+} & Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "onClick">) {
   const [armed, setArmed] = useState(false);
 
   useEffect(() => {
@@ -59,6 +60,7 @@ export function ConfirmButton({
       onClick={(e) => { e.stopPropagation(); setArmed(true); }}
       className={className}
       disabled={disabled}
+      {...rest}
     >
       {children}
     </Button>

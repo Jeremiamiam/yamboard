@@ -93,6 +93,7 @@ export type Todo = {
   text: string;
   done: boolean;
   createdAt: string;
+  clientId?: string | null;
 };
 
 // ─── UI config maps ───────────────────────────────────────────

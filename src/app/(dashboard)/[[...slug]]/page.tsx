@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
 import { ClientPageShell } from "@/components/ClientPageShell";
 import { ProjectPageShell } from "@/components/ProjectPageShell";
@@ -16,7 +16,7 @@ import {
   useBudgetProducts,
   useStoreLoaded,
 } from "@/hooks/useStoreData";
-import { addTodoAction, toggleTodoAction, deleteTodoAction } from "@/lib/store/actions";
+import { TodoWidget } from "@/components/TodoWidget";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -59,92 +59,6 @@ function fmt(n: number): string {
   return n.toLocaleString("fr-FR");
 }
 
-function TodoWidget() {
-  const todos = useStore((s) => s.todos);
-  const [newTodo, setNewTodo] = useState("");
-
-  const pending = todos.filter((t) => !t.done);
-  const done = todos.filter((t) => t.done);
-
-  function handleAdd() {
-    const text = newTodo.trim();
-    if (!text) return;
-    setNewTodo("");
-    addTodoAction(text);
-  }
-
-  return (
-    <section className="rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-      <div className="px-5 pt-4 pb-2 flex items-center justify-between">
-        <SectionLabel>Todos</SectionLabel>
-        {pending.length > 0 && (
-          <span className="text-xs font-medium text-violet-500 dark:text-violet-400 tabular-nums">
-            {pending.length}
-          </span>
-        )}
-      </div>
-      {/* Add input */}
-      <div className="px-4 pb-3">
-        <div className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2">
-          <input
-            type="text"
-            value={newTodo}
-            onChange={(e) => setNewTodo(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
-            placeholder="Nouvelle tâche…"
-            className="flex-1 bg-transparent text-xs text-zinc-600 dark:text-zinc-400 placeholder-zinc-400 dark:placeholder-zinc-600 outline-none"
-          />
-          <button
-            onClick={handleAdd}
-            disabled={!newTodo.trim()}
-            className="text-zinc-400 hover:text-zinc-600 dark:text-zinc-600 dark:hover:text-zinc-300 disabled:opacity-30 cursor-pointer disabled:cursor-default transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-          </button>
-        </div>
-      </div>
-      {/* List */}
-      {pending.length === 0 && done.length === 0 ? (
-        <p className="text-xs text-zinc-400 dark:text-zinc-600 px-5 pb-4">Aucune tâche</p>
-      ) : (
-        <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-          {[...pending, ...done].map((t) => (
-            <div key={t.id} className={`group flex items-center gap-3 px-5 py-2.5 ${t.done ? "opacity-50" : ""}`}>
-              <button
-                onClick={() => toggleTodoAction(t.id, !t.done)}
-                className={`shrink-0 w-4 h-4 rounded border transition-colors cursor-pointer flex items-center justify-center ${
-                  t.done
-                    ? "bg-violet-500 border-violet-500 dark:bg-violet-600 dark:border-violet-600"
-                    : "border-zinc-300 dark:border-zinc-600 hover:border-violet-400"
-                }`}
-              >
-                {t.done && (
-                  <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                  </svg>
-                )}
-              </button>
-              <span className={`flex-1 text-sm text-zinc-700 dark:text-zinc-300 ${t.done ? "line-through" : ""}`}>
-                {t.text}
-              </span>
-              <button
-                onClick={() => deleteTodoAction(t.id)}
-                className="opacity-0 group-hover:opacity-100 shrink-0 text-zinc-400 hover:text-red-500 dark:text-zinc-600 dark:hover:text-red-400 transition-all cursor-pointer"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
 function HomeView() {
   const userName = useStore((s) => s.userName);
   const clients = useStore((s) => s.clients);
@@ -153,18 +67,15 @@ function HomeView() {
   const loaded = useStoreLoaded();
   const navigateTo = useStore((s) => s.navigateTo);
 
-  const [recentLogs, setRecentLogs] = useState<ClientActivityRow[]>([]);
-
-  const loadLogs = useCallback(async () => {
-    try {
-      const logs = await fetchRecentActivityForNotifications(12);
-      setRecentLogs(logs);
-    } catch { /* ignore */ }
-  }, []);
+  const [recentLogs, setRecentLogs] = useState<ClientActivityRow[] | null>(null);
 
   useEffect(() => {
-    if (loaded) loadLogs();
-  }, [loaded, loadLogs]);
+    let cancelled = false;
+    fetchRecentActivityForNotifications(12)
+      .then((logs) => { if (!cancelled) setRecentLogs(logs); })
+      .catch(() => { if (!cancelled) setRecentLogs([]); });
+    return () => { cancelled = true; };
+  }, []);
 
   const allClients = clients;
 
@@ -290,7 +201,7 @@ function HomeView() {
                 <section className="rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 overflow-hidden">
                   <div className="flex items-baseline justify-between px-5 pt-4 pb-3">
                     <SectionLabel>Potentiel en cours</SectionLabel>
-                    <span className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums">
+                    <span className="text-lg font-semibold text-amber-600 dark:text-amber-400 tabular-nums">
                       {fmt(totalPotentiel)} €
                     </span>
                   </div>
@@ -311,7 +222,7 @@ function HomeView() {
                               <span className="font-medium text-zinc-800 dark:text-zinc-200 group-hover:text-zinc-900 dark:group-hover:text-white truncate">
                                 {row.client.name}
                               </span>
-                              <span className="text-sm font-semibold text-zinc-600 dark:text-zinc-400 tabular-nums flex-shrink-0">
+                              <span className="text-sm font-semibold text-amber-600 dark:text-amber-400 tabular-nums flex-shrink-0">
                                 {fmt(row.total)} €
                               </span>
                             </div>
@@ -389,11 +300,25 @@ function HomeView() {
             </div>
 
             {/* Colonne droite — 3/5 : Activité récente */}
-            {recentLogs.length > 0 && (
-              <section className="lg:col-span-3 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-                <div className="px-5 pt-4 pb-3">
-                  <SectionLabel>Activité récente</SectionLabel>
+            <section className="lg:col-span-3 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+              <div className="px-5 pt-4 pb-3">
+                <SectionLabel>Activité récente</SectionLabel>
+              </div>
+              {recentLogs === null ? (
+                <div className="divide-y divide-zinc-100 dark:divide-zinc-800 animate-pulse">
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <div key={i} className="px-5 py-3 flex items-center gap-3">
+                      <span className="w-2.5 h-2.5 rounded-full bg-zinc-200 dark:bg-zinc-800 shrink-0" />
+                      <div className="flex-1 space-y-1.5">
+                        <div className="h-3.5 bg-zinc-200 dark:bg-zinc-800 rounded w-3/4" />
+                        <div className="h-2.5 bg-zinc-100 dark:bg-zinc-800/60 rounded w-1/2" />
+                      </div>
+                    </div>
+                  ))}
                 </div>
+              ) : recentLogs.length === 0 ? (
+                <p className="px-5 pb-4 text-sm text-zinc-400 dark:text-zinc-600">Aucune activité récente.</p>
+              ) : (
                 <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
                   {recentLogs.map((log) => {
                     const client = allClients.find((c) => c.id === log.clientId);
@@ -427,8 +352,8 @@ function HomeView() {
                     );
                   })}
                 </div>
-              </section>
-            )}
+              )}
+            </section>
           </div>
         )}
       </div>

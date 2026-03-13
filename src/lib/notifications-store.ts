@@ -21,6 +21,7 @@ type NotificationsState = {
   items: ActivityNotification[];
   add: (n: ActivityNotification) => void;
   hydrate: (items: ActivityNotification[]) => void;
+  remove: (id: string) => void;
   markAllRead: () => void;
   unreadCount: number;
 };
@@ -38,6 +39,15 @@ export const useNotificationsStore = create<NotificationsState>((set) => ({
     }),
 
   hydrate: (items) => set({ items: items.slice(0, MAX_NOTIFICATIONS), unreadCount: 0 }),
+
+  remove: (id) =>
+    set((s) => {
+      const found = s.items.some((i) => i.id === id);
+      if (!found) return s;
+      const items = s.items.filter((i) => i.id !== id);
+      const unreadCount = Math.max(0, s.unreadCount - 1);
+      return { items, unreadCount };
+    }),
 
   markAllRead: () => set({ unreadCount: 0 }),
 }));

@@ -157,8 +157,10 @@ function ClientItem({ client, active }: { client: Client; active: boolean }) {
   const closeSidebar = useStore((s) => s.closeSidebar);
   const projects = useStore((s) => s.projects);
   const budgetProducts = useStore((s) => s.budgetProducts);
+  const todos = useStore((s) => s.todos);
   const navigateTo = useStore((s) => s.navigateTo);
   const dots = getClientProjectDots(projects, budgetProducts, client.id);
+  const pendingTodoCount = todos.filter((t) => !t.done && t.clientId === client.id).length;
 
   return (
     <div className={`group flex items-center gap-2 px-2 py-2.5 rounded-lg mb-0.5 transition-all ${
@@ -173,15 +175,25 @@ function ClientItem({ client, active }: { client: Client; active: boolean }) {
         <ClientAvatar client={client} size="sm" rounded="lg" active={active} />
         <span className="text-sm font-medium truncate">{client.name}</span>
       </button>
-      {dots.length > 0 && (
-        <div className="flex items-center gap-1 shrink-0">
-          {dots.map((status, i) => (
-            <span key={i} className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-              status === "soldé" ? "bg-emerald-500" : status === "commencé" ? "bg-amber-500" : "bg-violet-400"
-            }`} />
-          ))}
-        </div>
-      )}
+      <div className="flex items-center gap-1.5 shrink-0">
+        {dots.length > 0 && (
+          <div className="flex items-center gap-1">
+            {dots.map((status, i) => (
+              <span key={i} className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                status === "soldé" ? "bg-emerald-500" : status === "commencé" ? "bg-amber-500" : "bg-violet-400"
+              }`} />
+            ))}
+          </div>
+        )}
+        {pendingTodoCount > 0 && (
+          <span
+            className="flex items-center justify-center text-[10px] font-bold text-white bg-violet-500 min-w-[18px] min-h-[18px] px-1.5 aspect-square rounded-full shadow-sm ring-2 ring-zinc-50 dark:ring-zinc-950"
+            title={`${pendingTodoCount} tâche${pendingTodoCount > 1 ? "s" : ""} en attente`}
+          >
+            {pendingTodoCount}
+          </span>
+        )}
+      </div>
     </div>
   );
 }

@@ -2,5 +2,6 @@
 alwaysApply: true
 ---
 
-## Utilise le MCP supabase pour executer toi meme les scripts de migration 
-## utilise le système de toaster pour toutes les actions en front user UX
+## Utilise le MCP Supabase (user-supabase yam) pour exécuter les migrations — jamais `npx supabase db push`.
+## Projet Yamboard : project_id = `yavdiggxvchfztncdhdz` (getBrandon). Tool `apply_migration` avec name (snake_case), query (SQL).
+## Utilise le système de toaster pour toutes les actions en front user UX

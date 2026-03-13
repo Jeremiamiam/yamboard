@@ -310,7 +310,6 @@ export async function getDocument(
     .from('documents')
     .select('id, name, content, storage_path, updated_at')
     .eq('id', documentId)
-    .eq('owner_id', user.id)
     .single()
 
   if (error || !row) {
@@ -335,6 +334,30 @@ export async function getDocument(
       }),
       size,
     },
+  }
+}
+
+// ─── getDocumentFileContent ─────────────────────────────────────
+// Télécharge le fichier depuis Storage et retourne le contenu texte.
+// Pour .html, .txt, .md — affichage direct sans signed URL.
+export async function getDocumentFileContent(
+  storagePath: string
+): Promise<{ content: string } | { error: string }> {
+  const supabase = await createSupabaseClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return { error: 'Not authenticated' }
+
+  const { data: fileData, error } = await supabase.storage
+    .from('documents')
+    .download(storagePath)
+
+  if (error || !fileData) return { error: error?.message ?? 'Fichier introuvable' }
+
+  try {
+    const content = await fileData.text()
+    return { content }
+  } catch {
+    return { error: 'Impossible de lire le fichier (encodage)' }
   }
 }
 

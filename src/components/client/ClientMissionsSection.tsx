@@ -103,7 +103,7 @@ function ProjectCard({ project, products, clientId }: ProjectCardProps) {
           ) : null}
           {potentielActif && (
             <span className="text-zinc-600 dark:text-zinc-400">
-              Potentiel : <span className="font-medium text-zinc-800 dark:text-zinc-200">{(project.potentialAmount ?? 0).toLocaleString("fr-FR")} €</span>
+              Potentiel : <span className="font-medium text-amber-600 dark:text-amber-400">{(project.potentialAmount ?? 0).toLocaleString("fr-FR")} €</span>
             </span>
           )}
         </div>

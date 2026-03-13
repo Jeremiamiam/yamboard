@@ -11,8 +11,8 @@ import {
   createClientLinkAction,
   deleteContactAction,
   deleteClientLinkAction,
+  deleteDocumentAction,
 } from "@/lib/store/actions";
-import { deleteDocument } from "@/app/(dashboard)/actions/documents";
 import { AddDocForm } from "@/components/AddDocForm";
 import { DeleteMenu } from "@/components/DeleteMenu";
 import { ClientActivityFeed } from "@/components/client/ClientActivityFeed";
@@ -40,10 +40,7 @@ export function ClientDetailSidebar({ clientId }: Props) {
 
   function handleDeleteDoc(docId: string) {
     startDocTransition(async () => {
-      const err = await deleteDocument(docId);
-      if (!err.error) {
-        useStore.getState().loadData();
-      }
+      await deleteDocumentAction(docId);
     });
   }
 
@@ -227,7 +224,7 @@ export function ClientDetailSidebar({ clientId }: Props) {
               {docs.length === 0 && !showAddDoc && <p className="text-xs text-zinc-500 py-1">Aucun document</p>}
               {docs.map((doc) => (
                 <div key={doc.id} className="group flex items-center justify-between gap-1 py-1.5 px-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800/50">
-                  <button onClick={() => useStore.getState().setViewerDocId(doc.id)} className="flex-1 min-w-0 text-left truncate text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white">
+                  <button onClick={() => useStore.getState().setViewerDocId(doc.id)} className="flex-1 min-w-0 text-left truncate text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white cursor-pointer">
                     {doc.isPinned && <span className="text-amber-500 mr-1">📌</span>}
                     {doc.name}
                   </button>

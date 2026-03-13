@@ -7,11 +7,10 @@ import type {
   Project,
   BudgetProduct,
 } from "@/lib/types";
-import { updateClientAction, archiveClientAction, deleteClientAction } from "@/lib/store/actions";
-import { deleteDocument } from "@/app/(dashboard)/actions/documents";
+import { updateClientAction, archiveClientAction, deleteClientAction, deleteDocumentAction } from "@/lib/store/actions";
 import { removeClientLogo } from "@/app/(dashboard)/actions/clients";
 import { useStore } from "@/lib/store";
-import { ClientMissionsSection } from "@/components/client";
+import { ClientMissionsSection, ClientTodosSection } from "@/components/client";
 import { ClientBreadcrumbNav } from "@/components/ClientBreadcrumbNav";
 import { EditMenu } from "@/components/EditMenu";
 import { Button } from "@/components/ui/Button";
@@ -95,12 +94,9 @@ export function ClientPageShell({
   }
 
   function handleDeleteDoc(docId: string) {
+    if (viewerDocId === docId) setViewerDocId(null);
     startDocTransition(async () => {
-      const err = await deleteDocument(docId);
-      if (!err.error) {
-        useStore.getState().loadData();
-        if (viewerDocId === docId) setViewerDocId(null);
-      }
+      await deleteDocumentAction(docId);
     });
   }
 
@@ -178,6 +174,7 @@ export function ClientPageShell({
           }
         />
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 sm:space-y-8">
+          <ClientTodosSection clientId={clientId} clientColor={client.color} />
           <ClientMissionsSection
             clientId={clientId}
             clientColor={client.color}

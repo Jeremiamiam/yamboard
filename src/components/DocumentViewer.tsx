@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Document } from "@/lib/types";
-import { getDocumentSignedUrl, getDocument } from "@/app/(dashboard)/actions/documents";
+import { getDocumentSignedUrl, getDocument, getDocumentFileContent } from "@/app/(dashboard)/actions/documents";
 import { DeleteMenu } from "@/components/DeleteMenu";
 import { toast } from "sonner";
 import { Backdrop } from "@/components/ui/Dialog";
@@ -30,12 +30,29 @@ export function DocumentViewer({
     setPdfUrl(null);
     setFetchedContent(null);
 
+    const path = doc?.storagePath ?? "";
+    const ext = path.split(".").pop()?.toLowerCase() ?? "";
+    const isHtmlFile = ext === "html" || doc?.name?.toLowerCase().endsWith(".html");
+    const isBinaryFile = ["pdf", "png", "jpg", "jpeg", "gif", "webp", "doc", "docx"].includes(ext);
+
     if (doc?.storagePath) {
-      getDocumentSignedUrl(doc.storagePath).then((result) => {
-        if ("signedUrl" in result) {
-          setPdfUrl(result.signedUrl);
-        }
-      });
+      if (isBinaryFile) {
+        getDocumentSignedUrl(doc.storagePath).then((r) => {
+          if ("signedUrl" in r) setPdfUrl(r.signedUrl);
+        });
+      } else {
+        setFetchedContent("loading");
+        getDocumentFileContent(doc.storagePath).then((result) => {
+          if ("content" in result && (isHtmlFile || isHtmlContent(result.content))) {
+            setFetchedContent(result.content);
+          } else {
+            setFetchedContent(null);
+            getDocumentSignedUrl(doc.storagePath).then((r) => {
+              if ("signedUrl" in r) setPdfUrl(r.signedUrl);
+            });
+          }
+        });
+      }
     } else if (doc && !doc.content?.trim()) {
       setFetchedContent("loading");
       getDocument(doc.id).then((result) => {
@@ -54,7 +71,7 @@ export function DocumentViewer({
 
   const noteContent = doc.content?.trim() || (fetchedContent && fetchedContent !== "loading" ? fetchedContent : null);
   const hasNote = !!noteContent?.trim();
-  const isLoadingNote = !doc.storagePath && fetchedContent === "loading";
+  const isLoadingContent = fetchedContent === "loading";
 
   return (
     <>
@@ -96,18 +113,69 @@ export function DocumentViewer({
               className="w-full h-full min-h-[600px]"
               title={doc.name}
             />
-          ) : isLoadingNote ? (
+          ) : isLoadingContent ? (
             <div className="flex items-center justify-center py-20">
               <span className="w-6 h-6 border-2 border-zinc-300 dark:border-zinc-600 border-t-zinc-600 dark:border-t-zinc-400 rounded-full animate-spin" />
             </div>
           ) : hasNote && noteContent ? (
-            <NoteContent docName={doc.name} content={noteContent} />
+            isHtmlContent(noteContent) ? (
+              <HtmlContent
+                docName={doc.name}
+                content={decodeHtmlEntities(noteContent)}
+              />
+            ) : (
+              <NoteContent docName={doc.name} content={noteContent} />
+            )
           ) : (
             <GenericDocContent doc={doc} />
           )}
         </div>
       </Surface>
     </>
+  );
+}
+
+// ─── HTML content ─────────────────────────────────────────────
+function isHtmlContent(content: string): boolean {
+  const s = content.trim().replace(/^\uFEFF/, "");
+  return (
+    s.includes("<!DOCTYPE") ||
+    s.includes("<html") ||
+    s.includes("&lt;!DOCTYPE") ||
+    s.includes("&lt;html") ||
+    /<\s*(html|head|body|style)\b/i.test(s)
+  );
+}
+
+function decodeHtmlEntities(s: string): string {
+  return s
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+}
+
+function HtmlContent({ docName, content }: { docName: string; content: string }) {
+  const blobUrl = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    return URL.createObjectURL(new Blob([content], { type: "text/html; charset=utf-8" }));
+  }, [content]);
+
+  useEffect(() => () => { if (blobUrl) URL.revokeObjectURL(blobUrl); }, [blobUrl]);
+
+  if (!blobUrl) return null;
+
+  return (
+    <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden bg-white dark:bg-zinc-900">
+      <iframe
+        src={blobUrl}
+        sandbox="allow-same-origin"
+        title={docName}
+        className="w-full min-h-[500px] border-0"
+        style={{ height: "70vh" }}
+      />
+    </div>
   );
 }
 
@@ -137,7 +205,7 @@ function NoteContent({ docName, content }: { docName: string; content: string })
         <SectionHeader level="label">
           Note · contenu injecté dans le contexte agent
         </SectionHeader>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[11px] text-zinc-400 dark:text-zinc-600">{wordCount} mots</span>
           <Button variant="secondary" size="xs" onClick={handleCopy}>
             Copier

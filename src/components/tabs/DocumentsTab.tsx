@@ -4,7 +4,8 @@ import { useState, useTransition } from "react";
 import type { Project, Document } from "@/lib/types";
 import { DocumentViewer } from "@/components/DocumentViewer";
 import { AddDocForm } from "@/components/AddDocForm";
-import { deleteDocument, pinDocument, unpinDocument } from "@/app/(dashboard)/actions/documents";
+import { pinDocument, unpinDocument } from "@/app/(dashboard)/actions/documents";
+import { deleteDocumentAction } from "@/lib/store/actions";
 import { DeleteMenu } from "@/components/DeleteMenu";
 import { useStore } from "@/lib/store";
 import { SectionHeader } from "@/components/ui/SectionHeader";
@@ -35,11 +36,8 @@ export function DocumentsTab({
         doc={viewerDoc}
         onClose={() => setViewerDoc(null)}
         onDelete={(docId) => startTransition(async () => {
-          const err = await deleteDocument(docId);
-          if (!err.error) {
-            setViewerDoc(null);
-            useStore.getState().loadData();
-          }
+          setViewerDoc(null);
+          await deleteDocumentAction(docId);
         })}
         isPending={isPending}
       />
@@ -86,8 +84,7 @@ export function DocumentsTab({
                   key={doc.id}
                   doc={doc}
                   onDelete={() => startTransition(async () => {
-                    const err = await deleteDocument(doc.id);
-                    if (!err.error) useStore.getState().loadData();
+                    await deleteDocumentAction(doc.id);
                   })}
                   onUnpin={doc.isPinned && doc.projectId ? () => startTransition(async () => {
                     const err = await unpinDocument(doc.id);
@@ -117,8 +114,7 @@ export function DocumentsTab({
                   projectId={project.id}
                   onClick={() => setViewerDoc(doc)}
                   onDelete={() => startTransition(async () => {
-                    const err = await deleteDocument(doc.id);
-                    if (!err.error) useStore.getState().loadData();
+                    await deleteDocumentAction(doc.id);
                   })}
                   onPin={() => startTransition(async () => {
                     const err = await pinDocument(doc.id, project.id);
@@ -154,7 +150,7 @@ function DocChip({
 }) {
   return (
     <div className="group flex items-center gap-2.5 px-3 py-2 rounded-lg border border-dotted border-zinc-300 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/50 hover:border-zinc-400 dark:hover:border-zinc-600 transition-colors">
-      <button onClick={onView} className="flex items-center gap-2.5 min-w-0 flex-1 text-left">
+      <button onClick={onView} className="flex items-center gap-2.5 min-w-0 flex-1 text-left cursor-pointer">
         <DocIcon />
         <div className="min-w-0">
           <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300 truncate max-w-[140px]">{doc.name}</p>
@@ -210,7 +206,7 @@ function DocRow({
       <button
         onClick={onClick}
         disabled={isProcessing}
-        className="flex-1 flex items-center gap-3 sm:gap-4 min-w-0 text-left disabled:opacity-90 disabled:cursor-wait"
+        className="flex-1 flex items-center gap-3 sm:gap-4 min-w-0 text-left cursor-pointer disabled:opacity-90 disabled:cursor-wait"
       >
         <IconBox size="md" variant="default">
           {isProcessing ? (

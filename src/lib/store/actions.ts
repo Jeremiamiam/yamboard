@@ -13,6 +13,7 @@ import type {
   ClientStatus,
   Project,
   ProjectType,
+  Document,
   BudgetProduct,
   PaymentStage,
   Subcontract,
@@ -983,10 +984,18 @@ export async function deleteActivityLogAction(logId: string): Promise<{ error: s
 
 // ─── Todos ───────────────────────────────────────────────────
 
-export async function addTodoAction(text: string): Promise<{ error: string | null }> {
-  // Optimistic first — before any await
+export async function addTodoAction(
+  text: string,
+  clientId?: string | null
+): Promise<{ error: string | null }> {
   const tempId = `tmp-${Date.now()}`
-  const optimistic: Todo = { id: tempId, text: text.trim(), done: false, createdAt: new Date().toISOString() }
+  const optimistic: Todo = {
+    id: tempId,
+    text: text.trim(),
+    done: false,
+    createdAt: new Date().toISOString(),
+    clientId: clientId ?? undefined,
+  }
   useStore.setState((s) => ({ todos: [...s.todos, optimistic] }))
 
   const auth = await getAuth()
@@ -998,7 +1007,12 @@ export async function addTodoAction(text: string): Promise<{ error: string | nul
 
   const { data, error } = await supabase
     .from('todos')
-    .insert({ text: text.trim(), done: false, owner_id: userId })
+    .insert({
+      text: text.trim(),
+      done: false,
+      owner_id: userId,
+      client_id: clientId || null,
+    })
     .select('id, created_at')
     .single()
 
@@ -1009,8 +1023,45 @@ export async function addTodoAction(text: string): Promise<{ error: string | nul
   }
 
   useStore.setState((s) => ({
-    todos: s.todos.map((t) => t.id === tempId ? { ...t, id: data.id, createdAt: data.created_at } : t),
+    todos: s.todos.map((t) =>
+      t.id === tempId ? { ...t, id: data.id, createdAt: data.created_at } : t
+    ),
   }))
+  return { error: null }
+}
+
+export async function updateTodoAction(
+  id: string,
+  { text, clientId }: { text: string; clientId?: string | null }
+): Promise<{ error: string | null }> {
+  if (id.startsWith('tmp-')) return { error: null }
+  const prev = useStore.getState().todos.find((t) => t.id === id)
+  if (!prev) return { error: 'Todo not found' }
+  useStore.setState((s) => ({
+    todos: s.todos.map((t) =>
+      t.id === id ? { ...t, text: text.trim(), clientId: clientId !== undefined ? clientId : t.clientId } : t
+    ),
+  }))
+
+  const auth = await getAuth()
+  if (!auth) {
+    useStore.setState((s) => ({ todos: s.todos.map((t) => (t.id === id ? prev : t)) }))
+    return { error: 'Not authenticated' }
+  }
+  const { supabase, userId } = auth
+
+  const { error } = await supabase
+    .from('todos')
+    .update({ text: text.trim(), client_id: clientId ?? null })
+    .eq('id', id)
+    .eq('owner_id', userId)
+
+  if (error) {
+    useStore.setState((s) => ({ todos: s.todos.map((t) => (t.id === id ? prev : t)) }))
+    toast.error(error.message)
+    return { error: error.message }
+  }
+  toast.success('Tâche modifiée')
   return { error: null }
 }
 
@@ -1068,5 +1119,48 @@ export async function deleteTodoAction(id: string): Promise<{ error: string | nu
     toast.error(error.message)
     return { error: error.message }
   }
+  return { error: null }
+}
+
+// ─── Documents ───────────────────────────────────────────────────
+
+export async function deleteDocumentAction(docId: string): Promise<{ error: string | null }> {
+  // Optimistic: remove from store immediately
+  const prev = useStore.getState().documents.find((d) => d.id === docId)
+  useStore.setState((s) => ({ documents: s.documents.filter((d) => d.id !== docId) }))
+
+  const auth = await getAuth()
+  if (!auth) {
+    if (prev) useStore.setState((s) => ({ documents: [...s.documents, prev] }))
+    return { error: 'Not authenticated' }
+  }
+  const { supabase, userId } = auth
+
+  // Fetch storage_path for cleanup
+  const { data: doc } = await supabase
+    .from('documents')
+    .select('storage_path')
+    .eq('id', docId)
+    .eq('owner_id', userId)
+    .single()
+
+  // Delete storage file if exists (fire-and-forget, don't block on failure)
+  if (doc?.storage_path) {
+    supabase.storage.from('documents').remove([doc.storage_path]).catch(() => {})
+  }
+
+  // Delete DB row
+  const { error } = await supabase
+    .from('documents')
+    .delete()
+    .eq('id', docId)
+    .eq('owner_id', userId)
+
+  if (error) {
+    if (prev) useStore.setState((s) => ({ documents: [...s.documents, prev] }))
+    toast.error(error.message)
+    return { error: error.message }
+  }
+  invalidateCache()
   return { error: null }
 }
