@@ -3,7 +3,7 @@
 // loadData: cache first (stale) → fetch → update store + cache.
 
 import { create } from 'zustand'
-import type { Client, Project, Document, BudgetProduct } from '@/lib/types'
+import type { Client, Project, Document, BudgetProduct, Todo } from '@/lib/types'
 import type { CachedData } from '@/lib/cache'
 import { loadFromCache, saveToCache } from '@/lib/cache'
 import {
@@ -11,6 +11,7 @@ import {
   fetchAllProjects,
   fetchAllDocuments,
   fetchAllBudgetProducts,
+  fetchAllTodos,
 } from '@/lib/data/client-queries'
 
 export type AppView = 'home' | 'client' | 'project' | 'compta'
@@ -19,11 +20,11 @@ export type ResolvedTheme = 'light' | 'dark'
 
 export type StoreState = {
   clients: Client[]
-  prospects: Client[]
   archived: Client[]
   projects: Project[]
   documents: Document[]
   budgetProducts: BudgetProduct[]
+  todos: Todo[]
   loading: boolean
   loaded: boolean
   error: string | null
@@ -37,14 +38,16 @@ export type StoreState = {
   detailSidebarOpen: boolean
   theme: ThemePreference
   resolvedTheme: ResolvedTheme
+  userName: string
 }
 
 type StoreActions = {
   loadData: () => Promise<void>
-  setClients: (clients: Client[], prospects: Client[], archived: Client[]) => void
+  setClients: (clients: Client[], archived: Client[]) => void
   setProjects: (projects: Project[]) => void
   setDocuments: (documents: Document[]) => void
   setBudgetProducts: (budgetProducts: BudgetProduct[]) => void
+  setTodos: (todos: Todo[]) => void
   updateDocument: (docId: string, updates: Partial<Document>) => void
   setViewerDocId: (id: string | null) => void
   // ── SPA navigation ──────────────────────────────────────────
@@ -59,11 +62,12 @@ type StoreActions = {
   initTheme: () => void
   setTheme: (theme: ThemePreference) => void
   toggleTheme: () => void
+  setUserName: (name: string) => void
 }
 
 function toCachedData(state: StoreState): CachedData {
   return {
-    clients: state.clients.concat(state.prospects).concat(state.archived),
+    clients: state.clients.concat(state.archived),
     projects: state.projects,
     documents: state.documents,
     budgetProducts: state.budgetProducts,
@@ -73,7 +77,6 @@ function toCachedData(state: StoreState): CachedData {
 function fromCachedData(data: CachedData): Partial<StoreState> {
   return {
     clients: data.clients.filter((c) => c.category === 'client'),
-    prospects: data.clients.filter((c) => c.category === 'prospect'),
     archived: data.clients.filter((c) => c.category === 'archived'),
     projects: data.projects,
     documents: data.documents,
@@ -83,11 +86,11 @@ function fromCachedData(data: CachedData): Partial<StoreState> {
 
 export const useStore = create<StoreState & StoreActions>((set, get) => ({
   clients: [],
-  prospects: [],
   archived: [],
   projects: [],
   documents: [],
   budgetProducts: [],
+  todos: [],
   loading: false,
   loaded: false,
   error: null,
@@ -99,6 +102,7 @@ export const useStore = create<StoreState & StoreActions>((set, get) => ({
   detailSidebarOpen: false,
   theme: 'system',
   resolvedTheme: 'light',
+  userName: '',
 
   loadData: async () => {
     if (get().loading) return
@@ -109,19 +113,20 @@ export const useStore = create<StoreState & StoreActions>((set, get) => ({
     }
 
     try {
-      const [clientsRes, projects, documents, budgetProducts] = await Promise.all([
+      const [clientsRes, projects, documents, budgetProducts, todos] = await Promise.all([
         fetchAllClients(),
         fetchAllProjects(),
         fetchAllDocuments(),
         fetchAllBudgetProducts(),
+        fetchAllTodos(),
       ])
       const state: StoreState = {
         clients: clientsRes.clients,
-        prospects: clientsRes.prospects,
         archived: clientsRes.archived,
         projects,
         documents,
         budgetProducts,
+        todos,
         loading: false,
         loaded: true,
         error: null,
@@ -133,6 +138,7 @@ export const useStore = create<StoreState & StoreActions>((set, get) => ({
         detailSidebarOpen: get().detailSidebarOpen,
         theme: get().theme,
         resolvedTheme: get().resolvedTheme,
+        userName: get().userName,
       }
       set(state)
       saveToCache(toCachedData(state))
@@ -142,10 +148,11 @@ export const useStore = create<StoreState & StoreActions>((set, get) => ({
     }
   },
 
-  setClients: (clients, prospects, archived) => set({ clients, prospects, archived }),
+  setClients: (clients, archived) => set({ clients, archived }),
   setProjects: (projects) => set({ projects }),
   setDocuments: (documents) => set({ documents }),
   setBudgetProducts: (budgetProducts) => set({ budgetProducts }),
+  setTodos: (todos) => set({ todos }),
   updateDocument: (docId, updates) =>
     set((s) => ({
       documents: s.documents.map((d) => (d.id === docId ? { ...d, ...updates } : d)),
@@ -210,6 +217,7 @@ export const useStore = create<StoreState & StoreActions>((set, get) => ({
     const next: ThemePreference = resolved === 'dark' ? 'light' : 'dark'
     get().setTheme(next)
   },
+  setUserName: (name) => set({ userName: name }),
 }))
 
 function applyThemeToDom(resolved: ResolvedTheme) {
@@ -223,10 +231,10 @@ function applyThemeToDom(resolved: ResolvedTheme) {
 // minimal state without passing the full StoreState.
 
 export function getClient(
-  store: Pick<StoreState, 'clients' | 'prospects' | 'archived'>,
+  store: Pick<StoreState, 'clients' | 'archived'>,
   id: string
 ): Client | undefined {
-  return [...store.clients, ...store.prospects, ...store.archived].find((c) => c.id === id)
+  return [...store.clients, ...store.archived].find((c) => c.id === id)
 }
 
 export function getClientProjects(
@@ -277,5 +285,4 @@ export function getBudgetProductsForClient(
 }
 
 export const sidebarClients = (s: StoreState) => s.clients
-export const sidebarProspects = (s: StoreState) => s.prospects
 export const sidebarArchived = (s: StoreState) => s.archived

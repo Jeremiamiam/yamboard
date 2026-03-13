@@ -48,7 +48,7 @@ async function main() {
   const { data: clients } = await admin
     .from('clients')
     .select('id, name, owner_id')
-    .in('category', ['client', 'prospect'])
+    .in('category', ['client'])
     .order('created_at', { ascending: true })
 
   console.log('Clients dans le contexte email:', clients?.length ?? 0)

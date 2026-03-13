@@ -41,3 +41,31 @@ export const useNotificationsStore = create<NotificationsState>((set) => ({
 
   markAllRead: () => set({ unreadCount: 0 }),
 }));
+
+/** Mock data pour preview. */
+export const MOCK_ACTIVITY_NOTIFICATIONS: ActivityNotification[] = [
+  {
+    id: "mock-activity-1",
+    clientId: "mock-client",
+    actionType: "contact_added",
+    summary: "Contact ajouté par Marie : Marie Dupont",
+    source: "email",
+    createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+  },
+  {
+    id: "mock-activity-2",
+    clientId: "mock-client",
+    actionType: "note_added",
+    summary: "Résumé par Thomas : Point projet Forge",
+    source: "email",
+    createdAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
+  },
+  {
+    id: "mock-activity-3",
+    clientId: "mock-client",
+    actionType: "document_uploaded",
+    summary: "Document uploadé",
+    source: "manual",
+    createdAt: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
+  },
+];

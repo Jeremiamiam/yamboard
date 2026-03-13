@@ -6,7 +6,7 @@ import { fetchClientActivityLogs, type ClientActivityRow } from "@/lib/data/clie
 
 export function useClientActivityLogs(clientId: string | null, limit = 15) {
   const [logs, setLogs] = useState<ClientActivityRow[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
     if (!clientId) return;

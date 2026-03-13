@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { Button } from "@/components/ui";
 
 /**
  * Bouton "Éditer" au niveau du titre — ouvre un menu Renommer / Supprimer.
@@ -65,14 +66,14 @@ export function EditMenu({
 
   return (
     <div className={`relative ${className}`} ref={ref}>
-      <button
-        type="button"
+      <Button
+        variant="ghost"
+        size="xs"
         onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
         disabled={disabled}
-        className="px-2 py-1 rounded text-xs text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100 dark:hover:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-300 transition-colors disabled:opacity-40"
       >
         Éditer
-      </button>
+      </Button>
       {open &&
         rect &&
         typeof document !== "undefined" &&

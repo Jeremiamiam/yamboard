@@ -5,6 +5,8 @@ import { useChat } from "@/hooks/useChat";
 import { type Project, type Message, type Document } from "@/lib/types";
 import { MarkdownContent } from "@/components/MarkdownContent";
 import { DeleteMenu } from "@/components/DeleteMenu";
+import { getContrastTextColor } from "@/lib/color-utils";
+import { Button, SectionHeader, Surface, Drawer } from "@/components/ui";
 import {
   getConversations,
   createConversation,
@@ -57,14 +59,16 @@ export function ChatTab({
     <>
       {/* Documents in context */}
       <div className="p-4 border-b border-zinc-200 dark:border-zinc-800">
-        <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-3">
+        <SectionHeader level="sublabel" as="h3" className="mb-3">
           Contexte chargé
-        </h3>
+        </SectionHeader>
         <div className="flex flex-wrap gap-1.5">
           {allDocs.map((doc) => (
-            <div
+            <Surface
               key={doc.id}
-              className="flex items-center gap-1.5 px-2 py-1 rounded border border-dotted border-zinc-300 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/50"
+              variant="dashed"
+              padding="sm"
+              className="flex items-center gap-1.5 !rounded-md !p-0 px-2 py-1 !bg-zinc-50/50 dark:!bg-zinc-900/50"
               title={doc.projectId ? `Projet : ${project.name}` : "Document de marque client"}
             >
               <span className="text-xs">{docIcons[doc.type] ?? "📄"}</span>
@@ -74,7 +78,7 @@ export function ChatTab({
               {!doc.projectId && (
                 <span className="text-[9px] text-zinc-400 dark:text-zinc-600 shrink-0">marque</span>
               )}
-            </div>
+            </Surface>
           ))}
           {allDocs.length === 0 && (
             <p className="text-xs text-zinc-500 dark:text-zinc-600">Aucun document.</p>
@@ -84,9 +88,9 @@ export function ChatTab({
 
       {/* Conversations history */}
       <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 flex-1 min-h-0 flex flex-col">
-        <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-2">
+        <SectionHeader level="sublabel" as="h3" className="mb-2">
           Historique
-        </h3>
+        </SectionHeader>
         <div className="flex-1 overflow-y-auto min-h-0">
           {conversations.length === 0 ? (
             <p className="text-xs text-zinc-500 dark:text-zinc-600 p-3">Aucune conversation.</p>
@@ -137,7 +141,10 @@ export function ChatTab({
 
       {/* New conversation */}
       <div className="p-3 shrink-0">
-        <button
+        <Button
+          variant="dashed"
+          size="sm"
+          className="w-full"
           onClick={() =>
             startTransition(async () => {
               const res = await createConversation({ clientId, projectId: project.id });
@@ -150,10 +157,9 @@ export function ChatTab({
             })
           }
           disabled={isPending}
-          className="w-full px-3 py-2 rounded-lg border border-dashed border-zinc-200 dark:border-zinc-800 text-xs text-zinc-500 dark:text-zinc-600 hover:border-zinc-300 dark:hover:border-zinc-700 hover:text-zinc-700 dark:hover:text-zinc-400 transition-colors disabled:opacity-50"
         >
           + Nouvelle conversation
-        </button>
+        </Button>
       </div>
     </>
   );
@@ -161,23 +167,19 @@ export function ChatTab({
   return (
     <div className="flex flex-1 h-full bg-zinc-50 dark:bg-zinc-950 relative">
       {/* ── Mobile sidebar overlay ── */}
-      {showSidebar && (
-        <div className="fixed inset-0 z-50 md:hidden">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowSidebar(false)} />
-          <aside className="absolute right-0 top-0 bottom-0 w-72 flex flex-col border-l border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 overflow-y-auto">
-            <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-zinc-200 dark:border-zinc-800">
-              <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Docs & Historique</span>
-              <button
-                onClick={() => setShowSidebar(false)}
-                className="w-7 h-7 flex items-center justify-center rounded-md text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-sm"
-              >
-                ✕
-              </button>
-            </div>
-            {sidebarContent}
-          </aside>
+      <Drawer open={showSidebar} onClose={() => setShowSidebar(false)} size="sm" className="md:hidden overflow-y-auto">
+        <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-zinc-200 dark:border-zinc-800">
+          <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Docs & Historique</span>
+          <Button
+            variant="ghost"
+            size="icon_sm"
+            onClick={() => setShowSidebar(false)}
+          >
+            ✕
+          </Button>
         </div>
-      )}
+        {sidebarContent}
+      </Drawer>
 
       {/* ── Chat area ── */}
       <div className="flex flex-col flex-1 min-w-0">
@@ -188,13 +190,15 @@ export function ChatTab({
               ? (conversations.find((c) => c.id === activeConvId)?.title ?? "Conversation")
               : "Pas de conversation"}
           </span>
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
+            className="shrink-0 ml-3"
             onClick={() => setShowSidebar(true)}
-            className="shrink-0 ml-3 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors"
           >
             <span>📋</span>
             <span>Historique</span>
-          </button>
+          </Button>
         </div>
 
         {/* Messages */}
@@ -233,12 +237,12 @@ export function ChatTab({
               onClick={() => sendMessage()}
               disabled={!input.trim() || isLoading || !activeConvId}
               className="shrink-0 w-8 h-8 rounded-lg disabled:bg-zinc-200 disabled:text-zinc-400 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-600 flex items-center justify-center transition-colors"
-              style={{ background: input.trim() && !isLoading ? clientColor : undefined }}
+              style={input.trim() && !isLoading ? { background: clientColor, color: getContrastTextColor(clientColor) } : undefined}
             >
               {isLoading ? (
                 <span className="w-3 h-3 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin" />
               ) : (
-                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M12 5l7 7-7 7" />
                 </svg>
               )}

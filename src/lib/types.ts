@@ -3,17 +3,16 @@
 // No runtime mock data arrays — those stay in mock.ts until plan 04-05.
 // No `import 'server-only'` — used by both server and client components.
 
-export type ClientCategory = "client" | "prospect" | "archived";
+export type ClientCategory = "client" | "archived";
 export type ClientStatus = "active" | "draft" | "paused";
 export type ProjectType = "brand" | "site" | "campaign" | "social" | "other";
 
 export type Client = {
   id: string;
   name: string;
-  industry: string;
   category: ClientCategory;
   status: ClientStatus;
-  contact: { name: string; role: string; email: string; phone?: string };
+  contact: { name: string; email: string; phone?: string };
   color: string;
   since?: string;   // date début relation
   logoPath?: string; // chemin Storage pour logo SVG (remplace les initiales)
@@ -27,7 +26,7 @@ export type Project = {
   description: string;
   lastActivity: string;
   startDate: string;
-  potentialAmount?: number;  // montant potentiel (devis en cours, prospects)
+  potentialAmount?: number;  // montant potentiel (devis en cours)
 };
 
 // Documents — clientId toujours présent, projectId optionnel (absent = doc "global" client)
@@ -85,6 +84,15 @@ export type BudgetProduct = {
   avancements?: PaymentStage[]; // tableau — autant de factures d'avancement que souhaité
   solde?: PaymentStage;
   subcontracts?: Subcontract[]; // sous-traitance freelances
+};
+
+// ─── Todos ───────────────────────────────────────────────────
+
+export type Todo = {
+  id: string;
+  text: string;
+  done: boolean;
+  createdAt: string;
 };
 
 // ─── UI config maps ───────────────────────────────────────────

@@ -9,6 +9,9 @@ import {
 } from "@/lib/types";
 import { createBudgetProductAction } from "@/lib/store/actions";
 import { useStore } from "@/lib/store";
+import { SectionHeader, Button, Surface, InputField, Progress, Badge, IconBox } from "@/components/ui";
+import { getContrastTextColor } from "@/lib/color-utils";
+import { cn } from "@/lib/cn";
 
 export function BudgetsTab({
   project,
@@ -72,29 +75,26 @@ export function BudgetsTab({
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-base font-semibold text-zinc-900 dark:text-white">Produits</h2>
+            <SectionHeader level="h3">Produits</SectionHeader>
             <p className="text-sm text-zinc-500 mt-0.5">{project.name}</p>
           </div>
-          <button
-              onClick={() => setShowForm((v) => !v)}
-              className={`px-3 py-1.5 rounded-lg border text-xs transition-colors ${
-                showForm
-                  ? "bg-zinc-200 border-zinc-300 text-zinc-700 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-300"
-                  : "bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700 hover:text-zinc-800 dark:hover:text-zinc-200"
-              }`}
-            >
-              {showForm ? "✕ Annuler" : "+ Ajouter un produit"}
-            </button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setShowForm((v) => !v)}
+          >
+            {showForm ? "✕ Annuler" : "+ Ajouter un produit"}
+          </Button>
         </div>
 
         {/* Add product form */}
         {showForm && (
-          <div className="mb-6 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 border-dashed">
-            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-3">
+          <Surface variant="dashed" padding="md" className="mb-6">
+            <SectionHeader level="label" className="mb-3">
               Nouveau produit / prestation
-            </p>
+            </SectionHeader>
             <div className="flex gap-3">
-              <input
+              <InputField
                 type="text"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
@@ -102,19 +102,17 @@ export function BudgetsTab({
                   if (e.key === "Enter") { e.preventDefault(); handleAddProduct(); }
                 }}
                 placeholder="Nom de la prestation…"
-                className="flex-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 outline-none focus:border-zinc-400 dark:focus:border-zinc-500 transition-colors"
+                className="flex-1"
                 autoFocus
               />
-              <button
+              <Button
+                variant="primary"
                 onClick={handleAddProduct}
                 disabled={!newName.trim() || isPendingAdd}
-                className="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors disabled:bg-zinc-300 dark:disabled:bg-zinc-800"
-                style={{
-                  background: newName.trim() ? clientColor : undefined,
-                }}
+                style={newName.trim() ? { background: clientColor, color: getContrastTextColor(clientColor) } : undefined}
               >
                 {isPendingAdd ? "…" : "Créer"}
-              </button>
+              </Button>
             </div>
             <p className="text-[11px] text-zinc-500 dark:text-zinc-700 mt-2">
               Le devis, les acomptes, avancements et sous-traitances s&apos;ajoutent ensuite depuis la fiche.
@@ -122,32 +120,32 @@ export function BudgetsTab({
             {addError && (
               <p className="text-[11px] text-red-500 mt-1">{addError}</p>
             )}
-          </div>
+          </Surface>
         )}
 
         {/* Summary */}
         {total > 0 && (
-          <div
-            className={`p-5 rounded-xl bg-white dark:bg-zinc-900 border mb-6 ${
-              pct >= 100
-                ? "border-emerald-500/40 dark:border-emerald-500/40 ring-1 ring-emerald-500/20"
-                : "border-zinc-200 dark:border-zinc-800"
-            }`}
+          <Surface
+            variant="card"
+            padding="md"
+            className={cn(
+              "mb-6",
+              pct >= 100 && "border-emerald-500/40 dark:border-emerald-500/40 ring-1 ring-emerald-500/20"
+            )}
           >
             <div className={`grid gap-2 sm:gap-4 mb-4 ${sousTraitance > 0 ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}>
               <SumCard label="Budget" value={`${total.toLocaleString("fr-FR")} €`} />
-              <SumCard label="Encaissé" value={`${paid.toLocaleString("fr-FR")} €`} highlight />
+              <SumCard label="Encaissé (sur devis validés)" value={`${paid.toLocaleString("fr-FR")} €`} highlight />
               <SumCard label="Restant" value={`${remaining.toLocaleString("fr-FR")} €`} />
               {sousTraitance > 0 && (
                 <SumCard label="Sous-traitance" value={`${sousTraitance.toLocaleString("fr-FR")} €`} />
               )}
             </div>
-            <div className="h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all"
-                style={{ width: `${pct}%`, background: pct >= 100 ? "rgb(16 185 129)" : clientColor }}
-              />
-            </div>
+            <Progress
+              value={pct}
+              size="sm"
+              color={pct >= 100 ? "rgb(16 185 129)" : clientColor}
+            />
             <p className="text-[11px] text-zinc-500 dark:text-zinc-600 mt-1.5 flex items-center gap-2">
               {pct}% encaissé
               {pct >= 100 && total > 0 && (
@@ -157,7 +155,7 @@ export function BudgetsTab({
                 </span>
               )}
             </p>
-          </div>
+          </Surface>
         )}
 
         {/* Products */}
@@ -233,16 +231,16 @@ function ProductCard({
   const sentCount = fixedStages.filter((s) => s.stage?.status === "sent").length;
 
   return (
-    <div
-      role={onClick ? "button" : undefined}
+    <Surface
+      variant="interactive"
+      as={onClick ? "button" : "div"}
       onClick={onClick}
       tabIndex={onClick ? 0 : undefined}
-      onKeyDown={onClick ? (e) => e.key === "Enter" && onClick() : undefined}
-      className={`rounded-xl bg-white dark:bg-zinc-900 border transition-all ${
-        isSelected
-          ? "border-zinc-400 dark:border-zinc-600 ring-1 ring-zinc-300 dark:ring-zinc-600"
-          : "border-zinc-200 dark:border-zinc-800"
-      } ${onClick ? "cursor-pointer hover:border-zinc-300 dark:hover:border-zinc-700 hover:shadow-md active:scale-[0.99]" : ""}`}
+      onKeyDown={onClick ? (e: React.KeyboardEvent) => e.key === "Enter" && onClick() : undefined}
+      className={cn(
+        isSelected && "border-zinc-400 dark:border-zinc-600 ring-1 ring-zinc-300 dark:ring-zinc-600",
+        onClick && "cursor-pointer hover:border-zinc-300 dark:hover:border-zinc-700 hover:shadow-md active:scale-[0.99]"
+      )}
       title={onClick ? "Cliquer pour ouvrir" : undefined}
     >
       {/* Product header */}
@@ -252,14 +250,10 @@ function ProductCard({
             {product.name}
           </span>
           {isSoldé && (
-            <span className="text-[10px] font-semibold text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-full shrink-0">
-              Soldé
-            </span>
+            <Badge variant="success" size="xs">Soldé</Badge>
           )}
           {sentCount > 0 && !isSoldé && (
-            <span className="text-[10px] font-semibold text-yellow-500 bg-yellow-500/10 border border-yellow-500/20 px-1.5 py-0.5 rounded-full shrink-0">
-              En attente
-            </span>
+            <Badge variant="warning" size="xs">En attente</Badge>
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -310,7 +304,7 @@ function ProductCard({
           </div>
         )}
       </div>
-    </div>
+    </Surface>
   );
 }
 
@@ -353,19 +347,16 @@ function PaymentRow({
 function EmptyBudget({ onAdd }: { onAdd: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
-      <div className="w-12 h-12 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center mb-4">
+      <IconBox size="lg" variant="surface" className="mb-4">
         <span className="text-xl">💳</span>
-      </div>
+      </IconBox>
       <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">Aucun produit</p>
       <p className="text-xs text-zinc-500 dark:text-zinc-600 mt-1 mb-4">
         Ajoute les prestations pour suivre le budget.
       </p>
-      <button
-        onClick={onAdd}
-        className="px-4 py-2 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-700 dark:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-600 hover:text-zinc-900 dark:hover:text-white transition-colors"
-      >
+      <Button variant="secondary" onClick={onAdd}>
         + Ajouter un premier produit
-      </button>
+      </Button>
     </div>
   );
 }

@@ -10,7 +10,7 @@
 
 import 'server-only'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { getClientsAll, getClient } from '@/lib/data/clients'
+import { getClientsAll, getClient, getContactsForClients } from '@/lib/data/clients'
 import { getClientProjects, getProject, getProjectsForClients } from '@/lib/data/projects'
 import {
   getClientDocsWithPinned,
@@ -19,6 +19,7 @@ import {
   getBudgetProductsForProjects,
   getBudgetProductsForClient,
   getProjectDocsForProjects,
+  getDocumentsForAgency,
 } from '@/lib/data/documents'
 import { getConversationsForContext, type ConversationForContext } from '@/lib/data/conversations'
 import type { Client, Project, Document, BudgetProduct } from '@/lib/types'
@@ -116,13 +117,12 @@ function fmtConversations(convs: ConversationForContext[]): string {
 
 function fmtClient(client: Client, lean = false): string {
   if (lean) {
-    // Agency context: id + name + role (id requis pour create_contact)
+    // Agency context: id + name (id requis pour create_contact)
     return [
       `ID : ${client.id}`,
       `Nom : ${client.name}`,
-      `Secteur : ${client.industry}`,
       `Catégorie : ${client.category}`,
-      `Contact : ${client.contact.name} (${client.contact.role})`,
+      `Contact : ${client.contact.name}`,
       client.since ? `Client depuis : ${client.since}` : null,
     ]
       .filter(Boolean)
@@ -131,9 +131,8 @@ function fmtClient(client: Client, lean = false): string {
   // Full contact info for client/project scope
   return [
     `Nom : ${client.name}`,
-    `Secteur : ${client.industry}`,
     `Catégorie : ${client.category}`,
-    `Contact : ${client.contact.name} (${client.contact.role}) — ${client.contact.email}${client.contact.phone ? ` — ${client.contact.phone}` : ''}`,
+    `Contact : ${client.contact.name} — ${client.contact.email}${client.contact.phone ? ` — ${client.contact.phone}` : ''}`,
     client.since ? `Client depuis : ${client.since}` : null,
   ]
     .filter(Boolean)
@@ -152,10 +151,14 @@ function buildAgencyDataSection(
   activeClients: Client[],
   allProjects: Project[],
   allProducts: BudgetProduct[],
+  docsByClient: Record<string, { name: string; type: string; projectId: string | null }[]>,
+  contactsByClient: Record<string, { name: string; email: string | null }[]>,
   truncLevel: 0 | 1 | 2 | 3
 ): string {
   const sections = activeClients.map((client) => {
     const projects = allProjects.filter((p) => p.clientId === client.id)
+    const docs = docsByClient[client.id] ?? []
+    const contacts = contactsByClient[client.id] ?? []
 
     const projectsStr = projects
       .map((project) => {
@@ -167,9 +170,21 @@ function buildAgencyDataSection(
       })
       .join('\n\n')
 
+    const docsStr =
+      docs.length > 0
+        ? `Documents : ${docs.map((d) => `${d.name} (${d.type})`).join(', ')}`
+        : 'Documents : aucun'
+
+    const contactsStr =
+      contacts.length > 0
+        ? `Contacts : ${contacts.map((c) => (c.email ? `${c.name} (${c.email})` : c.name)).join(', ')}`
+        : 'Contacts : aucun'
+
     return [
       `## CLIENT : ${client.name.toUpperCase()}`,
-      fmtClient(client, true), // Agency scope: lean contact (name + role only)
+      fmtClient(client, true),
+      docsStr,
+      contactsStr,
       projects.length > 0 ? `\n### Projets\n${projectsStr}` : 'Aucun projet.',
     ]
       .filter(Boolean)
@@ -282,23 +297,41 @@ function buildProjectDataSection(
 
 export async function buildAgencyContext(): Promise<string> {
   const sidebar = await getClientsAll()
-  const activeClients = [...sidebar.clients, ...sidebar.prospects]
+  const activeClients = sidebar.clients
   const clientIds = activeClients.map((c) => c.id)
-  const allProjects = await getProjectsForClients(clientIds)
+  const [allProjects, docsByClient, contactsByClient] = await Promise.all([
+    getProjectsForClients(clientIds),
+    getDocumentsForAgency(clientIds),
+    getContactsForClients(clientIds),
+  ])
   const budgetByProject = await getBudgetProductsForProjects(allProjects.map((p) => p.id))
   const allProducts = allProjects.flatMap((p) => budgetByProject[p.id] ?? [])
 
-  const intro = `\nTu as accès à l'ensemble du portefeuille de l'agence Yam.
+  const intro = `\nTu as accès à l'ensemble du portefeuille de l'agence Yam (clients, projets, produits, documents, contacts).
 
 Style : réponses ultra-minimalistes. Pas de paraphrase ni d'introduction du type "Basé sur les données…". Va directement à l'essentiel. Ne termine jamais par une question ou une proposition de suivi.
 
-OUTILS DISPONIBLES : create_contact uniquement.
-- create_contact : ajouter un contact à un client (clientId, name requis ; email, role optionnels). Utilise l'ID du client depuis le contexte.
-Pas de création de clients, projets, produits, notes ou liens. Après exécution, confirme brièvement.
+OUTILS DISPONIBLES (utilise les IDs du contexte) :
+- create_contact : ajouter un contact (clientId, name requis ; email optionnel)
+- create_note : créer une note/résumé (clientId, name, content requis ; projectId optionnel)
+- create_client : créer un client (name requis)
+- create_project : créer un projet (clientId, name requis ; potentialAmount optionnel)
+- create_product : créer un produit budget (projectId, name requis ; devisAmount optionnel)
+- create_link : ajouter un lien (clientId, name, url requis ; projectId optionnel)
+- update_payment_stage : mettre à jour devis/acompte/solde (productId, stage, status optionnel)
+- add_avancement : ajouter un avancement (productId requis ; amount, status optionnels)
+Après exécution, confirme brièvement.
 ${'═'.repeat(60)}`
 
   for (const truncLevel of [0, 1, 2, 3] as const) {
-    const dataSection = buildAgencyDataSection(activeClients, allProjects, allProducts, truncLevel)
+    const dataSection = buildAgencyDataSection(
+      activeClients,
+      allProjects,
+      allProducts,
+      docsByClient,
+      contactsByClient,
+      truncLevel
+    )
     const full = [PREAMBLE, intro, wrapData(dataSection, 'agency_data')].join('\n\n')
     const tokens = estimateTokens(full)
 
@@ -324,7 +357,14 @@ ${'═'.repeat(60)}`
   }
 
   // Fallback (TypeScript exhaustiveness)
-  const dataSection = buildAgencyDataSection(activeClients, allProjects, allProducts, 3)
+  const dataSection = buildAgencyDataSection(
+    activeClients,
+    allProjects,
+    allProducts,
+    docsByClient,
+    contactsByClient,
+    3
+  )
   return [PREAMBLE, intro, wrapData(dataSection, 'agency_data')].join('\n\n')
 }
 
@@ -334,7 +374,7 @@ export async function buildAgencyContextForUser(userId: string, debugTrace?: str
   const { data: clientRows, error: clientsError } = await admin
     .from('clients')
     .select('id, name, category, color, since')
-    .in('category', ['client', 'prospect'])
+    .in('category', ['client'])
     .order('created_at', { ascending: true })
 
   if (debugTrace) {
@@ -345,10 +385,9 @@ export async function buildAgencyContextForUser(userId: string, debugTrace?: str
   const clients: Client[] = ((clientRows ?? []) as ClientRow[]).map((c) => ({
     id: c.id,
     name: c.name,
-    industry: '',
     category: c.category as Client['category'],
     status: 'active' as const,
-    contact: { name: '—', role: '—', email: '—' },
+    contact: { name: '—', email: '—' },
     color: c.color ?? '#71717a',
     since: c.since ?? undefined,
   }))
@@ -411,11 +450,24 @@ export async function buildAgencyContextForUser(userId: string, debugTrace?: str
 Style : réponses ultra-minimalistes. Pas de paraphrase ni d'introduction du type "Basé sur les données…". Va directement à l'essentiel. Ne termine jamais par une question ou une proposition de suivi.
 
 OUTILS DISPONIBLES : create_contact, create_note.
-- create_contact : ajouter un contact à un client (clientId, name requis ; email, role optionnels).
+- create_contact : ajouter un contact à un client (clientId, name requis ; email optionnel).
 - create_note : résumé des échanges mail (clientId, name, content requis ; projectId optionnel). Points clés, décisions, prochaines étapes.
 ${'═'.repeat(60)}`
 
-  const dataSection = buildAgencyDataSection(clients, allProjects, allProducts, 0)
+  const docsByClient: Record<string, { name: string; type: string; projectId: string | null }[]> = {}
+  const contactsByClient: Record<string, { name: string; email: string | null }[]> = {}
+  for (const c of clients) {
+    docsByClient[c.id] = []
+    contactsByClient[c.id] = []
+  }
+  const dataSection = buildAgencyDataSection(
+    clients,
+    allProjects,
+    allProducts,
+    docsByClient,
+    contactsByClient,
+    0
+  )
   return [PREAMBLE, intro, wrapData(dataSection, 'agency_data')].join('\n\n')
 }
 

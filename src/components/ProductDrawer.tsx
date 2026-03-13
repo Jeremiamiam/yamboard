@@ -12,6 +12,12 @@ import {
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { EditMenu } from "@/components/EditMenu";
 import { useStore } from "@/lib/store";
+import { Button } from "@/components/ui/Button";
+import { Surface } from "@/components/ui/Surface";
+import { SectionHeader } from "@/components/ui/SectionHeader";
+import { Progress } from "@/components/ui/Progress";
+import { Backdrop } from "@/components/ui/Dialog";
+import { cn } from "@/lib/cn";
 
 const FIXED_STAGE_KEYS = ["devis", "acompte", "solde"] as const;
 type FixedStageKey = typeof FIXED_STAGE_KEYS[number];
@@ -52,7 +58,7 @@ export function ProductDrawer({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 bg-black/60" onClick={onClose} />
+      <Backdrop onClose={onClose} className="bg-black/60" />
       <ProductDrawerContent
         key={product.id}
         product={product}
@@ -157,20 +163,21 @@ function ProductDrawerContent({
           </div>
         )}
         <div className="flex items-center gap-2 shrink-0">
-          <button
+          <Button
+            variant="secondary"
+            size="icon_md"
             onClick={onClose}
-            className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center text-zinc-600 dark:text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors"
           >
             ✕
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Body */}
       <div className="flex-1 overflow-y-auto px-5 py-5 space-y-3">
-        <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-600 mb-1">
+        <SectionHeader level="label" className="mb-1">
           Étapes de paiement
-        </p>
+        </SectionHeader>
 
         {!hasAnyStage && (
           <p className="text-sm text-zinc-500 dark:text-zinc-600 py-4 text-center">
@@ -199,23 +206,24 @@ function ProductDrawerContent({
         {/* Add missing fixed stages */}
         {missingFixed.length > 0 && (
           <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-600 mb-2">
+            <SectionHeader level="label" className="mb-2">
               Ajouter une étape
-            </p>
+            </SectionHeader>
             <div className="flex flex-wrap gap-2">
               {missingFixed.map((key) => (
-                <button
+                <Button
                   key={key}
+                  variant="dashed"
+                  size="sm"
                   disabled={isPending}
                   onClick={() =>
                     startTransition(() =>
                       void updatePaymentStageAction(product.id, key, { status: "pending" })
                     )
                   }
-                  className="px-3 py-1.5 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700 text-xs text-zinc-500 dark:text-zinc-600 hover:border-zinc-400 dark:hover:border-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-400 transition-colors disabled:opacity-40"
                 >
                   + {PAYMENT_STAGE_LABEL[key]}
-                </button>
+                </Button>
               ))}
             </div>
           </div>
@@ -223,9 +231,9 @@ function ProductDrawerContent({
 
         {/* Sous-traitance */}
         <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-600 mb-2">
+          <SectionHeader level="label" className="mb-2">
             Sous-traitance
-          </p>
+          </SectionHeader>
           <SubcontractsSection
             productId={product.id}
             subcontracts={liveProduct.subcontracts ?? []}
@@ -279,13 +287,15 @@ function AvancementsSection({
           clientColor={clientColor}
         />
       ))}
-      <button
+      <Button
+        variant="dashed"
+        size="sm"
+        className="w-full"
         onClick={addAvancement}
         disabled={isPending}
-        className="w-full px-3 py-1.5 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700 text-xs text-zinc-500 dark:text-zinc-600 hover:border-zinc-400 dark:hover:border-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-400 transition-colors disabled:opacity-40"
       >
         + Avancement
-      </button>
+      </Button>
     </>
   );
 }
@@ -326,7 +336,7 @@ function AvancementRow({
   }[stage.status];
 
   return (
-    <div className="rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-3 space-y-3">
+    <Surface variant="muted" padding="sm" className="space-y-3 bg-zinc-50 dark:bg-zinc-900">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">{label}</span>
@@ -342,13 +352,14 @@ function AvancementRow({
         <button
           onClick={cycleStatus}
           disabled={isPending}
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all disabled:opacity-50 ${
+          className={cn(
+            "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all disabled:opacity-50",
             stage.status === "paid"
               ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-500"
               : stage.status === "sent"
               ? "border-yellow-500/30 bg-yellow-500/10 text-yellow-500"
               : "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-500"
-          }`}
+          )}
           title="Cliquer pour changer le statut"
         >
           <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.dot}`} />
@@ -392,9 +403,9 @@ function AvancementRow({
       </div>
 
       {stage.status === "paid" && stage.amount && (
-        <div className="h-0.5 rounded-full" style={{ background: clientColor ?? "#10b981" }} />
+        <Progress value={100} size="sm" color={clientColor ?? "#10b981"} className="h-0.5" />
       )}
-    </div>
+    </Surface>
   );
 }
 
@@ -433,7 +444,7 @@ function FixedStageRow({
   }[stage.status];
 
   return (
-    <div className="rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-3 space-y-3">
+    <Surface variant="muted" padding="sm" className="space-y-3 bg-zinc-50 dark:bg-zinc-900">
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
           {PAYMENT_STAGE_LABEL[stageKey]}
@@ -441,13 +452,14 @@ function FixedStageRow({
         <button
           onClick={cycleStatus}
           disabled={isPending}
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all disabled:opacity-50 ${
+          className={cn(
+            "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all disabled:opacity-50",
             stage.status === "paid"
               ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-500"
               : stage.status === "sent"
               ? "border-yellow-500/30 bg-yellow-500/10 text-yellow-500"
               : "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-500"
-          }`}
+          )}
           title="Cliquer pour changer le statut"
         >
           <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.dot}`} />
@@ -491,9 +503,9 @@ function FixedStageRow({
       </div>
 
       {stage.status === "paid" && stage.amount && (
-        <div className="h-0.5 rounded-full" style={{ background: clientColor ?? "#10b981" }} />
+        <Progress value={100} size="sm" color={clientColor ?? "#10b981"} className="h-0.5" />
       )}
-    </div>
+    </Surface>
   );
 }
 
@@ -538,13 +550,15 @@ function SubcontractsSection({
           isPending={isPending}
         />
       ))}
-      <button
+      <Button
+        variant="dashed"
+        size="sm"
+        className="w-full"
         onClick={add}
         disabled={isPending}
-        className="w-full px-3 py-1.5 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700 text-xs text-zinc-500 dark:text-zinc-600 hover:border-zinc-400 dark:hover:border-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-400 transition-colors disabled:opacity-40"
       >
         + Sous-traitance
-      </button>
+      </Button>
     </div>
   );
 }
@@ -568,7 +582,7 @@ function SubcontractRow({
   }
 
   return (
-    <div className="rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-3 space-y-2">
+    <Surface variant="muted" padding="sm" className="space-y-2 bg-zinc-50 dark:bg-zinc-900">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <ConfirmButton
@@ -600,11 +614,12 @@ function SubcontractRow({
         <button
           onClick={toggleStatus}
           disabled={isPending}
-          className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all disabled:opacity-50 ${
+          className={cn(
+            "shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all disabled:opacity-50",
             sub.status === "paid"
               ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-500"
               : "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-500"
-          }`}
+          )}
         >
           <span className={`w-1.5 h-1.5 rounded-full ${sub.status === "paid" ? "bg-emerald-500" : "bg-zinc-400"}`} />
           {sub.status === "paid" ? "Payé ✓" : "En attente"}
@@ -633,6 +648,6 @@ function SubcontractRow({
         />
         <span className="text-sm text-zinc-400 dark:text-zinc-600 ml-1 shrink-0">€</span>
       </div>
-    </div>
+    </Surface>
   );
 }

@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useStore } from "@/lib/store";
 import { ClientPageShell } from "@/components/ClientPageShell";
 import { ProjectPageShell } from "@/components/ProjectPageShell";
 import { ComptaView } from "@/components/ComptaView";
+import { projectHasLockedPotentiel } from "@/lib/budget-utils";
+import { fetchRecentActivityForNotifications, type ClientActivityRow } from "@/lib/data/client-queries";
 import {
   useClient,
   useClientProjects,
@@ -14,6 +16,7 @@ import {
   useBudgetProducts,
   useStoreLoaded,
 } from "@/hooks/useStoreData";
+import { addTodoAction, toggleTodoAction, deleteTodoAction } from "@/lib/store/actions";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -38,22 +41,181 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
+function formatRelativeTime(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60_000);
+  const diffHours = Math.floor(diffMs / 3600_000);
+  const diffDays = Math.floor(diffMs / 86400_000);
+  if (diffMins < 1) return "À l'instant";
+  if (diffMins < 60) return `Il y a ${diffMins} min`;
+  if (diffHours < 24) return `Il y a ${diffHours}h`;
+  if (diffDays < 7) return `Il y a ${diffDays}j`;
+  return date.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+}
+
+function fmt(n: number): string {
+  return n.toLocaleString("fr-FR");
+}
+
+function TodoWidget() {
+  const todos = useStore((s) => s.todos);
+  const [newTodo, setNewTodo] = useState("");
+
+  const pending = todos.filter((t) => !t.done);
+  const done = todos.filter((t) => t.done);
+
+  function handleAdd() {
+    const text = newTodo.trim();
+    if (!text) return;
+    setNewTodo("");
+    addTodoAction(text);
+  }
+
+  return (
+    <section className="rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+      <div className="px-5 pt-4 pb-2 flex items-center justify-between">
+        <SectionLabel>Todos</SectionLabel>
+        {pending.length > 0 && (
+          <span className="text-xs font-medium text-violet-500 dark:text-violet-400 tabular-nums">
+            {pending.length}
+          </span>
+        )}
+      </div>
+      {/* Add input */}
+      <div className="px-4 pb-3">
+        <div className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2">
+          <input
+            type="text"
+            value={newTodo}
+            onChange={(e) => setNewTodo(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
+            placeholder="Nouvelle tâche…"
+            className="flex-1 bg-transparent text-xs text-zinc-600 dark:text-zinc-400 placeholder-zinc-400 dark:placeholder-zinc-600 outline-none"
+          />
+          <button
+            onClick={handleAdd}
+            disabled={!newTodo.trim()}
+            className="text-zinc-400 hover:text-zinc-600 dark:text-zinc-600 dark:hover:text-zinc-300 disabled:opacity-30 cursor-pointer disabled:cursor-default transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      {/* List */}
+      {pending.length === 0 && done.length === 0 ? (
+        <p className="text-xs text-zinc-400 dark:text-zinc-600 px-5 pb-4">Aucune tâche</p>
+      ) : (
+        <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+          {[...pending, ...done].map((t) => (
+            <div key={t.id} className={`group flex items-center gap-3 px-5 py-2.5 ${t.done ? "opacity-50" : ""}`}>
+              <button
+                onClick={() => toggleTodoAction(t.id, !t.done)}
+                className={`shrink-0 w-4 h-4 rounded border transition-colors cursor-pointer flex items-center justify-center ${
+                  t.done
+                    ? "bg-violet-500 border-violet-500 dark:bg-violet-600 dark:border-violet-600"
+                    : "border-zinc-300 dark:border-zinc-600 hover:border-violet-400"
+                }`}
+              >
+                {t.done && (
+                  <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </button>
+              <span className={`flex-1 text-sm text-zinc-700 dark:text-zinc-300 ${t.done ? "line-through" : ""}`}>
+                {t.text}
+              </span>
+              <button
+                onClick={() => deleteTodoAction(t.id)}
+                className="opacity-0 group-hover:opacity-100 shrink-0 text-zinc-400 hover:text-red-500 dark:text-zinc-600 dark:hover:text-red-400 transition-all cursor-pointer"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function HomeView() {
+  const userName = useStore((s) => s.userName);
   const clients = useStore((s) => s.clients);
-  const prospects = useStore((s) => s.prospects);
   const projects = useStore((s) => s.projects);
   const budgetProducts = useStore((s) => s.budgetProducts);
   const loaded = useStoreLoaded();
   const navigateTo = useStore((s) => s.navigateTo);
-  const navigateToCompta = useStore((s) => s.navigateToCompta);
 
-  const allClients = [...clients, ...prospects];
-  const recentProjects = projects.slice(-5).reverse();
+  const [recentLogs, setRecentLogs] = useState<ClientActivityRow[]>([]);
 
+  const loadLogs = useCallback(async () => {
+    try {
+      const logs = await fetchRecentActivityForNotifications(12);
+      setRecentLogs(logs);
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    if (loaded) loadLogs();
+  }, [loaded, loadLogs]);
+
+  const allClients = clients;
+
+  // ── Compta résumé ───────────────────────────────────────────
+  const budgetByProject: Record<string, { total: number; paid: number }> = {};
+  for (const p of projects) {
+    const products = budgetProducts.filter((bp) => bp.projectId === p.id);
+    const total = products.reduce((s, bp) => s + (bp.devis?.amount ?? bp.totalAmount), 0);
+    const paid = products.reduce((s, bp) => {
+      let amt = 0;
+      if (bp.acompte?.status === "paid") amt += bp.acompte.amount ?? 0;
+      for (const av of bp.avancements ?? []) {
+        if (av.status === "paid") amt += av.amount ?? 0;
+      }
+      if (bp.solde?.status === "paid") amt += bp.solde.amount ?? 0;
+      return s + amt;
+    }, 0);
+    budgetByProject[p.id] = { total, paid };
+  }
+  const globalTotal = Object.values(budgetByProject).reduce((s, v) => s + v.total, 0);
+  const globalPaid = Object.values(budgetByProject).reduce((s, v) => s + v.paid, 0);
+  const globalRemaining = globalTotal - globalPaid;
+  const paidPct = globalTotal > 0 ? Math.round((globalPaid / globalTotal) * 100) : 0;
+
+  // ── Potentiel ──────────────────────────────────────────────
+  const potentielRows = allClients
+    .map((client) => {
+      const clientProjects = projects.filter((p) => p.clientId === client.id);
+      const projectsWithPotentiel = clientProjects.filter(
+        (p) => (p.potentialAmount ?? 0) > 0 && !projectHasLockedPotentiel(budgetProducts, p.id)
+      );
+      const total = projectsWithPotentiel.reduce((acc, p) => acc + (p.potentialAmount ?? 0), 0);
+      return { client, projects: projectsWithPotentiel, total };
+    })
+    .filter((r) => r.total > 0)
+    .sort((a, b) => b.total - a.total);
+
+  const totalPotentiel = potentielRows.reduce((acc, r) => acc + r.total, 0);
+
+  // ── À surveiller ───────────────────────────────────────────
   const alertProjects = projects.filter((p) => {
     const hasNoActivity = !p.lastActivity || p.lastActivity === "—";
     const hasNoProducts = !budgetProducts.some((bp) => bp.projectId === p.id);
     return hasNoActivity || hasNoProducts;
+  });
+
+  // ── Date ───────────────────────────────────────────────────
+  const today = new Date().toLocaleDateString("fr-FR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
   });
 
   return (
@@ -61,159 +223,204 @@ function HomeView() {
       className="flex flex-col min-h-screen bg-zinc-50 dark:bg-zinc-950"
       style={{ paddingLeft: "var(--sidebar-w)", paddingTop: "var(--nav-h)" }}
     >
-      <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-8 max-w-2xl mx-auto w-full">
-        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 mb-8">Tableau de bord</h1>
+      <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-8">
+        {/* ── Header : greeting + stats ────────────────────────── */}
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
+              Bonjour{userName ? ` ${userName}` : ""}
+            </h1>
+            <p className="text-sm text-zinc-400 dark:text-zinc-600 mt-1 capitalize">{today}</p>
+          </div>
+          {loaded && (
+            <div className="flex gap-5">
+              {[
+                { n: clients.length, label: clients.length === 1 ? "client" : "clients" },
+                { n: projects.length, label: projects.length === 1 ? "projet" : "projets" },
+              ].map((s) => (
+                <div key={s.label} className="text-right">
+                  <div className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums leading-none">
+                    {s.n}
+                  </div>
+                  <div className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-0.5">{s.label}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {!loaded ? (
           <p className="text-sm text-zinc-400 dark:text-zinc-600">Chargement…</p>
         ) : (
-          <div className="space-y-10">
-            {/* Stats */}
-            {(clients.length > 0 || projects.length > 0) && (
-              <div className="grid grid-cols-3 gap-3">
-                <div className="p-4 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
-                  <div className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums">
-                    {clients.length}
-                  </div>
-                  <div className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">
-                    {clients.length === 1 ? "Client" : "Clients"}
-                  </div>
-                </div>
-                <div className="p-4 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
-                  <div className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums">
-                    {projects.length}
-                  </div>
-                  <div className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">
-                    {projects.length === 1 ? "Projet" : "Projets"}
-                  </div>
-                </div>
-                <div
-                  className={`p-4 rounded-xl border ${
-                    alertProjects.length > 0
-                      ? "bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/50"
-                      : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800"
-                  }`}
-                >
-                  <div
-                    className={`text-2xl font-semibold tabular-nums ${
-                      alertProjects.length > 0
-                        ? "text-amber-600 dark:text-amber-400"
-                        : "text-zinc-900 dark:text-zinc-100"
-                    }`}
-                  >
-                    {alertProjects.length}
-                  </div>
-                  <div className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">À surveiller</div>
-                </div>
-              </div>
-            )}
+          /* ── 2 colonnes : gauche (potentiel + alertes) / droite (activité) ── */
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
+            {/* Colonne gauche — 2/5 */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Todos */}
+              <TodoWidget />
 
-            {/* Raccourcis */}
-            {(clients.length > 0 || prospects.length > 0) && (
-              <section>
-                <SectionLabel>Raccourcis</SectionLabel>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={navigateToCompta}
-                    className="px-3.5 py-1.5 rounded-lg text-sm font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
-                  >
-                    Comptabilité
-                  </button>
-                  {clients.slice(0, 6).map((c) => (
-                    <button
-                      key={c.id}
-                      onClick={() => navigateTo(c.id)}
-                      className="px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer"
-                      style={{ background: c.color + "18", color: c.color, border: `1px solid ${c.color}35` }}
-                    >
-                      {c.name}
-                    </button>
-                  ))}
-                </div>
-              </section>
-            )}
+              {/* Résumé compta */}
+              {globalTotal > 0 && (
+                <section className="rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 overflow-hidden px-5 py-4">
+                  <SectionLabel>Trésorerie</SectionLabel>
+                  <div className="flex items-baseline justify-between mt-2">
+                    <span className="text-sm text-zinc-500 dark:text-zinc-400">Encaissé (sur devis validés)</span>
+                    <span className="text-lg font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">{fmt(globalPaid)} €</span>
+                  </div>
+                  {/* Barre de progression */}
+                  <div className="mt-2 h-2 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-emerald-500 dark:bg-emerald-400 transition-all"
+                      style={{ width: `${paidPct}%` }}
+                    />
+                  </div>
+                  <div className="flex items-baseline justify-between mt-2">
+                    <span className="text-sm text-zinc-500 dark:text-zinc-400">Reste à encaisser</span>
+                    <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 tabular-nums">{fmt(globalRemaining)} €</span>
+                  </div>
+                  <div className="flex items-baseline justify-between mt-1 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+                    <span className="text-xs text-zinc-400 dark:text-zinc-500">CA total</span>
+                    <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 tabular-nums">{fmt(globalTotal)} €</span>
+                  </div>
+                </section>
+              )}
 
-            {/* Projets récents */}
-            {recentProjects.length > 0 && (
-              <section>
-                <SectionLabel>Projets récents</SectionLabel>
-                <div className="space-y-1.5">
-                  {recentProjects.map((p) => {
-                    const client = allClients.find((c) => c.id === p.clientId);
+              {/* Potentiel en cours */}
+              {potentielRows.length > 0 && (
+                <section className="rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+                  <div className="flex items-baseline justify-between px-5 pt-4 pb-3">
+                    <SectionLabel>Potentiel en cours</SectionLabel>
+                    <span className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums">
+                      {fmt(totalPotentiel)} €
+                    </span>
+                  </div>
+                  <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                    {potentielRows.map((row) => (
+                      <button
+                        key={row.client.id}
+                        onClick={() => navigateTo(row.client.id)}
+                        className="w-full text-left px-5 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span
+                            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                            style={{ background: row.client.color }}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-baseline justify-between gap-2">
+                              <span className="font-medium text-zinc-800 dark:text-zinc-200 group-hover:text-zinc-900 dark:group-hover:text-white truncate">
+                                {row.client.name}
+                              </span>
+                              <span className="text-sm font-semibold text-zinc-600 dark:text-zinc-400 tabular-nums flex-shrink-0">
+                                {fmt(row.total)} €
+                              </span>
+                            </div>
+                            <div className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5 truncate">
+                              {row.projects.map((p) => p.name).join(", ")}
+                            </div>
+                            {row.client.contact.email !== "—" && (
+                              <div className="text-xs text-zinc-400 dark:text-zinc-600 mt-0.5 truncate">
+                                {row.client.contact.email}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* À surveiller */}
+              {alertProjects.length > 0 && (
+                <section className="rounded-2xl bg-amber-50/50 dark:bg-amber-950/10 border border-amber-200/60 dark:border-amber-900/30 overflow-hidden">
+                  <div className="px-5 pt-4 pb-3 flex items-baseline justify-between">
+                    <SectionLabel>À surveiller</SectionLabel>
+                    <span className="text-xs font-medium text-amber-600 dark:text-amber-400 tabular-nums">
+                      {alertProjects.length}
+                    </span>
+                  </div>
+                  <div className="divide-y divide-amber-200/40 dark:divide-amber-900/20">
+                    {alertProjects.slice(0, 5).map((p) => {
+                      const client = allClients.find((c) => c.id === p.clientId);
+                      const hasNoActivity = !p.lastActivity || p.lastActivity === "—";
+                      const hasNoProducts = !budgetProducts.some((bp) => bp.projectId === p.id);
+                      const labels: string[] = [];
+                      if (hasNoActivity) labels.push("Sans activité");
+                      if (hasNoProducts) labels.push("Sans budget");
+                      return (
+                        <button
+                          key={p.id}
+                          onClick={() => navigateTo(p.clientId, p.id)}
+                          className="w-full text-left px-5 py-3 hover:bg-amber-100/40 dark:hover:bg-amber-950/20 transition-colors group"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate block">
+                                {client?.name ?? "—"}
+                              </span>
+                              <span className="text-xs text-zinc-400 dark:text-zinc-500 block mt-0.5">
+                                {p.name}
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap gap-1 flex-shrink-0 mt-0.5">
+                              {labels.map((label) => (
+                                <span
+                                  key={label}
+                                  className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400"
+                                >
+                                  {label}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              )}
+
+              {clients.length === 0 && projects.length === 0 && (
+                <p className="text-sm text-zinc-400 dark:text-zinc-600">
+                  Aucun client. Créez-en un depuis la sidebar.
+                </p>
+              )}
+            </div>
+
+            {/* Colonne droite — 3/5 : Activité récente */}
+            {recentLogs.length > 0 && (
+              <section className="lg:col-span-3 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+                <div className="px-5 pt-4 pb-3">
+                  <SectionLabel>Activité récente</SectionLabel>
+                </div>
+                <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                  {recentLogs.map((log) => {
+                    const client = allClients.find((c) => c.id === log.clientId);
                     return (
                       <button
-                        key={p.id}
-                        onClick={() => navigateTo(p.clientId, p.id)}
-                        className="w-full text-left px-4 py-3 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-all group"
+                        key={log.id}
+                        onClick={() => navigateTo(log.clientId)}
+                        className="w-full text-left px-5 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors group"
                       >
                         <div className="flex items-center gap-3">
                           {client?.color && (
                             <span
-                              className="w-2 h-2 rounded-full flex-shrink-0 opacity-80"
+                              className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                               style={{ background: client.color }}
                             />
                           )}
                           <div className="min-w-0 flex-1">
-                            <span className="font-medium text-zinc-800 dark:text-zinc-200 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors truncate block">
-                              {p.name}
-                            </span>
-                            <span className="text-xs text-zinc-400 dark:text-zinc-500 block mt-0.5">
+                            <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">
+                              {log.metadata?.name ? String(log.metadata.name) : log.summary.slice(0, 80)}
+                            </p>
+                            <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5 truncate">
                               {client?.name ?? "—"}
-                            </span>
-                          </div>
-                          <svg
-                            className="w-4 h-4 text-zinc-300 dark:text-zinc-700 group-hover:text-zinc-400 dark:group-hover:text-zinc-500 transition-colors flex-shrink-0"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={2}
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                          </svg>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </section>
-            )}
-
-            {/* À surveiller */}
-            {alertProjects.length > 0 && (
-              <section>
-                <SectionLabel>À surveiller</SectionLabel>
-                <div className="space-y-1.5">
-                  {alertProjects.slice(0, 5).map((p) => {
-                    const client = allClients.find((c) => c.id === p.clientId);
-                    const hasNoActivity = !p.lastActivity || p.lastActivity === "—";
-                    const hasNoProducts = !budgetProducts.some((bp) => bp.projectId === p.id);
-                    const labels: string[] = [];
-                    if (hasNoActivity) labels.push("Sans activité");
-                    if (hasNoProducts) labels.push("Sans budget");
-                    return (
-                      <button
-                        key={p.id}
-                        onClick={() => navigateTo(p.clientId, p.id)}
-                        className="w-full text-left px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 hover:border-amber-300 dark:hover:border-amber-800/70 transition-all group"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0 flex-1">
-                            <span className="font-medium text-zinc-800 dark:text-zinc-200 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors truncate block">
-                              {p.name}
-                            </span>
-                            <span className="text-xs text-zinc-400 dark:text-zinc-500 block mt-0.5">
-                              {client?.name ?? "—"}
-                            </span>
-                          </div>
-                          <div className="flex flex-wrap gap-1 flex-shrink-0">
-                            {labels.map((label) => (
-                              <span
-                                key={label}
-                                className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/50"
-                              >
-                                {label}
-                              </span>
-                            ))}
+                              {log.ownerName && (
+                                <span className="text-amber-600 dark:text-amber-500"> · {log.ownerName}</span>
+                              )}
+                              <span className="text-zinc-300 dark:text-zinc-700"> · {formatRelativeTime(log.createdAt)}</span>
+                            </p>
                           </div>
                         </div>
                       </button>
@@ -221,12 +428,6 @@ function HomeView() {
                   })}
                 </div>
               </section>
-            )}
-
-            {clients.length === 0 && projects.length === 0 && (
-              <p className="text-sm text-zinc-400 dark:text-zinc-600">
-                Aucun client. Créez-en un depuis la sidebar.
-              </p>
             )}
           </div>
         )}

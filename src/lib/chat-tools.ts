@@ -41,7 +41,6 @@ export async function executeCreateContact(
     clientId: string;
     name: string;
     email?: string;
-    role?: string;
     isPrimary?: boolean;
     /** Si fourni (webhook email), utilise cet owner pour visibilité côté propriétaire du client */
     ownerId?: string;
@@ -83,7 +82,6 @@ export async function executeCreateContact(
       client_id: params.clientId,
       name,
       email,
-      role: params.role?.trim() || null,
       is_primary: params.isPrimary ?? false,
       owner_id: ownerId,
     })
@@ -103,7 +101,7 @@ export async function executeCreateContact(
 export async function executeCreateClient(
   supabase: SupabaseClient,
   userId: string,
-  params: { name: string; industry?: string; category?: "client" | "prospect" }
+  params: { name: string; category?: "client" }
 ): Promise<ToolResult> {
   const name = params.name?.trim();
   if (!name) return { ok: false, error: "Le nom du client est requis." };
@@ -129,7 +127,6 @@ export async function executeCreateClient(
     .from("clients")
     .insert({
       name,
-      industry: params.industry ?? null,
       category: params.category ?? "client",
       status: "active",
       color: null,

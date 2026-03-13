@@ -11,6 +11,7 @@ import { ClientBreadcrumbNav } from "@/components/ClientBreadcrumbNav";
 import { EditMenu } from "@/components/EditMenu";
 import { projectHasLockedPotentiel } from "@/lib/budget-utils";
 import { useStore } from "@/lib/store";
+import { Button } from "@/components/ui";
 
 type Props = {
   client: Client
@@ -95,15 +96,17 @@ export function ProjectPageShell({
           clientId={clientId}
           rightSlot={
             <div className="flex items-center gap-2 sm:gap-5">
-              <button
+              <Button
+                variant="ghost"
+                size="icon_md"
                 onClick={toggleDetailSidebar}
-                className="md:hidden w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-zinc-200 dark:hover:bg-zinc-800 transition-colors"
+                className="md:hidden"
                 aria-label="Contacts et infos"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
-              </button>
+              </Button>
               {/* Éditer projet — titre déjà dans le breadcrumb à gauche */}
               <div className="flex items-center gap-2">
                 {isEditingName ? (
@@ -123,8 +126,8 @@ export function ProjectPageShell({
                       placeholder="Nom du projet"
                       className="bg-transparent text-sm text-zinc-800 dark:text-zinc-200 outline-none min-w-[120px]"
                     />
-                    <button onClick={handleNameSave} className="text-xs text-emerald-600 hover:text-emerald-500">OK</button>
-                    <button onClick={() => { setIsEditingName(false); setEditName(project.name); }} className="text-xs text-zinc-400 hover:text-zinc-600">✕</button>
+                    <Button variant="ghost" size="xs" onClick={handleNameSave} className="text-emerald-600 hover:text-emerald-500">OK</Button>
+                    <Button variant="ghost" size="xs" onClick={() => { setIsEditingName(false); setEditName(project.name); }}>✕</Button>
                   </div>
                 ) : (
                   <EditMenu

@@ -16,6 +16,7 @@ import type {
   BudgetProduct,
   PaymentStage,
   Subcontract,
+  Todo,
 } from '@/lib/types'
 
 // ─── Auth helper ────────────────────────────────────────────────
@@ -31,7 +32,6 @@ async function getAuth() {
 
 export async function createClientAction(params: {
   name: string
-  industry?: string
   category?: ClientCategory
   status?: ClientStatus
   color?: string
@@ -44,7 +44,6 @@ export async function createClientAction(params: {
     .from('clients')
     .insert({
       name: params.name,
-      industry: params.industry ?? null,
       category: params.category ?? 'client',
       status: params.status ?? 'active',
       color: params.color ?? null,
@@ -58,21 +57,20 @@ export async function createClientAction(params: {
   const optimistic: Client = {
     id: data.id,
     name: params.name,
-    industry: params.industry ?? '',
     category: params.category ?? 'client',
     status: params.status ?? 'active',
     color: params.color ?? '#71717a',
-    contact: { name: '—', role: '—', email: '—' },
+    contact: { name: '—', email: '—' },
   }
   addClient(optimistic)
-  toast.success(params.category === 'prospect' ? 'Prospect créé' : 'Client créé')
+  toast.success('Client créé')
   invalidateCache()
   return { error: null, clientId: data.id }
 }
 
 export async function updateClientAction(
   clientId: string,
-  updates: { name?: string; industry?: string; status?: ClientStatus; color?: string; logoPath?: string | null }
+  updates: { name?: string; status?: ClientStatus; color?: string; logoPath?: string | null }
 ): Promise<{ error: string | null }> {
   const auth = await getAuth()
   if (!auth) return { error: 'Not authenticated' }
@@ -90,7 +88,6 @@ export async function updateClientAction(
 
   const dbUpdates: Record<string, unknown> = {}
   if (updates.name !== undefined) dbUpdates.name = updates.name
-  if (updates.industry !== undefined) dbUpdates.industry = updates.industry
   if (updates.status !== undefined) dbUpdates.status = updates.status
   if (updates.color !== undefined) dbUpdates.color = updates.color
   if (updates.logoPath !== undefined) dbUpdates.logo_path = updates.logoPath
@@ -121,13 +118,6 @@ export async function unarchiveClientAction(clientId: string): Promise<{ error: 
   const result = await setClientCategory(clientId, 'client')
   if (result.error) toast.error(result.error)
   else toast.success('Client restauré')
-  return result
-}
-
-export async function convertProspectAction(clientId: string): Promise<{ error: string | null }> {
-  const result = await setClientCategory(clientId, 'client')
-  if (result.error) toast.error(result.error)
-  else toast.success('Prospect converti en client')
   return result
 }
 
@@ -188,17 +178,16 @@ async function setClientCategory(
 }
 
 function getClientFromState(
-  state: { clients: Client[]; prospects: Client[]; archived: Client[] },
+  state: { clients: Client[]; archived: Client[] },
   id: string
 ): Client | undefined {
-  return [...state.clients, ...state.prospects, ...state.archived].find((c) => c.id === id)
+  return [...state.clients, ...state.archived].find((c) => c.id === id)
 }
 
 function applyClientUpdate(client: Client) {
   const replace = (arr: Client[], c: Client) => arr.map((x) => (x.id === c.id ? c : x))
   useStore.setState((s) => {
     if (s.clients.some((x) => x.id === client.id)) return { clients: replace(s.clients, client) }
-    if (s.prospects.some((x) => x.id === client.id)) return { prospects: replace(s.prospects, client) }
     if (s.archived.some((x) => x.id === client.id)) return { archived: replace(s.archived, client) }
     return {}
   })
@@ -207,21 +196,18 @@ function applyClientUpdate(client: Client) {
 function moveClientBetweenLists(from: Client, to: Client) {
   useStore.setState((s) => {
     const remove = (arr: Client[]) => arr.filter((x) => x.id !== from.id)
-    let { clients, prospects, archived } = s
+    let { clients, archived } = s
     clients = remove(clients)
-    prospects = remove(prospects)
     archived = remove(archived)
     if (to.category === 'client') clients = [...clients, to]
-    else if (to.category === 'prospect') prospects = [...prospects, to]
     else archived = [...archived, to]
-    return { clients, prospects, archived }
+    return { clients, archived }
   })
 }
 
 function removeClient(client: Client) {
   useStore.setState((s) => ({
     clients: s.clients.filter((c) => c.id !== client.id),
-    prospects: s.prospects.filter((c) => c.id !== client.id),
     archived: s.archived.filter((c) => c.id !== client.id),
   }))
 }
@@ -229,7 +215,6 @@ function removeClient(client: Client) {
 function addClient(client: Client) {
   useStore.setState((s) => {
     if (client.category === 'client') return { clients: [...s.clients, client] }
-    if (client.category === 'prospect') return { prospects: [...s.prospects, client] }
     return { archived: [...s.archived, client] }
   })
 }
@@ -276,15 +261,6 @@ export async function createProjectAction(params: {
   useStore.setState((s) => ({ projects: [...s.projects, optimistic] }))
   toast.success('Projet créé')
   invalidateCache()
-  await insertClientActivity(supabase, {
-    clientId: params.clientId,
-    projectId: data.id,
-    actionType: 'project_created',
-    source: 'manual',
-    summary: `Projet créé : ${params.name}`,
-    metadata: { name: params.name },
-    ownerId: userId,
-  })
   return { error: null, projectId: data.id }
 }
 
@@ -401,18 +377,6 @@ export async function createBudgetProductAction(params: {
   useStore.setState((s) => ({ budgetProducts: [...s.budgetProducts, optimistic] }))
   toast.success('Produit ajouté')
   invalidateCache()
-  const project = useStore.getState().projects.find((p) => p.id === params.projectId)
-  if (project) {
-    await insertClientActivity(supabase, {
-      clientId: project.clientId,
-      projectId: params.projectId,
-      actionType: 'product_added',
-      source: 'manual',
-      summary: `Produit ajouté : ${params.name}`,
-      metadata: { name: params.name },
-      ownerId: userId,
-    })
-  }
   return { error: null, productId: data.id, product: optimistic }
 }
 
@@ -427,9 +391,13 @@ export async function updateBudgetProductAction(
   const product = useStore.getState().budgetProducts.find((p) => p.id === productId)
   if (!product) return { error: 'Product not found' }
 
+  const patch: Partial<typeof updates> = {}
+  if (updates.name !== undefined) patch.name = updates.name
+  if (updates.totalAmount !== undefined) patch.totalAmount = updates.totalAmount
+
   useStore.setState((s) => ({
     budgetProducts: s.budgetProducts.map((p) =>
-      p.id === productId ? { ...p, ...updates } : p
+      p.id === productId ? { ...p, ...patch } : p
     ),
   }))
 
@@ -597,7 +565,6 @@ export async function setSubcontractsAction(
 export async function createContactAction(params: {
   clientId: string
   name: string
-  role?: string
   email?: string
   phone?: string
   isPrimary?: boolean
@@ -619,7 +586,6 @@ export async function createContactAction(params: {
         ...prevClient,
         contact: {
           name: params.name,
-          role: params.role ?? '—',
           email: params.email ?? '—',
           phone: params.phone,
         },
@@ -630,7 +596,6 @@ export async function createContactAction(params: {
   const { error } = await supabase.from('contacts').insert({
     client_id: params.clientId,
     name: params.name,
-    role: params.role ?? null,
     email: params.email ?? null,
     phone: params.phone ?? null,
     is_primary: params.isPrimary ?? false,
@@ -644,20 +609,12 @@ export async function createContactAction(params: {
   }
   toast.success('Contact ajouté')
   invalidateCache()
-  await insertClientActivity(supabase, {
-    clientId: params.clientId,
-    actionType: 'contact_added',
-    source: 'manual',
-    summary: `Contact ajouté : ${params.name}`,
-    metadata: { name: params.name },
-    ownerId: userId,
-  })
   return { error: null }
 }
 
 export async function updateContactAction(
   contactId: string,
-  updates: { name?: string; role?: string; email?: string; phone?: string; isPrimary?: boolean }
+  updates: { name?: string; email?: string; phone?: string; isPrimary?: boolean }
 ): Promise<{ error: string | null }> {
   const auth = await getAuth()
   if (!auth) return { error: 'Not authenticated' }
@@ -665,7 +622,7 @@ export async function updateContactAction(
 
   const { data: contact } = await supabase
     .from('contacts')
-    .select('client_id, is_primary, name, role, email, phone')
+    .select('client_id, is_primary, name, email, phone')
     .eq('id', contactId)
     .eq('owner_id', userId)
     .single()
@@ -688,7 +645,6 @@ export async function updateContactAction(
       ...prevClient,
       contact: {
         name: updates.name ?? contact.name ?? '—',
-        role: updates.role ?? contact.role ?? '—',
         email: updates.email ?? contact.email ?? '—',
         phone: updates.phone ?? contact.phone ?? undefined,
       },
@@ -697,7 +653,6 @@ export async function updateContactAction(
 
   const dbUpdates: Record<string, unknown> = {}
   if (updates.name !== undefined) dbUpdates.name = updates.name
-  if (updates.role !== undefined) dbUpdates.role = updates.role
   if (updates.email !== undefined) dbUpdates.email = updates.email
   if (updates.phone !== undefined) dbUpdates.phone = updates.phone
   if (updates.isPrimary !== undefined) dbUpdates.is_primary = updates.isPrimary
@@ -735,7 +690,7 @@ export async function deleteContactAction(contactId: string): Promise<{ error: s
 
   // Optimistic: if deleting the primary, clear the embedded contact
   if (contact?.is_primary && prevClient) {
-    applyClientUpdate({ ...prevClient, contact: { name: '—', role: '—', email: '—' } })
+    applyClientUpdate({ ...prevClient, contact: { name: '—', email: '—' } })
   }
 
   const { error } = await supabase
@@ -778,14 +733,6 @@ export async function createClientLinkAction(params: {
   }
   toast.success('Lien ajouté')
   invalidateCache()
-  await insertClientActivity(supabase, {
-    clientId: params.clientId,
-    actionType: 'link_added',
-    source: 'manual',
-    summary: `Lien ajouté : ${params.label}`,
-    metadata: { label: params.label, url: params.url },
-    ownerId: userId,
-  })
   return { error: null }
 }
 
@@ -838,6 +785,89 @@ export async function deleteClientLinkAction(linkId: string): Promise<{ error: s
 
 // ─── Logs d'activité ────────────────────────────────────────────
 
+export async function addManualActivityLogAction(params: {
+  clientId: string
+  summary: string
+  content?: string
+}): Promise<{ error: string | null }> {
+  const auth = await getAuth()
+  if (!auth) return { error: 'Not authenticated' }
+  const { supabase, userId } = auth
+
+  const summary = params.summary.trim()
+  if (!summary) {
+    toast.error('Le texte est requis')
+    return { error: 'Le texte est requis' }
+  }
+
+  await insertClientActivity(supabase, {
+    clientId: params.clientId,
+    actionType: 'note_added',
+    source: 'manual',
+    summary,
+    metadata: params.content?.trim() ? { content: params.content.trim() } : undefined,
+    ownerId: userId,
+  })
+
+  toast.success('Entrée ajoutée au journal')
+  invalidateCache()
+  return { error: null }
+}
+
+export async function convertActivityLogToDocumentAction(logId: string): Promise<{ error: string | null }> {
+  const auth = await getAuth()
+  if (!auth) return { error: 'Not authenticated' }
+  const { supabase, userId } = auth
+
+  const { data: log, error: fetchErr } = await supabase
+    .from('client_activity_logs')
+    .select('id, client_id, project_id, summary, metadata, owner_id')
+    .eq('id', logId)
+    .eq('owner_id', userId)
+    .single()
+
+  if (fetchErr || !log) {
+    toast.error('Entrée introuvable')
+    return { error: 'Entrée introuvable' }
+  }
+
+  const content = (log.metadata as Record<string, unknown> | null)?.content
+  const textContent = typeof content === 'string' ? content : log.summary
+  const docName = (log.metadata as Record<string, unknown> | null)?.name
+    ? String((log.metadata as Record<string, unknown>).name)
+    : log.summary.slice(0, 80)
+
+  const { error: insertErr } = await supabase.from('documents').insert({
+    client_id: log.client_id,
+    project_id: log.project_id,
+    name: docName,
+    type: 'other',
+    storage_path: null,
+    content: textContent,
+    owner_id: userId,
+  })
+
+  if (insertErr) {
+    toast.error(insertErr.message)
+    return { error: insertErr.message }
+  }
+
+  const { error: deleteErr } = await supabase
+    .from('client_activity_logs')
+    .delete()
+    .eq('id', logId)
+    .eq('owner_id', userId)
+
+  if (deleteErr) {
+    toast.error(deleteErr.message)
+    return { error: deleteErr.message }
+  }
+
+  toast.success('Document créé')
+  invalidateCache()
+  return { error: null }
+}
+
 export async function deleteActivityLogAction(logId: string): Promise<{ error: string | null }> {
   const auth = await getAuth()
   if (!auth) return { error: 'Not authenticated' }
@@ -855,5 +885,95 @@ export async function deleteActivityLogAction(logId: string): Promise<{ error: s
   }
   toast.success('Log supprimé')
   invalidateCache()
+  return { error: null }
+}
+
+// ─── Todos ───────────────────────────────────────────────────
+
+export async function addTodoAction(text: string): Promise<{ error: string | null }> {
+  // Optimistic first — before any await
+  const tempId = `tmp-${Date.now()}`
+  const optimistic: Todo = { id: tempId, text: text.trim(), done: false, createdAt: new Date().toISOString() }
+  useStore.setState((s) => ({ todos: [...s.todos, optimistic] }))
+
+  const auth = await getAuth()
+  if (!auth) {
+    useStore.setState((s) => ({ todos: s.todos.filter((t) => t.id !== tempId) }))
+    return { error: 'Not authenticated' }
+  }
+  const { supabase, userId } = auth
+
+  const { data, error } = await supabase
+    .from('todos')
+    .insert({ text: text.trim(), done: false, owner_id: userId })
+    .select('id, created_at')
+    .single()
+
+  if (error) {
+    useStore.setState((s) => ({ todos: s.todos.filter((t) => t.id !== tempId) }))
+    toast.error(error.message)
+    return { error: error.message }
+  }
+
+  useStore.setState((s) => ({
+    todos: s.todos.map((t) => t.id === tempId ? { ...t, id: data.id, createdAt: data.created_at } : t),
+  }))
+  return { error: null }
+}
+
+export async function toggleTodoAction(id: string, done: boolean): Promise<{ error: string | null }> {
+  if (id.startsWith('tmp-')) return { error: null } // still saving
+  // Optimistic first
+  useStore.setState((s) => ({
+    todos: s.todos.map((t) => (t.id === id ? { ...t, done } : t)),
+  }))
+
+  const auth = await getAuth()
+  if (!auth) {
+    useStore.setState((s) => ({ todos: s.todos.map((t) => (t.id === id ? { ...t, done: !done } : t)) }))
+    return { error: 'Not authenticated' }
+  }
+  const { supabase, userId } = auth
+
+  const { error } = await supabase
+    .from('todos')
+    .update({ done })
+    .eq('id', id)
+    .eq('owner_id', userId)
+
+  if (error) {
+    useStore.setState((s) => ({
+      todos: s.todos.map((t) => (t.id === id ? { ...t, done: !done } : t)),
+    }))
+    toast.error(error.message)
+    return { error: error.message }
+  }
+  return { error: null }
+}
+
+export async function deleteTodoAction(id: string): Promise<{ error: string | null }> {
+  if (id.startsWith('tmp-')) return { error: null } // still saving
+  // Optimistic first
+  const prev = useStore.getState().todos.find((t) => t.id === id)
+  useStore.setState((s) => ({ todos: s.todos.filter((t) => t.id !== id) }))
+
+  const auth = await getAuth()
+  if (!auth) {
+    if (prev) useStore.setState((s) => ({ todos: [...s.todos, prev] }))
+    return { error: 'Not authenticated' }
+  }
+  const { supabase, userId } = auth
+
+  const { error } = await supabase
+    .from('todos')
+    .delete()
+    .eq('id', id)
+    .eq('owner_id', userId)
+
+  if (error) {
+    if (prev) useStore.setState((s) => ({ todos: [...s.todos, prev] }))
+    toast.error(error.message)
+    return { error: error.message }
+  }
   return { error: null }
 }

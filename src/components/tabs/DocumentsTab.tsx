@@ -7,6 +7,10 @@ import { AddDocForm } from "@/components/AddDocForm";
 import { deleteDocument, pinDocument, unpinDocument } from "@/app/(dashboard)/actions/documents";
 import { DeleteMenu } from "@/components/DeleteMenu";
 import { useStore } from "@/lib/store";
+import { SectionHeader } from "@/components/ui/SectionHeader";
+import { Button } from "@/components/ui/Button";
+import { Surface } from "@/components/ui/Surface";
+import { IconBox } from "@/components/ui/IconBox";
 
 export function DocumentsTab({
   project,
@@ -44,41 +48,38 @@ export function DocumentsTab({
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-base font-semibold text-zinc-900 dark:text-white">Documents</h2>
+            <SectionHeader level="h3">Documents</SectionHeader>
             <p className="text-sm text-zinc-500 mt-0.5">
               {projectDocs.length + clientDocs.length} document{(projectDocs.length + clientDocs.length) !== 1 ? "s" : ""} · {project.name}
             </p>
           </div>
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => setShowAddDoc((v) => !v)}
-            className={`px-3 py-1.5 rounded-lg border text-xs transition-colors ${
-              showAddDoc
-                ? "bg-zinc-200 border-zinc-300 text-zinc-700 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-300"
-                : "bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700 hover:text-zinc-800 dark:hover:text-zinc-200"
-            }`}
           >
             {showAddDoc ? "✕ Annuler" : "+ Ajouter un doc"}
-          </button>
+          </Button>
         </div>
 
         {/* Add doc form */}
         {showAddDoc && (
-          <div className="mb-6 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 border-dashed">
+          <Surface variant="dashed" padding="md" className="mb-6">
             <AddDocForm
               clientId={clientId}
               projectId={project.id}
               clientColor={clientColor}
               onSuccess={() => setShowAddDoc(false)}
             />
-          </div>
+          </Surface>
         )}
 
         {/* Docs de marque (client) — lecture seule */}
         {clientDocs.length > 0 && (
           <section className="mb-8">
-            <h3 className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-600 mb-3">
+            <SectionHeader level="label" className="mb-3">
               Documents de marque · contexte chat client
-            </h3>
+            </SectionHeader>
             <div className="flex flex-wrap gap-2">
               {clientDocs.map((doc) => (
                 <DocChip
@@ -102,9 +103,9 @@ export function DocumentsTab({
 
         {/* Livrables projet */}
         <section>
-          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-600 mb-3">
+          <SectionHeader level="label" className="mb-3">
             Livrables {project.name}
-          </h3>
+          </SectionHeader>
           {projectDocs.length === 0 ? (
             <EmptyState projectName={project.name} onAdd={() => setShowAddDoc(true)} />
           ) : (
@@ -205,13 +206,13 @@ function DocRow({
   const isFailed = doc.extractionStatus === "failed";
 
   return (
-    <div className="flex items-center gap-2 p-3 sm:p-4 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors group">
+    <Surface variant="interactive" padding="sm" className="flex items-center gap-2 group">
       <button
         onClick={onClick}
         disabled={isProcessing}
         className="flex-1 flex items-center gap-3 sm:gap-4 min-w-0 text-left disabled:opacity-90 disabled:cursor-wait"
       >
-        <div className="w-9 h-9 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center shrink-0">
+        <IconBox size="md" variant="default">
           {isProcessing ? (
             <span className="inline-block w-4 h-4 border-2 border-zinc-300 border-t-zinc-600 dark:border-zinc-600 dark:border-t-zinc-400 rounded-full animate-spin" aria-hidden />
           ) : isFailed ? (
@@ -219,7 +220,7 @@ function DocRow({
           ) : (
             <DocIcon />
           )}
-        </div>
+        </IconBox>
         <div className="flex-1 min-w-0">
           <div className="flex items-start sm:items-center gap-2 flex-wrap sm:flex-nowrap">
             <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors truncate w-full sm:w-auto">
@@ -263,7 +264,7 @@ function DocRow({
           disabled={isPending}
         />
       </div>
-    </div>
+    </Surface>
   );
 }
 
@@ -280,17 +281,14 @@ function DocIcon() {
 function EmptyState({ projectName, onAdd }: { projectName: string; onAdd: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center">
-      <div className="w-12 h-12 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center mb-4">
+      <IconBox size="lg" variant="surface" className="mb-4">
         <span className="text-xl">📂</span>
-      </div>
+      </IconBox>
       <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">Aucun document pour {projectName}</p>
       <p className="text-xs text-zinc-500 dark:text-zinc-600 mt-1 mb-4">Génère ton premier livrable ou ajoute une note.</p>
-      <button
-        onClick={onAdd}
-        className="px-4 py-2 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-700 dark:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-600 hover:text-zinc-900 dark:hover:text-white transition-colors"
-      >
+      <Button variant="secondary" onClick={onAdd}>
         + Ajouter un document
-      </button>
+      </Button>
     </div>
   );
 }

@@ -5,7 +5,8 @@ export function useClientContacts(clientId: string | undefined) {
   const [contacts, setContacts] = useState<ContactRow[]>([]);
 
   useEffect(() => {
-    if (!clientId) return;
+    if (!clientId) { setContacts([]); return; }
+    setContacts([]);
     fetchContactsForClient(clientId).then(setContacts);
   }, [clientId]);
 

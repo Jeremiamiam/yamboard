@@ -8,6 +8,11 @@ import {
 } from "@/lib/store/actions";
 import { DeleteMenu } from "@/components/DeleteMenu";
 import { useStore } from "@/lib/store";
+import { Button } from "@/components/ui/Button";
+import { InputField } from "@/components/ui/Input";
+import { Surface } from "@/components/ui/Surface";
+import { SectionHeader } from "@/components/ui/SectionHeader";
+import { getContrastTextColor } from "@/lib/color-utils";
 import type { ContactRow } from "@/lib/data/client-queries";
 
 type Props = {
@@ -74,66 +79,69 @@ export function ContactsBlock({
   }
 
   return (
-    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 overflow-hidden">
+    <Surface variant="muted" className="overflow-hidden">
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-zinc-200 dark:border-zinc-800">
         <div className="flex items-center gap-2">
-          <span className="text-zinc-500 dark:text-zinc-500" style={{ color: clientColor }}>
+          <span style={{ color: clientColor }}>
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
           </span>
-          <span className="text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400" style={{ color: clientColor }}>
+          <SectionHeader level="label" as="span" style={{ color: clientColor }}>
             Contacts
-          </span>
+          </SectionHeader>
           <span className="text-xs text-zinc-500 dark:text-zinc-600">({contacts.length})</span>
         </div>
-        <button
+        <Button
+          variant={showAdd ? "secondary" : "ghost"}
+          size="icon_sm"
           onClick={onToggleAdd}
-          className={`w-7 h-7 rounded-lg flex items-center justify-center text-sm font-medium transition-colors cursor-pointer ${showAdd ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300" : "hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"}`}
           style={!showAdd ? { color: clientColor } : undefined}
           title="Ajouter un contact"
         >
           +
-        </button>
+        </Button>
       </div>
       <div className="px-4 py-2 min-h-[44px] max-h-[140px] overflow-y-auto">
         {showAdd && (
-          <div className="mb-3 space-y-2 p-2 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700">
-            <input
+          <Surface variant="card" padding="sm" className="mb-3 space-y-2">
+            <InputField
+              inputSize="sm"
               type="text"
               placeholder="Nom / Prénom"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-2.5 py-1.5 text-sm rounded border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800"
             />
-            <input
+            <InputField
+              inputSize="sm"
               type="email"
               placeholder="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-2.5 py-1.5 text-sm rounded border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800"
             />
             <div className="flex gap-2">
-              <button
+              <Button
+                variant="primary"
+                size="xs"
                 onClick={handleAdd}
                 disabled={!name.trim() || isPending}
-                className="px-2 py-1 text-sm rounded text-white disabled:opacity-50 cursor-pointer"
-                style={{ background: name.trim() ? clientColor : undefined }}
+                style={name.trim() ? { background: clientColor, color: getContrastTextColor(clientColor) } : undefined}
               >
                 {isPending ? "…" : "OK"}
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="ghost"
+                size="xs"
                 onClick={() => {
                   onToggleAdd();
                   setName("");
                   setEmail("");
                 }}
-                className="text-sm text-zinc-500 hover:text-zinc-700 cursor-pointer"
               >
                 Annuler
-              </button>
+              </Button>
             </div>
-          </div>
+          </Surface>
         )}
         {contacts.length === 0 && !showAdd && (
           <p className="text-sm text-zinc-500 dark:text-zinc-600 py-1">Aucun contact</p>
@@ -145,7 +153,8 @@ export function ContactsBlock({
           >
             {editingId === c.id ? (
               <div className="flex-1 space-y-1.5">
-                <input
+                <InputField
+                  inputSize="sm"
                   type="text"
                   defaultValue={c.name}
                   onBlur={(e) => {
@@ -153,23 +162,23 @@ export function ContactsBlock({
                     if (v && v !== c.name) handleUpdate(c.id, { name: v });
                   }}
                   onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-                  className="w-full px-2 py-1 text-sm rounded border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800"
                 />
-                <input
+                <InputField
+                  inputSize="sm"
                   type="email"
                   defaultValue={c.email ?? ""}
                   onBlur={(e) => {
                     const v = e.target.value.trim();
                     if (v !== (c.email ?? "")) handleUpdate(c.id, { email: v || undefined });
                   }}
-                  className="w-full px-2 py-1 text-sm rounded border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800"
                 />
-                <button
+                <Button
+                  variant="ghost"
+                  size="xs"
                   onClick={() => setEditingId(null)}
-                  className="text-xs text-zinc-500 hover:text-zinc-700 cursor-pointer"
                 >
                   Fermer
-                </button>
+                </Button>
               </div>
             ) : (
               <>
@@ -178,13 +187,14 @@ export function ContactsBlock({
                   <p className={`text-xs truncate ${c.email ? "text-zinc-500 dark:text-zinc-600" : "text-amber-500 dark:text-amber-600"}`}>{c.email || "e-mail manquant"}</p>
                 </div>
                 <div className="flex gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="icon_sm"
                     onClick={() => setEditingId(c.id)}
-                    className="p-1 rounded text-zinc-500 hover:text-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-700 cursor-pointer"
                     title="Modifier"
                   >
                     ✎
-                  </button>
+                  </Button>
                   <DeleteMenu
                     onDelete={() => doDelete(c.id)}
                     confirmLabel="Supprimer ce contact ?"
@@ -195,6 +205,6 @@ export function ContactsBlock({
           </div>
         ))}
       </div>
-    </div>
+    </Surface>
   );
 }

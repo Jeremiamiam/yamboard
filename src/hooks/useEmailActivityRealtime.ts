@@ -1,10 +1,18 @@
 "use client";
 
 import { useEffect } from "react";
+import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { useStore } from "@/lib/store";
 import { useNotificationsStore } from "@/lib/notifications-store";
 import { fetchRecentActivityForNotifications } from "@/lib/data/client-queries";
+
+const ACTION_LABELS: Record<string, string> = {
+  contact_added: "Contact ajouté",
+  note_added: "Note ajoutée",
+  document_uploaded: "Document uploadé",
+  email_summary: "Email traité",
+};
 
 /** Realtime + chargement initial pour la cloche de notifications. */
 export function useEmailActivityRealtime() {
@@ -46,13 +54,22 @@ export function useEmailActivityRealtime() {
           const source = row.source as string;
           if (source !== "email") return;
 
+          const clientId = row.client_id as string;
+          const actionType = row.action_type as string;
+          const summary = row.summary as string;
+
           addNotification({
             id: row.id as string,
-            clientId: row.client_id as string,
-            actionType: row.action_type as string,
-            summary: row.summary as string,
+            clientId,
+            actionType,
+            summary,
             source,
             createdAt: (row.created_at as string) ?? new Date().toISOString(),
+          });
+
+          const label = ACTION_LABELS[actionType] ?? actionType;
+          toast.info(label, {
+            description: summary.slice(0, 100) + (summary.length > 100 ? "…" : ""),
           });
 
           loadData().catch((err) => {

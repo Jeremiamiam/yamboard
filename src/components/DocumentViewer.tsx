@@ -5,6 +5,11 @@ import type { Document } from "@/lib/types";
 import { getDocumentSignedUrl, getDocument } from "@/app/(dashboard)/actions/documents";
 import { DeleteMenu } from "@/components/DeleteMenu";
 import { toast } from "sonner";
+import { Backdrop } from "@/components/ui/Dialog";
+import { Surface } from "@/components/ui/Surface";
+import { SectionHeader } from "@/components/ui/SectionHeader";
+import { Button } from "@/components/ui/Button";
+import { IconBox } from "@/components/ui/IconBox";
 
 // ─── Component ───────────────────────────────────────────────
 export function DocumentViewer({
@@ -20,14 +25,6 @@ export function DocumentViewer({
 }) {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [fetchedContent, setFetchedContent] = useState<string | null | "loading">(null);
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [onClose]);
 
   useEffect(() => {
     setPdfUrl(null);
@@ -61,16 +58,13 @@ export function DocumentViewer({
 
   return (
     <>
-      <div
-        className="fixed inset-0 z-50 bg-black/60"
-        onClick={onClose}
-      />
+      <Backdrop onClose={onClose} className="bg-black/60" />
 
-      <div className="fixed top-0 right-0 bottom-0 z-50 w-[70vw] min-w-[320px] flex flex-col bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 shadow-2xl overflow-hidden">
+      <Surface variant="overlay" className="fixed top-0 right-0 bottom-0 z-50 w-[70vw] min-w-[320px] flex flex-col border-l overflow-hidden">
         {/* Header */}
         <div className="shrink-0 flex items-start justify-between px-6 py-5 border-b border-zinc-200 dark:border-zinc-800">
           <div>
-            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">{doc.name}</h2>
+            <SectionHeader level="h2">{doc.name}</SectionHeader>
             <p className="text-xs text-zinc-500 dark:text-zinc-600 mt-0.5">
               Mis à jour le {doc.updatedAt} · {doc.size}
             </p>
@@ -84,12 +78,13 @@ export function DocumentViewer({
                 className="px-3 py-1.5"
               />
             )}
-            <button
+            <Button
+              variant="secondary"
+              size="icon_md"
               onClick={onClose}
-              className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center text-zinc-600 dark:text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors"
             >
               ✕
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -111,7 +106,7 @@ export function DocumentViewer({
             <GenericDocContent doc={doc} />
           )}
         </div>
-      </div>
+      </Surface>
     </>
   );
 }
@@ -139,30 +134,24 @@ function NoteContent({ docName, content }: { docName: string; content: string })
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-600">
+        <SectionHeader level="label">
           Note · contenu injecté dans le contexte agent
-        </p>
+        </SectionHeader>
         <div className="flex items-center gap-2">
           <span className="text-[11px] text-zinc-400 dark:text-zinc-600">{wordCount} mots</span>
-          <button
-            onClick={handleCopy}
-            className="px-2 py-1 rounded text-[11px] text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700"
-          >
+          <Button variant="secondary" size="xs" onClick={handleCopy}>
             Copier
-          </button>
-          <button
-            onClick={handleDownload}
-            className="px-2 py-1 rounded text-[11px] text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700"
-          >
+          </Button>
+          <Button variant="secondary" size="xs" onClick={handleDownload}>
             ↓ Télécharger .txt
-          </button>
+          </Button>
         </div>
       </div>
-      <div className="p-5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+      <Surface variant="muted" padding="md">
         <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-loose whitespace-pre-wrap">
           {content}
         </p>
-      </div>
+      </Surface>
     </div>
   );
 }
@@ -172,9 +161,9 @@ function GenericDocContent({ doc }: { doc: Document }) {
   const isNote = !doc.storagePath;
   return (
     <div className="flex flex-col items-center justify-center h-full text-center py-20">
-      <div className="w-14 h-14 rounded-2xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center mb-4 text-2xl">
+      <IconBox size="xl" variant="surface" className="mb-4">
         📄
-      </div>
+      </IconBox>
       <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">{doc.name}</p>
       <p className="text-xs text-zinc-500 dark:text-zinc-600 mt-1 mb-6">
         {doc.size} · {doc.updatedAt}
@@ -187,4 +176,3 @@ function GenericDocContent({ doc }: { doc: Document }) {
     </div>
   );
 }
-

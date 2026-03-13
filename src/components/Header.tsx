@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SectionHeader } from "@/components/ui";
 
 type HeaderProps =
   | { type: "dashboard"; count: number }
@@ -10,7 +11,9 @@ export function Header(props: HeaderProps) {
       <div className="max-w-5xl mx-auto flex items-center justify-between gap-3">
         {props.type === "dashboard" ? (
           <>
-            <h1 className="text-lg sm:text-xl font-semibold tracking-tight">getBrandon</h1>
+            <SectionHeader level="h1" as="h1" className="text-lg sm:text-xl">
+              getBrandon
+            </SectionHeader>
             <span className="text-xs sm:text-sm text-zinc-500 font-mono shrink-0">
               {props.count} client{props.count !== 1 ? "s" : ""}
             </span>
@@ -24,9 +27,9 @@ export function Header(props: HeaderProps) {
               ← Dashboard
             </Link>
             <span className="text-zinc-700 shrink-0">/</span>
-            <h1 className="text-base sm:text-xl font-semibold tracking-tight text-white truncate">
+            <SectionHeader level="h1" as="h1" className="text-base sm:text-xl truncate">
               {props.clientName}
-            </h1>
+            </SectionHeader>
           </nav>
         )}
       </div>

@@ -3,7 +3,6 @@
 import 'server-only'
 
 import { createClient as createSupabaseClient } from '@/lib/supabase/server'
-import { insertClientActivity } from '@/lib/activity-log'
 import Anthropic from '@anthropic-ai/sdk'
 import type { Document } from '@/lib/types'
 
@@ -172,15 +171,6 @@ export async function createNote(params: {
     return { error: error.message }
   }
 
-  await insertClientActivity(supabase, {
-    clientId: params.clientId,
-    projectId: params.projectId,
-    actionType: 'note_added',
-    source: 'manual',
-    summary: `Note ajoutée : ${params.name}`,
-    metadata: { name: params.name },
-    ownerId: user.id,
-  })
   return { error: null }
 }
 
@@ -285,16 +275,6 @@ export async function saveDocumentRecord(params: {
   if (error) {
     return { error: error.message }
   }
-
-  await insertClientActivity(supabase, {
-    clientId: params.clientId,
-    projectId: params.projectId,
-    actionType: 'document_uploaded',
-    source: 'manual',
-    summary: `Document uploadé : ${params.name}`,
-    metadata: { name: params.name },
-    ownerId: user.id,
-  })
 
   // Non-blocking content extraction — wrap in try/catch, never block upload
   try {

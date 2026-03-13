@@ -13,6 +13,7 @@ import type {
   BudgetProduct,
   PaymentStage,
   Subcontract,
+  Todo,
 } from '@/lib/types'
 
 function toClient(row: Record<string, unknown>): Client {
@@ -21,17 +22,15 @@ function toClient(row: Record<string, unknown>): Client {
   return {
     id: row.id as string,
     name: row.name as string,
-    industry: (row.industry as string) ?? '',
     category: row.category as ClientCategory,
     status: (row.status as ClientStatus) ?? 'active',
     contact: primaryContact
       ? {
           name: (primaryContact.name as string) ?? '—',
-          role: (primaryContact.role as string) ?? '—',
           email: (primaryContact.email as string) ?? '—',
           phone: (primaryContact.phone as string | undefined) ?? undefined,
         }
-      : { name: '—', role: '—', email: '—' },
+      : { name: '—', email: '—' },
     color: (row.color as string) ?? '#71717a',
     since: (row.since as string | undefined) ?? undefined,
     logoPath: (row.logo_path as string | null) ?? undefined,
@@ -96,7 +95,6 @@ function toBudgetProduct(row: Record<string, unknown>): BudgetProduct {
 
 export async function fetchAllClients(): Promise<{
   clients: Client[]
-  prospects: Client[]
   archived: Client[]
 }> {
   const supabase = createClient()
@@ -108,7 +106,6 @@ export async function fetchAllClients(): Promise<{
   const all: Client[] = (data ?? []).map((row) => toClient(row as Record<string, unknown>))
   return {
     clients: all.filter((c) => c.category === 'client'),
-    prospects: all.filter((c) => c.category === 'prospect'),
     archived: all.filter((c) => c.category === 'archived'),
   }
 }
@@ -159,7 +156,6 @@ export type ContactRow = {
   id: string
   clientId: string
   name: string
-  role: string | null
   email: string | null
   phone: string | null
   isPrimary: boolean
@@ -169,7 +165,7 @@ export async function fetchContactsForClient(clientId: string): Promise<ContactR
   const supabase = createClient()
   const { data, error } = await supabase
     .from('contacts')
-    .select('id, client_id, name, role, email, phone, is_primary')
+    .select('id, client_id, name, email, phone, is_primary')
     .eq('client_id', clientId)
     .order('is_primary', { ascending: false })
     .order('created_at', { ascending: true })
@@ -178,7 +174,6 @@ export async function fetchContactsForClient(clientId: string): Promise<ContactR
     id: row.id,
     clientId: row.client_id,
     name: row.name ?? '',
-    role: row.role ?? null,
     email: row.email ?? null,
     phone: row.phone ?? null,
     isPrimary: row.is_primary ?? false,
@@ -219,18 +214,28 @@ export type ClientActivityRow = {
   summary: string
   metadata: Record<string, unknown> | null
   createdAt: string
+  ownerId: string | null
+  ownerName: string | null
 }
+
 
 export async function fetchClientActivityLogs(clientId: string, limit = 20): Promise<ClientActivityRow[]> {
   const supabase = createClient()
-  const { data, error } = await supabase
-    .from('client_activity_logs')
-    .select('id, client_id, project_id, action_type, source, summary, metadata, created_at')
-    .eq('client_id', clientId)
-    .order('created_at', { ascending: false })
-    .limit(limit)
-  if (error) throw new Error(error.message)
-  return (data ?? []).map((row) => ({
+  const [logsResult, profilesResult] = await Promise.all([
+    supabase
+      .from('client_activity_logs')
+      .select('id, client_id, project_id, action_type, source, summary, metadata, created_at, owner_id')
+      .eq('client_id', clientId)
+      .order('created_at', { ascending: false })
+      .limit(limit),
+    supabase.from('profiles').select('id, full_name'),
+  ])
+  if (logsResult.error) throw new Error(logsResult.error.message)
+  const rows = logsResult.data ?? []
+  const names: Record<string, string> = Object.fromEntries(
+    (profilesResult.data ?? []).map((p) => [p.id, p.full_name])
+  )
+  return rows.map((row) => ({
     id: row.id,
     clientId: row.client_id,
     projectId: row.project_id ?? null,
@@ -239,19 +244,28 @@ export async function fetchClientActivityLogs(clientId: string, limit = 20): Pro
     summary: row.summary ?? '',
     metadata: (row.metadata as Record<string, unknown>) ?? null,
     createdAt: row.created_at ?? '',
+    ownerId: row.owner_id ?? null,
+    ownerName: row.owner_id ? (names[row.owner_id] ?? null) : null,
   }))
 }
 
 /** Activité récente pour la cloche (RLS filtre par owner_id = auth.uid()) */
 export async function fetchRecentActivityForNotifications(limit = 20): Promise<ClientActivityRow[]> {
   const supabase = createClient()
-  const { data, error } = await supabase
-    .from('client_activity_logs')
-    .select('id, client_id, project_id, action_type, source, summary, metadata, created_at')
-    .order('created_at', { ascending: false })
-    .limit(limit)
-  if (error) throw new Error(error.message)
-  return (data ?? []).map((row) => ({
+  const [logsResult, profilesResult] = await Promise.all([
+    supabase
+      .from('client_activity_logs')
+      .select('id, client_id, project_id, action_type, source, summary, metadata, created_at, owner_id')
+      .order('created_at', { ascending: false })
+      .limit(limit),
+    supabase.from('profiles').select('id, full_name'),
+  ])
+  if (logsResult.error) throw new Error(logsResult.error.message)
+  const rows = logsResult.data ?? []
+  const names: Record<string, string> = Object.fromEntries(
+    (profilesResult.data ?? []).map((p) => [p.id, p.full_name])
+  )
+  return rows.map((row) => ({
     id: row.id,
     clientId: row.client_id,
     projectId: row.project_id ?? null,
@@ -260,5 +274,58 @@ export async function fetchRecentActivityForNotifications(limit = 20): Promise<C
     summary: row.summary ?? '',
     metadata: (row.metadata as Record<string, unknown>) ?? null,
     createdAt: row.created_at ?? '',
+    ownerId: row.owner_id ?? null,
+    ownerName: row.owner_id ? (names[row.owner_id] ?? null) : null,
+  }))
+}
+
+// ─── Pending email suggestions ────────────────────────────────────
+
+export type PendingSuggestionRow = {
+  id: string
+  clientId: string
+  projectId: string | null
+  type: 'contact' | 'note'
+  data: { name?: string; email?: string; content?: string }
+  fromEmail: string | null
+  subject: string | null
+  senderName: string | null
+  createdAt: string
+}
+
+export async function fetchPendingSuggestions(limit = 20): Promise<PendingSuggestionRow[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('pending_email_suggestions')
+    .select('id, client_id, project_id, type, data, from_email, subject, sender_name, created_at')
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  if (error) return []
+  return (data ?? []).map((row) => ({
+    id: row.id as string,
+    clientId: row.client_id as string,
+    projectId: row.project_id as string | null,
+    type: row.type as 'contact' | 'note',
+    data: (row.data as { name?: string; email?: string; content?: string }) ?? {},
+    fromEmail: row.from_email as string | null,
+    subject: row.subject as string | null,
+    senderName: row.sender_name as string | null,
+    createdAt: (row.created_at as string) ?? '',
+  }))
+}
+
+// ─── Todos ────────────────────────────────────────────────────
+
+export async function fetchAllTodos(): Promise<Todo[]> {
+  const supabase = createClient()
+  const { data } = await supabase
+    .from('todos')
+    .select('id, text, done, created_at')
+    .order('created_at', { ascending: true })
+  return (data ?? []).map((row) => ({
+    id: row.id as string,
+    text: row.text as string,
+    done: row.done as boolean,
+    createdAt: row.created_at as string,
   }))
 }

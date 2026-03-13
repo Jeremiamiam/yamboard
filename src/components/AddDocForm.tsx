@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import { createNote, createSignedUploadUrl, saveDocumentRecord } from "@/app/(dashboard)/actions/documents";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import { useStore } from "@/lib/store";
+import { InputField, Textarea, Button } from "@/components/ui";
+import { getContrastTextColor } from "@/lib/color-utils";
 
 export function AddDocForm({
   clientId,
@@ -74,7 +76,7 @@ export function AddDocForm({
     <div className="space-y-3">
       {/* Nom + bouton */}
       <div className="flex gap-2 items-center flex-wrap">
-        <input
+        <InputField
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -83,21 +85,21 @@ export function AddDocForm({
           }}
           placeholder="Nom du document…"
           autoFocus
-          className="flex-1 min-w-[160px] bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 outline-none focus:border-zinc-400 dark:focus:border-zinc-500 transition-colors"
+          className="flex-1 min-w-[160px]"
         />
-        <button
+        <Button
+          variant="primary"
           onClick={handleSubmit}
           disabled={!name.trim() || isPending}
-          className="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors disabled:bg-zinc-300 dark:disabled:bg-zinc-800 shrink-0"
-          style={{ background: name.trim() ? clientColor : undefined }}
+          style={name.trim() ? { background: clientColor, color: getContrastTextColor(clientColor) } : undefined}
         >
           {isPending ? "Enregistrement…" : "Ajouter"}
-        </button>
+        </Button>
       </div>
 
       {/* Joindre un fichier */}
       <div className="flex items-center gap-2">
-        <label className="px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs text-zinc-600 dark:text-zinc-400 hover:border-zinc-400 dark:hover:border-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors cursor-pointer shrink-0">
+        <label className="inline-flex items-center justify-center font-medium transition-colors cursor-pointer shrink-0 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:border-zinc-400 dark:hover:border-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 text-xs px-3 py-1.5 rounded-lg gap-1.5">
           + Joindre un fichier
           <input
             type="file"
@@ -120,12 +122,11 @@ export function AddDocForm({
       {/* Textarea note (masquée si fichier joint) */}
       {!file && (
         <div className="relative">
-          <textarea
+          <Textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder="Note / contenu — colle ou écris le texte du document."
             rows={5}
-            className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 outline-none focus:border-zinc-400 dark:focus:border-zinc-500 transition-colors resize-y leading-relaxed"
           />
           {content.trim() && (
             <span className="absolute bottom-2.5 right-3 text-[11px] text-zinc-400 dark:text-zinc-600 pointer-events-none">

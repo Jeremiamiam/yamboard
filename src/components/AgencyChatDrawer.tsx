@@ -13,6 +13,7 @@ import {
 } from "@/app/(dashboard)/actions/conversations";
 import { createDocFromConversation } from "@/app/(dashboard)/actions/documents";
 import { DeleteMenu } from "@/components/DeleteMenu";
+import { Button, SectionHeader } from "@/components/ui";
 import { useStore } from "@/lib/store";
 import { toast } from "sonner";
 
@@ -148,9 +149,9 @@ export function AgencyChatDrawer({
                 </div>
               )}
               <div className="min-w-0">
-                <h2 className="text-sm font-semibold text-zinc-900 dark:text-white truncate">
+                <SectionHeader level="h3" as="h2" className="truncate">
                   Brandon
-                </h2>
+                </SectionHeader>
                 <p className={`text-[11px] truncate ${!accentColor ? "text-zinc-500 dark:text-zinc-600" : ""}`} style={accentColor ? { color: accentColor } : undefined}>
                   Contexte : {contextLabel}
                 </p>
@@ -158,7 +159,10 @@ export function AgencyChatDrawer({
             </div>
             <div className="flex items-center gap-1">
               {hasConversations && messages.length > 0 && (
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon_sm"
+                  className="rounded-full"
                   onClick={() =>
                     startConvertTransition(async () => {
                       if (!client) return;
@@ -177,39 +181,40 @@ export function AgencyChatDrawer({
                     })
                   }
                   disabled={isConverting}
-                  className="w-7 h-7 rounded-full flex items-center justify-center transition-colors cursor-pointer text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-300 disabled:opacity-50"
                   title="Convertir en doc"
                   aria-label="Convertir en doc"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
-                </button>
+                </Button>
               )}
               {hasConversations && (
-                <button
+                <Button
+                  variant={showHistory ? "secondary" : "ghost"}
+                  size="icon_sm"
+                  className="rounded-full"
                   onClick={() => setShowHistory((v) => !v)}
-                  className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
-                    showHistory ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300" : "text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-300"
-                  }`}
                   title="Historique des conversations"
                   aria-label="Historique"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                </button>
+                </Button>
               )}
-              <button
-          onClick={onClose}
-          className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors cursor-pointer ${accentColor ? "hover:opacity-80" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"}`}
-          style={closeBtnStyle}
-          aria-label="Fermer"
-        >
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+              <Button
+                variant="ghost"
+                size="icon_sm"
+                className={`rounded-full ${accentColor ? "hover:opacity-80" : ""}`}
+                onClick={onClose}
+                style={closeBtnStyle}
+                aria-label="Fermer"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </Button>
             </div>
           </div>
 
@@ -288,9 +293,9 @@ export function AgencyChatDrawer({
         {hasConversations && showHistory && client && (
           <aside className="shrink-0 w-[200px] border-l border-zinc-200 dark:border-zinc-800 flex flex-col bg-zinc-50/50 dark:bg-zinc-900/50">
             <div className="px-3 py-2 border-b border-zinc-200 dark:border-zinc-800">
-              <h3 className="text-xs font-semibold text-zinc-500 dark:text-zinc-600 uppercase tracking-wider">
+              <SectionHeader level="sublabel">
                 Historique
-              </h3>
+              </SectionHeader>
             </div>
             <div className="flex-1 overflow-y-auto py-2 min-h-0">
               {conversations.length === 0 ? (
@@ -305,7 +310,7 @@ export function AgencyChatDrawer({
                   >
                     <button
                       onClick={() => setActiveConvId(conv.id)}
-                      className="flex-1 min-w-0 text-left px-2.5 py-2"
+                      className="flex-1 min-w-0 text-left px-2.5 py-2 cursor-pointer"
                     >
                       <div className="text-xs font-medium truncate text-zinc-800 dark:text-zinc-200">{conv.title}</div>
                       <div className="text-[10px] text-zinc-500 dark:text-zinc-600 mt-0.5">{conv.date} · {conv.messageCount} msg</div>
@@ -332,7 +337,10 @@ export function AgencyChatDrawer({
               )}
             </div>
             <div className="p-2 border-t border-zinc-200 dark:border-zinc-800">
-              <button
+              <Button
+                variant="dashed"
+                size="xs"
+                className="w-full"
                 onClick={() =>
                   startTransition(async () => {
                     const res = await createConversation({ clientId: client.id, projectId: project?.id });
@@ -347,10 +355,9 @@ export function AgencyChatDrawer({
                   })
                 }
                 disabled={isPending}
-                className="w-full px-2 py-1.5 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700 text-xs text-zinc-500 hover:border-zinc-400 dark:hover:border-zinc-600 hover:text-zinc-700 dark:hover:text-zinc-400 transition-colors"
               >
                 + Nouvelle conversation
-              </button>
+              </Button>
             </div>
           </aside>
         )}

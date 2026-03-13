@@ -31,10 +31,18 @@ export default async function DashboardLayout({
 
   if (!user) redirect('/login')
 
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('full_name, role')
+    .eq('id', user.id)
+    .single()
+
+  const displayName = profile?.full_name || user.email?.split('@')[0] || 'Utilisateur'
+
   return (
     <>
-      <GlobalNav />
-      <StoreProvider>
+      <GlobalNav userName={displayName} />
+      <StoreProvider userName={displayName}>
         <ClientSidebarWrapper fallback={<SidebarSkeleton />} />
         {children}
       </StoreProvider>

@@ -37,36 +37,40 @@ html[data-theme="dark"] body {
   color: var(--color-text);
 }
 
-/* Dark theme – semantic colors (Radzion-style) */
+/* Dark theme – Retro-Futurism / Cyberpunk */
 html[data-theme="dark"] {
-  --color-background: #0f1014;
-  --color-foreground: #1a1c24;
-  --color-text: #e4e5ed;
-  --color-text-supporting: #9395a8;
-  --color-text-shy: #676386;
+  --color-background: #0a0e14;
+  --color-foreground: #0f1319;
+  --color-text: #c5cdd8;
+  --color-text-supporting: #6b7a8d;
+  --color-text-shy: #3d4a5c;
   --color-contrast: #ffffff;
-  --color-mist: rgba(255, 255, 255, 0.06);
-  --color-mist-extra: rgba(255, 255, 255, 0.13);
-  --color-overlay: rgba(0, 0, 0, 0.8);
+  --color-mist: rgba(80, 250, 123, 0.04);
+  --color-mist-extra: rgba(80, 250, 123, 0.08);
+  --color-overlay: rgba(0, 0, 0, 0.9);
+  /* Single neon accent */
+  --neon: #50fa7b;
+  --neon-dim: rgba(80, 250, 123, 0.15);
+  --neon-glow: 0 0 12px rgba(80, 250, 123, 0.25), 0 0 30px rgba(80, 250, 123, 0.08);
 }
 
-/* Override zinc palette for dark mode */
+/* Override zinc palette — cold terminal grays */
 html[data-theme="dark"] {
-  --color-zinc-950: #0f1014;   /* fond principal – très sombre */
-  --color-zinc-900: #1a1c24;   /* surface cards */
-  --color-zinc-800: #2B2D3B;   /* Black Rock */
-  --color-zinc-700: #494C65;   /* Blue Suede Shoes */
-  --color-zinc-600: #676386;   /* Daemonette Hide */
-  --color-zinc-500: #7a7c8f;
-  --color-zinc-400: #9395a8;
-  --color-zinc-300: #b0b2c4;
-  --color-zinc-200: #d0d1dd;
-  --color-zinc-100: #e4e5ed;
-  --color-zinc-50: #f2f3f7;
-  /* Accents (Succulent Lime, Wondrous Wisteria, Persian Orange) */
-  --color-accent-lime: #DDDE68;
-  --color-accent-wisteria: #A5B2EB;
-  --color-accent-orange: #DA935D;
+  --color-zinc-950: #0a0e14;
+  --color-zinc-900: #0f1319;
+  --color-zinc-800: #1a1f28;
+  --color-zinc-700: #2a3240;
+  --color-zinc-600: #3d4a5c;
+  --color-zinc-500: #556373;
+  --color-zinc-400: #6b7a8d;
+  --color-zinc-300: #8a97a8;
+  --color-zinc-200: #a8b4c4;
+  --color-zinc-100: #c5cdd8;
+  --color-zinc-50: #e2e8f0;
+  /* Legacy accent slots → neon green */
+  --color-accent-lime: #50fa7b;
+  --color-accent-wisteria: #50fa7b;
+  --color-accent-orange: #ff6b6b;
 }
 
 /* Hide number input spinner arrows (pognon cells) */
@@ -96,5 +100,5 @@ input[type="number"] {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #d4d4d8; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #a1a1aa; }
-html[data-theme="dark"] ::-webkit-scrollbar-thumb { background: #2B2D3B; }
-html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #494C65; }
+html[data-theme="dark"] ::-webkit-scrollbar-thumb { background: #161929; }
+html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #252a42; }

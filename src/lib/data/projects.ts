@@ -47,7 +47,7 @@ export async function getAllProjects(): Promise<Project[]> {
   return (data ?? []).map(toProject)
 }
 
-/** 1 requête pour N clients — évite getAllProjects quand on ne veut que client+prospect */
+/** 1 requête pour N clients — évite getAllProjects quand on ne veut que clients actifs */
 export async function getProjectsForClients(clientIds: string[]): Promise<Project[]> {
   if (clientIds.length === 0) return []
   const supabase = await createClient()

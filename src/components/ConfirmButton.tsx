@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/Button";
 
 /**
  * Two-step confirm button — click once to arm, click again to confirm.
@@ -32,29 +33,34 @@ export function ConfirmButton({
   if (armed) {
     return (
       <span className="flex items-center gap-1">
-        <button
+        <Button
+          variant="danger"
+          size="xs"
           onClick={(e) => { e.stopPropagation(); setArmed(false); onConfirm(); }}
-          className={confirmClassName ?? "text-[11px] text-red-600 dark:text-red-400 font-medium hover:underline px-1"}
+          className={confirmClassName}
         >
           {confirmLabel}
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="ghost"
+          size="xs"
           onClick={(e) => { e.stopPropagation(); setArmed(false); }}
-          className="text-[11px] text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 px-1"
         >
           ✕
-        </button>
+        </Button>
       </span>
     );
   }
 
   return (
-    <button
+    <Button
+      variant="ghost"
+      size="xs"
       onClick={(e) => { e.stopPropagation(); setArmed(true); }}
       className={className}
       disabled={disabled}
     >
       {children}
-    </button>
+    </Button>
   );
 }

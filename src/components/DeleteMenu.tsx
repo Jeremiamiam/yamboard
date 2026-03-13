@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { Button } from "@/components/ui";
 
 /**
  * Menu ⋯ avec option "Supprimer" — remplace les icônes poubelle.
@@ -53,16 +54,16 @@ export function DeleteMenu({
 
   return (
     <div className={`relative ${className}`} ref={ref}>
-      <button
-        type="button"
+      <Button
+        variant="ghost"
+        size="xs"
         onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
         disabled={disabled}
-        className="p-1 rounded text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-400 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-40 text-sm"
         title="Actions"
         aria-label="Menu"
       >
         ⋯
-      </button>
+      </Button>
       {open &&
         rect &&
         typeof document !== "undefined" &&

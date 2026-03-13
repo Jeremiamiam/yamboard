@@ -69,6 +69,33 @@ export async function getProjectDocs(projectId: string): Promise<Document[]> {
   return (data ?? []).map(toDocument)
 }
 
+/** Documents pour le contexte agency (sans content, léger). Retourne Map clientId → { name, type, projectId }[] */
+export async function getDocumentsForAgency(
+  clientIds: string[]
+): Promise<Record<string, { name: string; type: string; projectId: string | null }[]>> {
+  if (clientIds.length === 0) return {}
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('documents')
+    .select('client_id, project_id, name, type')
+    .in('client_id', clientIds)
+    .order('created_at', { ascending: true })
+  if (error) throw new Error(error.message)
+  const byClient: Record<string, { name: string; type: string; projectId: string | null }[]> = {}
+  for (const cid of clientIds) byClient[cid] = []
+  for (const row of data ?? []) {
+    const cid = row.client_id as string
+    if (byClient[cid]) {
+      byClient[cid].push({
+        name: row.name as string,
+        type: (row.type as string) ?? 'other',
+        projectId: (row.project_id as string | null) ?? null,
+      })
+    }
+  }
+  return byClient
+}
+
 /** 1 requête pour N projets — évite N round-trips. Retourne Map projectId → Document[] */
 export async function getProjectDocsForProjects(
   projectIds: string[]

@@ -21,14 +21,13 @@ const EMPTY_BUDGET_MAP: Record<string, BudgetProduct[]> = {};
 
 export function useClient(clientId: string | undefined): Client | undefined {
   const clients = useStore((s) => s.clients);
-  const prospects = useStore((s) => s.prospects);
   const archived = useStore((s) => s.archived);
   return useMemo(
     () =>
       clientId
-        ? getClient({ clients, prospects, archived }, clientId)
+        ? getClient({ clients, archived }, clientId)
         : undefined,
-    [clientId, clients, prospects, archived]
+    [clientId, clients, archived]
   );
 }
 
@@ -91,9 +90,6 @@ export function useBudgetProductsForClient(
 // Reactive hooks (re-render when store changes)
 export function useSidebarClients() {
   return useStore((s) => s.clients);
-}
-export function useSidebarProspects() {
-  return useStore((s) => s.prospects);
 }
 export function useSidebarArchived() {
   return useStore((s) => s.archived);

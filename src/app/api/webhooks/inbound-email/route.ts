@@ -19,8 +19,6 @@ import { Webhook, WebhookVerificationError } from 'svix'
 import { Resend } from 'resend'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { buildAgencyContextForUser } from '@/lib/context-builders'
-import { executeCreateContact, executeCreateNote, getToolResultMessage } from '@/lib/chat-tools'
-import { insertClientActivity } from '@/lib/activity-log'
 import type { ContentBlock, ToolUseBlock } from '@anthropic-ai/sdk/resources/messages/messages'
 import Anthropic from '@anthropic-ai/sdk'
 
@@ -29,23 +27,22 @@ export const dynamic = 'force-dynamic'
 
 const AGENCY_TOOLS = [
   {
-    name: 'create_contact',
-    description: 'Ajoute un contact dans la section CONTACTS du client. OBLIGATOIRE pour chaque expéditeur de mail.',
+    name: 'suggest_contact',
+    description: 'Propose un contact à ajouter (l\'utilisateur validera via la cloche). OBLIGATOIRE pour chaque expéditeur externe du mail.',
     input_schema: {
       type: 'object' as const,
       properties: {
         clientId: { type: 'string', description: 'UUID du client' },
         name: { type: 'string', description: 'Nom complet du contact' },
         email: { type: 'string', description: 'Email du contact — TOUJOURS le remplir si disponible dans le mail' },
-        role: { type: 'string', description: 'Rôle/fonction (optionnel, ex: Directeur artistique)' },
         isPrimary: { type: 'boolean', description: 'Contact principal (défaut true si premier)' },
       },
       required: ['clientId', 'name'],
     },
   },
   {
-    name: 'create_note',
-    description: 'Résumé des échanges mail. Crée une note affichée dans l\'activité (cliquable). Points clés, décisions, prochaines étapes. 5-10 lignes synthétiques.',
+    name: 'suggest_note',
+    description: 'Propose un résumé des échanges (l\'utilisateur validera via la cloche). Points clés, décisions, prochaines étapes. 5-10 lignes synthétiques.',
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -233,7 +230,7 @@ export async function POST(req: Request) {
       const { data: diagClients, error: diagErr } = await admin
         .from('clients')
         .select('id, name, category')
-        .in('category', ['client', 'prospect'])
+        .in('category', ['client'])
         .limit(3)
       debugTrace.push(`diag clients: count=${diagClients?.length ?? 0} error=${diagErr?.message ?? 'null'} sample=${JSON.stringify(diagClients?.map((c: { name: string }) => c.name) ?? [])}`)
     }
@@ -300,13 +297,13 @@ ${body}
 RÈGLES :
 1. **Identifie le client** : Le sujet et le corps du mail indiquent souvent le client (ex: "deck light", "Light et pro" → client "Deck Light" ou similaire). Cherche dans le contexte la correspondance la plus probable.
 2. **NE JAMAIS créer de client** : Utilise UNIQUEMENT les IDs des clients présents dans le contexte. Si le nom dans le mail correspond à un client existant (ex: Forge, FORGE, forge = même client), utilise cet ID.
-3. **create_contact** : Crée un contact pour CHAQUE personne mentionnée dans le mail (expéditeur, interlocuteurs dans le thread, signatures). Cherche les emails dans tout le corps du mail (champs "De:", signatures, threads forwarded). L'email est OBLIGATOIRE si visible quelque part dans le mail.
-4. **create_note** : En PLUS du contact, crée un RÉSUMÉ STRUCTURÉ en markdown des échanges. Format attendu :
+3. **suggest_contact** : Propose un contact pour CHAQUE personne mentionnée dans le mail (expéditeur, interlocuteurs dans le thread, signatures). Cherche les emails dans tout le corps du mail (champs "De:", signatures, threads forwarded). L'email est OBLIGATOIRE si visible quelque part dans le mail.
+4. **suggest_note** : En PLUS du contact, propose un RÉSUMÉ STRUCTURÉ en markdown des échanges. Format attendu :
    - **Contexte** : 1 phrase situant l'échange
    - **Points clés** : liste à puces des infos importantes (chiffres, noms, décisions)
    - **Actions / Prochaines étapes** : liste à puces des TODO ou livrables attendus
    Le contenu sera rendu en markdown dans l'app. Sois synthétique (8-15 lignes max).
-5. Ordre : create_contact (expéditeur) → create_note (résumé des échanges).
+5. Ordre : suggest_contact (expéditeur) → suggest_note (résumé des échanges).
 6. Si aucun client ne correspond, choisis le plus pertinent ou le premier du contexte.
 
 Exécute les actions. Sois concis.`
@@ -359,52 +356,49 @@ Exécute les actions. Sois concis.`
       trace(debugTrace, `tool ${block.name} input=${JSON.stringify(input)}`)
       let result: string
       try {
-        if (block.name === 'create_note') {
+        if (block.name === 'suggest_note') {
           const clientId = String(input.clientId ?? '')
           const content = String(input.content ?? '')
-          const { data: clientRow } = await admin.from('clients').select('owner_id').eq('id', clientId).single()
-          const clientOwnerId = (clientRow as { owner_id?: string } | null)?.owner_id ?? userId
-          const r = await executeCreateNote(admin, userId, {
-            clientId,
-            projectId: input.projectId ? String(input.projectId) : undefined,
-            name: String(input.name ?? ''),
-            content,
-            ownerId: clientOwnerId,
+          const name = String(input.name ?? 'Résumé échange')
+          const { error: insertErr } = await admin.from('pending_email_suggestions').insert({
+            client_id: clientId,
+            project_id: input.projectId ? String(input.projectId) : null,
+            type: 'note',
+            data: { name, content },
+            from_email: from,
+            subject,
+            sender_name: senderName,
           })
-          result = getToolResultMessage(r)
-          if (r.ok && r.type === 'create_note') {
-            await insertClientActivity(admin, {
-              clientId,
-              projectId: input.projectId ? String(input.projectId) : undefined,
-              actionType: 'note_added',
-              source: 'email',
-              summary: `Note ajoutée par ${senderName} : ${r.name}`,
-              metadata: { name: r.name, content, sender: from },
-              ownerId: clientOwnerId,
-            })
+          if (insertErr) {
+            result = `Erreur : ${insertErr.message}`
+          } else {
+            result = `Suggestion note créée : ${name} — l'utilisateur validera via la cloche`
           }
-        } else if (block.name === 'create_contact') {
-          const clientId = String(input.clientId ?? '')
-          const { data: clientRow } = await admin.from('clients').select('owner_id').eq('id', clientId).single()
-          const clientOwnerId = (clientRow as { owner_id?: string } | null)?.owner_id ?? userId
-          const r = await executeCreateContact(admin, userId, {
-            clientId,
-            name: String(input.name ?? ''),
-            email: input.email ? String(input.email) : undefined,
-            role: input.role ? String(input.role) : undefined,
-            isPrimary: input.isPrimary === true,
-            ownerId: clientOwnerId,
-          })
-          result = getToolResultMessage(r)
-          if (r.ok && r.type === 'create_contact') {
-            await insertClientActivity(admin, {
-              clientId,
-              actionType: 'contact_added',
-              source: 'email',
-              summary: `Contact ajouté par ${senderName} : ${r.name}`,
-              metadata: { name: r.name, sender: from },
-              ownerId: clientOwnerId,
+        } else if (block.name === 'suggest_contact') {
+          const contactEmail = input.email ? String(input.email).trim().toLowerCase() : ''
+          if (contactEmail.endsWith('@agence-yam.fr')) {
+            result = 'Contact @agence-yam.fr ignoré (équipe interne)'
+          } else {
+            const clientId = String(input.clientId ?? '')
+            const name = String(input.name ?? '')
+            const { error: insertErr } = await admin.from('pending_email_suggestions').insert({
+              client_id: clientId,
+              project_id: null,
+              type: 'contact',
+              data: {
+                name,
+                email: input.email ? String(input.email) : undefined,
+                isPrimary: input.isPrimary === true,
+              },
+              from_email: from,
+              subject,
+              sender_name: senderName,
             })
+            if (insertErr) {
+              result = `Erreur : ${insertErr.message}`
+            } else {
+              result = `Suggestion contact créée : ${name} — l'utilisateur validera via la cloche`
+            }
           }
         } else {
           result = `Outil inconnu : ${block.name}`
@@ -414,7 +408,7 @@ Exécute les actions. Sois concis.`
       }
       toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: result })
       trace(debugTrace, `tool ${block.name} → ${result}`)
-      if (block.name === 'create_contact' || block.name === 'create_note') {
+      if (block.name === 'suggest_contact' || block.name === 'suggest_note') {
         console.log('[inbound-email]', block.name, '→', result)
       }
     }

@@ -2,7 +2,17 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { ContentBlock, ToolUseBlock } from "@anthropic-ai/sdk/resources/messages/messages";
 import { buildAgencyContext, buildClientContext, buildProjectContext } from "@/lib/context-builders";
 import { createClient as createSupabaseClient } from "@/lib/supabase/server";
-import { executeCreateContact, getToolResultMessage } from "@/lib/chat-tools";
+import {
+  executeCreateContact,
+  executeCreateNote,
+  executeCreateClient,
+  executeCreateProject,
+  executeCreateProduct,
+  executeCreateLink,
+  executeUpdatePaymentStage,
+  executeAddAvancement,
+  getToolResultMessage,
+} from "@/lib/chat-tools";
 import { insertClientActivity } from "@/lib/activity-log";
 
 export const runtime = "nodejs";
@@ -23,21 +33,107 @@ const MODEL_BY_SCOPE: Record<"agency" | "client" | "project", string> = {
 const AGENCY_TOOLS = [
   {
     name: "create_contact",
-    description:
-      "Ajoute un contact (nom, prénom, email) à un client. Utilise l'ID du client depuis le contexte.",
+    description: "Ajoute un contact à un client. Utilise l'ID du client depuis le contexte.",
     input_schema: {
       type: "object" as const,
       properties: {
         clientId: { type: "string", description: "UUID du client" },
-        name: { type: "string", description: "Nom complet ou prénom nom du contact" },
+        name: { type: "string", description: "Nom complet du contact" },
         email: { type: "string", description: "Email (optionnel)" },
-        role: { type: "string", description: "Rôle/fonction (optionnel)" },
-        isPrimary: {
-          type: "boolean",
-          description: "Contact principal (optionnel, défaut false)",
-        },
+        isPrimary: { type: "boolean", description: "Contact principal (optionnel)" },
       },
       required: ["clientId", "name"],
+    },
+  },
+  {
+    name: "create_note",
+    description: "Crée une note/résumé pour un client (optionnellement liée à un projet).",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        clientId: { type: "string", description: "UUID du client" },
+        projectId: { type: "string", description: "UUID du projet (optionnel)" },
+        name: { type: "string", description: "Titre de la note" },
+        content: { type: "string", description: "Contenu markdown de la note" },
+      },
+      required: ["clientId", "name", "content"],
+    },
+  },
+  {
+    name: "create_client",
+    description: "Crée un nouveau client.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        name: { type: "string", description: "Nom du client" },
+      },
+      required: ["name"],
+    },
+  },
+  {
+    name: "create_project",
+    description: "Crée un projet pour un client.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        clientId: { type: "string", description: "UUID du client" },
+        name: { type: "string", description: "Nom du projet" },
+        potentialAmount: { type: "number", description: "Montant potentiel en € (optionnel)" },
+      },
+      required: ["clientId", "name"],
+    },
+  },
+  {
+    name: "create_product",
+    description: "Crée un produit budget dans un projet.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        projectId: { type: "string", description: "UUID du projet" },
+        name: { type: "string", description: "Nom du produit" },
+        devisAmount: { type: "number", description: "Montant devis en € (optionnel)" },
+      },
+      required: ["projectId", "name"],
+    },
+  },
+  {
+    name: "create_link",
+    description: "Ajoute un lien (URL) à un client.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        clientId: { type: "string", description: "UUID du client" },
+        name: { type: "string", description: "Libellé du lien" },
+        url: { type: "string", description: "URL complète" },
+      },
+      required: ["clientId", "name", "url"],
+    },
+  },
+  {
+    name: "update_payment_stage",
+    description: "Met à jour un stade de paiement (devis, acompte, solde) d'un produit.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        productId: { type: "string", description: "UUID du produit" },
+        stage: { type: "string", description: "devis, acompte ou solde" },
+        amount: { type: "number", description: "Montant en € (optionnel)" },
+        status: { type: "string", description: "pending, sent ou paid (optionnel)" },
+      },
+      required: ["productId", "stage"],
+    },
+  },
+  {
+    name: "add_avancement",
+    description: "Ajoute un avancement à un produit budget.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        productId: { type: "string", description: "UUID du produit" },
+        amount: { type: "number", description: "Montant en € (optionnel)" },
+        status: { type: "string", description: "pending, sent ou paid (optionnel)" },
+      },
+      required: ["productId"],
     },
   },
 ];
@@ -47,7 +143,15 @@ function isToolUseBlock(block: ContentBlock): block is ToolUseBlock {
 }
 
 function getToolLabel(block: ToolUseBlock, input: Record<string, unknown>): string {
-  if (block.name === "create_contact") return `contact « ${String(input.name ?? "?")} »`;
+  const name = String(input.name ?? input.url ?? input.stage ?? "?");
+  if (block.name === "create_contact") return `contact « ${name} »`;
+  if (block.name === "create_note") return `note « ${name} »`;
+  if (block.name === "create_client") return `client « ${name} »`;
+  if (block.name === "create_project") return `projet « ${name} »`;
+  if (block.name === "create_product") return `produit « ${name} »`;
+  if (block.name === "create_link") return `lien « ${name} »`;
+  if (block.name === "update_payment_stage") return `paiement ${name}`;
+  if (block.name === "add_avancement") return `avancement`;
   return block.name;
 }
 
@@ -98,7 +202,7 @@ async function* runAgencyChatWithTools(
       const input = block.input as Record<string, unknown>;
       const label = getToolLabel(block, input);
 
-      yield { type: "status" as const, content: `→ Création du ${label}…\n` };
+      yield { type: "status" as const, content: `→ ${label}…\n` };
 
       let result: string;
       try {
@@ -108,7 +212,6 @@ async function* runAgencyChatWithTools(
             clientId,
             name: String(input.name ?? ""),
             email: input.email ? String(input.email) : undefined,
-            role: input.role ? String(input.role) : undefined,
             isPrimary: input.isPrimary === true,
           });
           result = getToolResultMessage(r);
@@ -122,6 +225,56 @@ async function* runAgencyChatWithTools(
               ownerId: userId,
             });
           }
+        } else if (block.name === "create_note") {
+          const r = await executeCreateNote(supabase, userId, {
+            clientId: String(input.clientId ?? ""),
+            projectId: input.projectId ? String(input.projectId) : undefined,
+            name: String(input.name ?? ""),
+            content: String(input.content ?? ""),
+          });
+          result = getToolResultMessage(r);
+        } else if (block.name === "create_client") {
+          const r = await executeCreateClient(supabase, userId, {
+            name: String(input.name ?? ""),
+            category: "client",
+          });
+          result = getToolResultMessage(r);
+        } else if (block.name === "create_project") {
+          const r = await executeCreateProject(supabase, userId, {
+            clientId: String(input.clientId ?? ""),
+            name: String(input.name ?? ""),
+            potentialAmount: input.potentialAmount != null ? Number(input.potentialAmount) : undefined,
+          });
+          result = getToolResultMessage(r);
+        } else if (block.name === "create_product") {
+          const r = await executeCreateProduct(supabase, userId, {
+            projectId: String(input.projectId ?? ""),
+            name: String(input.name ?? ""),
+            devisAmount: input.devisAmount != null ? Number(input.devisAmount) : undefined,
+          });
+          result = getToolResultMessage(r);
+        } else if (block.name === "create_link") {
+          const r = await executeCreateLink(supabase, userId, {
+            clientId: String(input.clientId ?? ""),
+            name: String(input.name ?? ""),
+            url: String(input.url ?? ""),
+          });
+          result = getToolResultMessage(r);
+        } else if (block.name === "update_payment_stage") {
+          const r = await executeUpdatePaymentStage(supabase, userId, {
+            productId: String(input.productId ?? ""),
+            stage: input.stage as "devis" | "acompte" | "solde",
+            amount: input.amount != null ? Number(input.amount) : undefined,
+            status: input.status as "pending" | "sent" | "paid" | undefined,
+          });
+          result = getToolResultMessage(r);
+        } else if (block.name === "add_avancement") {
+          const r = await executeAddAvancement(supabase, userId, {
+            productId: String(input.productId ?? ""),
+            amount: input.amount != null ? Number(input.amount) : undefined,
+            status: input.status as "pending" | "sent" | "paid" | undefined,
+          });
+          result = getToolResultMessage(r);
         } else {
           result = `Outil inconnu : ${block.name}`;
         }

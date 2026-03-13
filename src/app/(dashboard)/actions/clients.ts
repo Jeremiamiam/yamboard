@@ -19,7 +19,7 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
 
 function isTooLightOrDark(rgb: { r: number; g: number; b: number }): boolean {
   const luminance = (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255;
-  return luminance > 0.95 || luminance < 0.08;
+  return luminance > 0.85 || luminance < 0.08;
 }
 
 function rgbToHex(r: number, g: number, b: number): string {
@@ -29,11 +29,14 @@ function rgbToHex(r: number, g: number, b: number): string {
 /** Extrait la première couleur significative d'un SVG (fill, stroke, stop-color, style). */
 function extractColorFromSvg(svgContent: string): string | null {
   const normalized = svgContent.replace(/\s+/g, " ");
+  let fallback: string | null = null; // première couleur non-skippée, même si trop claire/sombre
   const tryHex = (hex: string): string | null => {
     const lower = hex.toLowerCase();
     if (SKIP_COLORS.has(lower)) return null;
     const rgb = hexToRgb(hex);
-    if (rgb && !isTooLightOrDark(rgb)) return lower;
+    if (!rgb) return null;
+    if (!fallback) fallback = lower;
+    if (!isTooLightOrDark(rgb)) return lower;
     return null;
   };
   // Hex 6: #rrggbb (fill="#...", stroke="#...", style="fill:#...")
@@ -64,7 +67,39 @@ function extractColorFromSvg(svgContent: string): string | null {
       return rgbToHex(r, g, b);
     }
   }
-  return null;
+  return fallback;
+}
+
+/**
+ * Remplace toutes les couleurs significatives du SVG par currentColor.
+ * Les couleurs skippées (blanc, noir, transparent) restent intactes.
+ */
+function recolorSvgToCurrentColor(svgContent: string): string {
+  let result = svgContent;
+  // fill="<hex>" et stroke="<hex>" → currentColor (sauf skipped)
+  result = result.replace(
+    /(fill|stroke)\s*=\s*"(#[0-9a-fA-F]{3,8})"/g,
+    (match, attr, hex) => {
+      const lower = hex.toLowerCase();
+      if (SKIP_COLORS.has(lower) || lower === "none") return match;
+      return `${attr}="currentColor"`;
+    }
+  );
+  // style="fill:#xxx" ou style="stroke:#xxx"
+  result = result.replace(
+    /(fill|stroke)\s*:\s*(#[0-9a-fA-F]{3,8})/g,
+    (match, attr, hex) => {
+      const lower = hex.toLowerCase();
+      if (SKIP_COLORS.has(lower) || lower === "none") return match;
+      return `${attr}:currentColor`;
+    }
+  );
+  // rgb(r,g,b) dans fill/stroke attrs
+  result = result.replace(
+    /(fill|stroke)\s*=\s*"rgb\s*\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)"/g,
+    (_, attr) => `${attr}="currentColor"`
+  );
+  return result;
 }
 
 // ─── createClientLogoUploadUrl ───────────────────────────────────
@@ -165,6 +200,33 @@ export async function getClientLogoSignedUrl(
   return { signedUrl: data.signedUrl };
 }
 
+// ─── getClientLogoForDownload ─────────────────────────────────────
+// Récupère le contenu SVG du logo pour téléchargement.
+export async function getClientLogoForDownload(
+  logoPath: string
+): Promise<{ content: string } | { error: string }> {
+  const supabase = await createSupabaseClient();
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+  if (authError || !user) {
+    return { error: "Non authentifié" };
+  }
+
+  const { data: blob, error } = await supabase.storage
+    .from("documents")
+    .download(logoPath);
+
+  if (error || !blob) {
+    return { error: error?.message ?? "Logo introuvable" };
+  }
+
+  const content = await blob.text();
+  return { content };
+}
+
 // ─── removeClientLogo ─────────────────────────────────────────────
 // Supprime le logo (DB + Storage).
 export async function removeClientLogo(
@@ -190,7 +252,7 @@ export async function removeClientLogo(
   if (fetchError || !client?.logo_path) {
     const { error } = await supabase
       .from("clients")
-      .update({ logo_path: null })
+      .update({ logo_path: null, color: "#71717a" })
       .eq("id", clientId)
       .eq("owner_id", user.id);
     return error ? { error: error.message } : { error: null };
@@ -204,7 +266,7 @@ export async function removeClientLogo(
 
   const { error } = await supabase
     .from("clients")
-    .update({ logo_path: null })
+    .update({ logo_path: null, color: "#71717a" })
     .eq("id", clientId)
     .eq("owner_id", user.id);
 
