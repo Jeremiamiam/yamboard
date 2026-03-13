@@ -386,10 +386,37 @@ Exécute les actions. Sois concis.`
         .map((b) => ('text' in b ? b.text : ''))
         .join('')
       trace(debugTrace, `agent done → "${text.slice(0, 200)}"`)
+
+      // Fallback: si l'agent n'a rien créé (corps trop court), on crée une note minimale
+      if (suggestionsCreated === 0) {
+        const { data: firstClient } = await admin.from('clients').select('id').eq('category', 'client').limit(1).single()
+        if (firstClient) {
+          const { error: fallbackErr } = await (admin as any).from('pending_email_suggestions').insert({
+            client_id: (firstClient as { id: string }).id,
+            type: 'note',
+            data: {
+              name: `Échange — ${subject.slice(0, 50)}`,
+              content: `**Contexte** : Email de ${from}\n**Sujet** : ${subject}\n**Corps** : ${body.slice(0, 200)}${body.length > 200 ? '...' : ''}`,
+            },
+            from_email: from,
+            subject,
+            sender_name: extractSenderName(from),
+          })
+          if (!fallbackErr) {
+            suggestionsCreated++
+            addMain('8. fallback: note minimale créée (agent sans tool_use)')
+          } else {
+            addMain('8. fallback échoué: ' + fallbackErr.message)
+          }
+        } else {
+          addMain('8. fallback impossible: aucun client en base')
+        }
+      }
+
       const summary =
         suggestionsCreated > 0
           ? `${suggestionsCreated} suggestion(s) créée(s)`
-          : 'agent terminé SANS tool_use — pas de suggestions (corps mail trop court?)'
+          : 'agent terminé SANS tool_use — pas de suggestions'
       addMain('8. ' + summary)
       console.log('[inbound-email] Agent terminé:', summary, text.slice(0, 300))
       return { summary }
