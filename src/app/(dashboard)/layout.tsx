@@ -1,6 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { GlobalNav } from '@/components/GlobalNav'
+
+// Force dynamic pour éviter UnrecognizedActionError sur Netlify (cache client/serveur désynchronisé)
+export const dynamic = 'force-dynamic'
 import { AgencyChatFab } from '@/components/AgencyChatFab'
 import { StoreProvider } from '@/components/StoreProvider'
 import { ClientSidebarWrapper } from '@/components/ClientSidebarWrapper'
