@@ -377,16 +377,17 @@ ${body}
 
 ---
 RÈGLES :
-1. **create_client, create_project, create_product** : Si l'utilisateur demande explicitement de créer un client, un projet ou un produit, utilise ces outils. Ordre : create_client → create_project (pour ce client) → create_product (pour ce projet).
-2. **Identifie le client** : Le sujet et le corps du mail indiquent souvent le client. Cherche dans le contexte la correspondance la plus probable. Si aucun client ne correspond et l'utilisateur ne demande pas de création, choisis le plus pertinent ou le premier du contexte.
-3. **suggest_contact** : Propose un contact pour CHAQUE personne mentionnée dans le mail (expéditeur, interlocuteurs, signatures). Cherche les emails dans tout le corps. L'email est OBLIGATOIRE si visible.
-4. **suggest_note** : En PLUS du contact, propose un RÉSUMÉ STRUCTURÉ en markdown des échanges. Format attendu :
+1. **create_client** : Si le mail mentionne un client/entreprise qui N'EXISTE PAS dans le contexte (nom, domaine email, société dans la signature), crée-le avec create_client. Tu peux aussi créer si l'utilisateur le demande explicitement.
+2. **create_project, create_product** : Si l'utilisateur demande explicitement, ou si le mail décrit clairement un projet/produit pour un client (nouveau ou existant), crée-les. Ordre : create_client (si nouveau) → create_project → create_product.
+3. **Identifie le client** : Cherche d'abord dans le contexte. Si une correspondance existe (même nom, domaine similaire), utilise cet ID. Sinon, crée le client.
+4. **suggest_contact** : Propose un contact pour CHAQUE personne mentionnée dans le mail (expéditeur, interlocuteurs, signatures). Cherche les emails dans tout le corps. L'email est OBLIGATOIRE si visible.
+5. **suggest_note** : En PLUS du contact, propose un RÉSUMÉ STRUCTURÉ en markdown des échanges. Format attendu :
    - **Contexte** : 1 phrase situant l'échange
    - **Points clés** : liste à puces des infos importantes (chiffres, noms, décisions)
    - **Actions / Prochaines étapes** : liste à puces des TODO ou livrables attendus
    Le contenu sera rendu en markdown dans l'app. Sois synthétique (8-15 lignes max).
-5. Ordre préférentiel : create_client/create_project/create_product (si demandé) → suggest_contact (expéditeur) → suggest_note (résumé).
-6. MÊME si le corps est court ou "(Corps non récupéré)", appelle AU MOINS suggest_note avec un résumé minimal basé sur le sujet et l'expéditeur.
+6. Ordre préférentiel : create_client (si nouveau) → create_project/create_product (si pertinent) → suggest_contact (expéditeur) → suggest_note (résumé).
+7. MÊME si le corps est court ou "(Corps non récupéré)", appelle AU MOINS suggest_note avec un résumé minimal basé sur le sujet et l'expéditeur.
 
 Exécute les actions. Sois concis.`
 
