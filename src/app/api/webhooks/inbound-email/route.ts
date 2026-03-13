@@ -20,6 +20,13 @@ import { Resend } from 'resend'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { buildAgencyContextForUser } from '@/lib/context-builders'
 import { insertWebhookError } from '@/lib/webhook-errors'
+import {
+  executeCreateClient,
+  executeCreateProject,
+  executeCreateProduct,
+  getToolResultMessage,
+} from '@/lib/chat-tools'
+import { insertClientActivity } from '@/lib/activity-log'
 import type { ContentBlock, ToolUseBlock } from '@anthropic-ai/sdk/resources/messages/messages'
 import Anthropic from '@anthropic-ai/sdk'
 
@@ -27,6 +34,41 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 const AGENCY_TOOLS = [
+  {
+    name: 'create_client',
+    description: 'Crée un nouveau client. Utilise si l\'utilisateur demande explicitement de créer un client.',
+    input_schema: {
+      type: 'object' as const,
+      properties: { name: { type: 'string', description: 'Nom du client' } },
+      required: ['name'],
+    },
+  },
+  {
+    name: 'create_project',
+    description: 'Crée un projet pour un client existant.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        clientId: { type: 'string', description: 'UUID du client' },
+        name: { type: 'string', description: 'Nom du projet' },
+        potentialAmount: { type: 'number', description: 'Montant potentiel en € (optionnel)' },
+      },
+      required: ['clientId', 'name'],
+    },
+  },
+  {
+    name: 'create_product',
+    description: 'Crée un produit budget dans un projet.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        projectId: { type: 'string', description: 'UUID du projet' },
+        name: { type: 'string', description: 'Nom du produit' },
+        devisAmount: { type: 'number', description: 'Montant devis en € (optionnel)' },
+      },
+      required: ['projectId', 'name'],
+    },
+  },
   {
     name: 'suggest_contact',
     description: 'Propose un contact à ajouter (l\'utilisateur validera via la cloche). OBLIGATOIRE pour chaque expéditeur externe du mail.',
@@ -335,17 +377,16 @@ ${body}
 
 ---
 RÈGLES :
-1. **Identifie le client** : Le sujet et le corps du mail indiquent souvent le client (ex: "deck light", "Light et pro" → client "Deck Light" ou similaire). Cherche dans le contexte la correspondance la plus probable.
-2. **NE JAMAIS créer de client** : Utilise UNIQUEMENT les IDs des clients présents dans le contexte. Si le nom dans le mail correspond à un client existant (ex: Forge, FORGE, forge = même client), utilise cet ID.
-3. **suggest_contact** : Propose un contact pour CHAQUE personne mentionnée dans le mail (expéditeur, interlocuteurs dans le thread, signatures). Cherche les emails dans tout le corps du mail (champs "De:", signatures, threads forwarded). L'email est OBLIGATOIRE si visible quelque part dans le mail.
+1. **create_client, create_project, create_product** : Si l'utilisateur demande explicitement de créer un client, un projet ou un produit, utilise ces outils. Ordre : create_client → create_project (pour ce client) → create_product (pour ce projet).
+2. **Identifie le client** : Le sujet et le corps du mail indiquent souvent le client. Cherche dans le contexte la correspondance la plus probable. Si aucun client ne correspond et l'utilisateur ne demande pas de création, choisis le plus pertinent ou le premier du contexte.
+3. **suggest_contact** : Propose un contact pour CHAQUE personne mentionnée dans le mail (expéditeur, interlocuteurs, signatures). Cherche les emails dans tout le corps. L'email est OBLIGATOIRE si visible.
 4. **suggest_note** : En PLUS du contact, propose un RÉSUMÉ STRUCTURÉ en markdown des échanges. Format attendu :
    - **Contexte** : 1 phrase situant l'échange
    - **Points clés** : liste à puces des infos importantes (chiffres, noms, décisions)
    - **Actions / Prochaines étapes** : liste à puces des TODO ou livrables attendus
    Le contenu sera rendu en markdown dans l'app. Sois synthétique (8-15 lignes max).
-5. Ordre : suggest_contact (expéditeur) → suggest_note (résumé des échanges).
-6. Si aucun client ne correspond, choisis le plus pertinent ou le premier du contexte.
-7. MÊME si le corps est court ou "(Corps non récupéré)", appelle AU MOINS suggest_note avec un résumé minimal (Contexte, Points clés, Actions) basé sur le sujet et l'expéditeur.
+5. Ordre préférentiel : create_client/create_project/create_product (si demandé) → suggest_contact (expéditeur) → suggest_note (résumé).
+6. MÊME si le corps est court ou "(Corps non récupéré)", appelle AU MOINS suggest_note avec un résumé minimal basé sur le sujet et l'expéditeur.
 
 Exécute les actions. Sois concis.`
 
@@ -450,6 +491,61 @@ Exécute les actions. Sois concis.`
             suggestionsCreated++
             result = `Suggestion note créée : ${name} — l'utilisateur validera via la cloche`
           }
+        } else if (block.name === 'create_client') {
+          const r = await executeCreateClient(admin, userId, {
+            name: String(input.name ?? ''),
+            category: 'client',
+          })
+          result = getToolResultMessage(r)
+          if (r.ok && r.type === 'create_client') {
+            await insertClientActivity(admin, {
+              clientId: r.clientId,
+              actionType: 'client_created',
+              source: 'email',
+              summary: `Client créé : ${r.name}`,
+              metadata: { name: r.name },
+              ownerId: userId,
+            })
+          }
+        } else if (block.name === 'create_project') {
+          const r = await executeCreateProject(admin, userId, {
+            clientId: String(input.clientId ?? ''),
+            name: String(input.name ?? ''),
+            potentialAmount: input.potentialAmount != null ? Number(input.potentialAmount) : undefined,
+          })
+          result = getToolResultMessage(r)
+          if (r.ok && r.type === 'create_project') {
+            await insertClientActivity(admin, {
+              clientId: r.clientId,
+              actionType: 'project_created',
+              source: 'email',
+              summary: `Projet créé : ${r.name}`,
+              metadata: { name: r.name, projectId: r.projectId },
+              ownerId: userId,
+            })
+          }
+        } else if (block.name === 'create_product') {
+          const r = await executeCreateProduct(admin, userId, {
+            projectId: String(input.projectId ?? ''),
+            name: String(input.name ?? ''),
+            devisAmount: input.devisAmount != null ? Number(input.devisAmount) : undefined,
+          })
+          result = getToolResultMessage(r)
+          if (r.ok && r.type === 'create_product') {
+            const { data: proj } = await admin.from('projects').select('client_id').eq('id', r.projectId).single()
+            const clientId = (proj as { client_id?: string } | null)?.client_id
+            if (clientId) {
+              await insertClientActivity(admin, {
+                clientId,
+                projectId: r.projectId,
+                actionType: 'product_added',
+                source: 'email',
+                summary: `Produit créé : ${r.name}${r.devisAmount ? ` (${r.devisAmount} €)` : ''}`,
+                metadata: { name: r.name, productId: r.productId },
+                ownerId: userId,
+              })
+            }
+          }
         } else if (block.name === 'suggest_contact') {
           const contactEmail = input.email ? String(input.email).trim().toLowerCase() : ''
           if (contactEmail.endsWith('@agence-yam.fr')) {
@@ -486,10 +582,11 @@ Exécute les actions. Sois concis.`
       }
       toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: result })
       trace(debugTrace, `tool ${block.name} → ${result}`)
-      if (mainDebug && (block.name === 'suggest_contact' || block.name === 'suggest_note')) {
+      const isCreate = ['create_client', 'create_project', 'create_product'].includes(block.name)
+      if (mainDebug && (block.name === 'suggest_contact' || block.name === 'suggest_note' || isCreate)) {
         mainDebug.push(`  tool ${block.name}: ${result.startsWith('Erreur') ? result : 'OK'}`)
       }
-      if (block.name === 'suggest_contact' || block.name === 'suggest_note') {
+      if (block.name === 'suggest_contact' || block.name === 'suggest_note' || isCreate) {
         console.log('[inbound-email]', block.name, '→', result)
       }
     }
