@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { useNotificationsStore } from "@/lib/notifications-store";
 import { usePendingSuggestionsStore } from "@/lib/pending-suggestions-store";
 import { useWebhookErrorsStore } from "@/lib/webhook-errors-store";
+import { useClientConfirmationsStore } from "@/lib/client-confirmations-store";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/Button";
 import { Surface } from "@/components/ui/Surface";
@@ -15,8 +16,6 @@ import {
   rejectSuggestion,
 } from "@/app/(dashboard)/actions/email-suggestions";
 import { dismissWebhookError } from "@/app/(dashboard)/actions/webhook-errors";
-import { MOCK_PENDING_SUGGESTIONS } from "@/lib/pending-suggestions-store";
-import { MOCK_ACTIVITY_NOTIFICATIONS } from "@/lib/notifications-store";
 
 const ACTION_LABELS: Record<string, string> = {
   client_created: "Client créé",
@@ -54,8 +53,6 @@ function formatRelativeTime(dateStr: string): string {
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [processingId, setProcessingId] = useState<string | null>(null);
-  const [replayExpanded, setReplayExpanded] = useState(false);
-  const [replayEmailId, setReplayEmailId] = useState("");
   const ref = useRef<HTMLDivElement>(null);
   const items = useNotificationsStore((s) => s.items);
   const unreadCount = useNotificationsStore((s) => s.unreadCount);
@@ -64,13 +61,13 @@ export function NotificationBell() {
   const removePending = usePendingSuggestionsStore((s) => s.remove);
   const webhookErrors = useWebhookErrorsStore((s) => s.items);
   const removeWebhookError = useWebhookErrorsStore((s) => s.remove);
-  const setPendingItems = usePendingSuggestionsStore((s) => s.setItems);
-  const hydrateNotifications = useNotificationsStore((s) => s.hydrate);
+  const clientConfirmations = useClientConfirmationsStore((s) => s.items);
+  const removeClientConfirmation = useClientConfirmationsStore((s) => s.remove);
   const navigateTo = useStore((s) => s.navigateTo);
   const loadData = useStore((s) => s.loadData);
   const clients = useStore((s) => s.clients);
 
-  const totalBadge = unreadCount + pendingItems.length + webhookErrors.length;
+  const totalBadge = unreadCount + pendingItems.length + webhookErrors.length + clientConfirmations.length;
 
   useEffect(() => {
     if (!open) return;
@@ -90,23 +87,62 @@ export function NotificationBell() {
   async function handleApprove(s: (typeof pendingItems)[0]) {
     if (processingId) return;
     setProcessingId(s.id);
-    const isMock = s.id.startsWith("mock-");
     try {
-      if (isMock) {
+      const result =
+        s.type === "contact"
+          ? await approveContactSuggestion(s.id)
+          : await approveNoteSuggestion(s.id);
+      if (result.error) {
+        toast.error(result.error);
+      } else {
         removePending(s.id);
         toast.success(s.type === "contact" ? "Contact ajouté" : "Note ajoutée");
+        loadData().catch(() => {});
+      }
+    } finally {
+      setProcessingId(null);
+    }
+  }
+
+  async function handleConfirmClientUseExisting(c: (typeof clientConfirmations)[0]) {
+    if (processingId) return;
+    if (!c.possibleMatchClientId) return;
+    setProcessingId(c.id);
+    try {
+      const res = await fetch("/api/email-processing/resume", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmationId: c.id, choice: "use_existing" }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        toast.error(data.error);
       } else {
-        const result =
-          s.type === "contact"
-            ? await approveContactSuggestion(s.id)
-            : await approveNoteSuggestion(s.id);
-        if (result.error) {
-          toast.error(result.error);
-        } else {
-          removePending(s.id);
-          toast.success(s.type === "contact" ? "Contact ajouté" : "Note ajoutée");
-          loadData().catch(() => {});
-        }
+        removeClientConfirmation(c.id);
+        toast.success("Contact et note créés");
+        loadData().catch(() => {});
+      }
+    } finally {
+      setProcessingId(null);
+    }
+  }
+
+  async function handleConfirmClientCreateNew(c: (typeof clientConfirmations)[0]) {
+    if (processingId) return;
+    setProcessingId(c.id);
+    try {
+      const res = await fetch("/api/email-processing/resume", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmationId: c.id, choice: "create_new" }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        toast.error(data.error);
+      } else {
+        removeClientConfirmation(c.id);
+        toast.success("Client créé + contact et note");
+        loadData().catch(() => {});
       }
     } finally {
       setProcessingId(null);
@@ -116,76 +152,22 @@ export function NotificationBell() {
   async function handleReject(s: (typeof pendingItems)[0]) {
     if (processingId) return;
     setProcessingId(s.id);
-    const isMock = s.id.startsWith("mock-");
     try {
-      if (isMock) {
-        removePending(s.id);
+      const result = await rejectSuggestion(s.id);
+      if (result.error) {
+        toast.error(result.error);
       } else {
-        const result = await rejectSuggestion(s.id);
-        if (result.error) {
-          toast.error(result.error);
-        } else {
-          removePending(s.id);
-        }
+        removePending(s.id);
       }
     } finally {
       setProcessingId(null);
     }
   }
 
-  function loadMockData() {
-    setPendingItems(MOCK_PENDING_SUGGESTIONS);
-    hydrateNotifications(MOCK_ACTIVITY_NOTIFICATIONS);
-    toast.success("Mock chargé — Oui/Non fonctionnent sur les suggestions");
-  }
-
-  async function handleInjectTest() {
-    try {
-      const res = await fetch("/api/debug/inject-test", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error ?? "Erreur");
-        return;
-      }
-      toast.success("Données test injectées — toasts ou rafraîchis");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erreur");
-    }
-  }
-
-  async function handleReplay() {
-    if (!replayEmailId.trim()) {
-      setReplayExpanded(true);
-      return;
-    }
-    try {
-      const res = await fetch("/api/debug/replay", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email_id: replayEmailId.trim() }),
-      });
-      const data = await res.json();
-      const lines = data.body?._debug ?? (data._debug ?? [data.error ?? JSON.stringify(data)]);
-      const msg = Array.isArray(lines) ? lines.join("\n") : String(lines);
-      if (data.body?._debug || data._debug) {
-        toast.info("Replay diagnostic", { description: msg, duration: 15000 });
-        console.log("[Replay]", data);
-      } else if (!res.ok) {
-        toast.error(data.error ?? msg);
-      } else {
-        toast.success("Replay OK", { description: msg });
-      }
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erreur");
-    }
-  }
-
   const getClientName = (clientId: string) =>
-    clientId === "mock-client"
-      ? "Client démo"
-      : clients.find((c) => c.id === clientId)?.name ?? "Client";
+    clients.find((c) => c.id === clientId)?.name ?? "Client";
 
-  const hasContent = pendingItems.length > 0 || items.length > 0 || webhookErrors.length > 0;
+  const hasContent = pendingItems.length > 0 || items.length > 0 || webhookErrors.length > 0 || clientConfirmations.length > 0;
 
   return (
     <div className="relative" ref={ref}>
@@ -225,53 +207,11 @@ export function NotificationBell() {
         <Surface variant="overlay" className="absolute right-0 top-full mt-1 w-80 max-h-[420px] overflow-hidden rounded-xl shadow-xl z-50 flex flex-col">
           <div className="shrink-0 px-3 py-2 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-2">
             <SectionHeader level="sublabel">Notifications</SectionHeader>
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-1 flex-wrap">
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  onClick={() => setReplayExpanded((v) => !v)}
-                  title="Rejouer un email Resend"
-                >
-                  Replay
-                </Button>
-              <Button
-                variant="ghost"
-                size="xs"
-                onClick={handleInjectTest}
-                title="Injecter erreur + suggestion en base (test Realtime)"
-              >
-                Inject test
+            {items.length > 0 && (
+              <Button variant="ghost" size="xs" onClick={markAllRead}>
+                Tout marquer lu
               </Button>
-              <Button
-                variant="ghost"
-                size="xs"
-                onClick={loadMockData}
-                title="Charger des données mock pour preview"
-              >
-                Preview mock
-              </Button>
-              {items.length > 0 && (
-                <Button variant="ghost" size="xs" onClick={markAllRead}>
-                  Tout marquer lu
-                </Button>
-              )}
-              </div>
-              {replayExpanded && (
-                <div className="flex gap-1.5 items-center pt-1">
-                  <input
-                    type="text"
-                    placeholder="email_id Resend"
-                    value={replayEmailId}
-                    onChange={(e) => setReplayEmailId(e.target.value)}
-                    className="flex-1 min-w-0 text-xs px-2 py-1.5 rounded border border-zinc-200 dark:border-zinc-700 bg-transparent"
-                  />
-                  <Button variant="primary" size="xs" onClick={handleReplay}>
-                    Lancer
-                  </Button>
-                </div>
-              )}
-            </div>
+            )}
           </div>
           <div className="flex-1 overflow-y-auto min-h-0">
             {!hasContent ? (
@@ -280,6 +220,137 @@ export function NotificationBell() {
               </p>
             ) : (
               <div className="py-1">
+                {clientConfirmations.length > 0 && (
+                  <div className="border-b border-zinc-200 dark:border-zinc-800">
+                    <p className="px-3 py-1.5 text-[11px] font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wide">
+                      À confirmer
+                    </p>
+                    <ul>
+                      {clientConfirmations.map((c) => {
+                        const isProcessing = processingId === c.id;
+                        const matchLabel = c.possibleMatchName ? ` (${c.possibleMatchName})` : "";
+                        return (
+                          <li
+                            key={c.id}
+                            className="px-3 py-2.5 border-b border-zinc-100 dark:border-zinc-800/50 last:border-0 bg-amber-50/50 dark:bg-amber-950/20"
+                          >
+                            <p className="text-sm text-zinc-800 dark:text-zinc-200">
+                              Est-ce que <strong>{c.mentionedName}</strong> = {c.possibleMatchName ?? "—"} ?
+                            </p>
+                            <div className="flex gap-2 mt-2">
+                              <Button
+                                variant="primary"
+                                size="xs"
+                                onClick={() => handleConfirmClientUseExisting(c)}
+                                disabled={isProcessing || !c.possibleMatchClientId}
+                              >
+                                Oui c&apos;est le même
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="xs"
+                                onClick={() => handleConfirmClientCreateNew(c)}
+                                disabled={isProcessing}
+                              >
+                                Non, crée le client
+                              </Button>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+                {clientConfirmations.length > 0 && (
+                  <div className="border-b border-zinc-200 dark:border-zinc-800">
+                    <p className="px-3 py-1.5 text-[11px] font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wide">
+                      À confirmer
+                    </p>
+                    <ul>
+                      {clientConfirmations.map((c) => {
+                        const isProcessing = processingId === c.id;
+                        return (
+                          <li
+                            key={c.id}
+                            className="px-3 py-2.5 border-b border-zinc-100 dark:border-zinc-800/50 last:border-0 bg-amber-50/50 dark:bg-amber-950/20"
+                          >
+                            <p className="text-sm text-zinc-800 dark:text-zinc-200">
+                              Est-ce que <strong>{c.mentionedName}</strong>
+                              {c.possibleMatchName ? (
+                                <> = {c.possibleMatchName} ?</>
+                              ) : (
+                                " ?"
+                              )}
+                            </p>
+                            <p className="text-[11px] text-zinc-400 dark:text-zinc-600 mt-1">
+                              {formatRelativeTime(c.createdAt)}
+                            </p>
+                            <div className="flex gap-2 mt-2">
+                              {c.possibleMatchClientId ? (
+                                <Button
+                                  variant="primary"
+                                  size="xs"
+                                  onClick={() => handleConfirmClientUseExisting(c)}
+                                  disabled={isProcessing}
+                                >
+                                  Oui c&apos;est le même
+                                </Button>
+                              ) : null}
+                              <Button
+                                variant="ghost"
+                                size="xs"
+                                onClick={() => handleConfirmClientCreateNew(c)}
+                                disabled={isProcessing}
+                              >
+                                Non, crée le client
+                              </Button>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+                {clientConfirmations.length > 0 && (
+                  <div className="border-b border-zinc-200 dark:border-zinc-800">
+                    <p className="px-3 py-1.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-500 uppercase tracking-wide">
+                      À confirmer
+                    </p>
+                    <ul>
+                      {clientConfirmations.map((c) => {
+                        const isProcessing = processingId === c.id;
+                        return (
+                          <li
+                            key={c.id}
+                            className="px-3 py-2.5 border-b border-zinc-100 dark:border-zinc-800/50 last:border-0"
+                          >
+                            <p className="text-sm text-zinc-800 dark:text-zinc-200">
+                              Est-ce que <strong>{c.mentionedName}</strong> = {c.possibleMatchName ?? "—"} ?
+                            </p>
+                            <div className="flex gap-2 mt-2">
+                              <Button
+                                variant="primary"
+                                size="xs"
+                                onClick={() => handleConfirmClientUseExisting(c)}
+                                disabled={isProcessing || !c.possibleMatchClientId}
+                              >
+                                Oui c&apos;est le même
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="xs"
+                                onClick={() => handleConfirmClientCreateNew(c)}
+                                disabled={isProcessing}
+                              >
+                                Non, crée le client
+                              </Button>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
                 {webhookErrors.length > 0 && (
                   <div className="border-b border-zinc-200 dark:border-zinc-800">
                     <p className="px-3 py-1.5 text-[11px] font-medium text-red-600 dark:text-red-400 uppercase tracking-wide">
@@ -323,6 +394,227 @@ export function NotificationBell() {
                           </Button>
                         </li>
                       ))}
+                    </ul>
+                  </div>
+                )}
+                {clientConfirmations.length > 0 && (
+                  <div className="border-b border-zinc-200 dark:border-zinc-800">
+                    <p className="px-3 py-1.5 text-[11px] font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wide">
+                      À confirmer
+                    </p>
+                    <ul>
+                      {clientConfirmations.map((c) => {
+                        const isProcessing = processingId === c.id;
+                        return (
+                          <li
+                            key={c.id}
+                            className="px-3 py-2.5 border-b border-zinc-100 dark:border-zinc-800/50 last:border-0"
+                          >
+                            <p className="text-sm text-zinc-800 dark:text-zinc-200">
+                              Est-ce que <strong>{c.mentionedName}</strong> ={" "}
+                              {c.possibleMatchName ?? "—"} ?
+                            </p>
+                            <div className="flex gap-2 mt-2">
+                              {c.possibleMatchClientId && (
+                                <Button
+                                  variant="primary"
+                                  size="xs"
+                                  onClick={() => handleConfirmClientUseExisting(c)}
+                                  disabled={isProcessing}
+                                >
+                                  Oui c&apos;est le même
+                                </Button>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="xs"
+                                onClick={() => handleConfirmClientCreateNew(c)}
+                                disabled={isProcessing}
+                              >
+                                Non, crée le client
+                              </Button>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+                {clientConfirmations.length > 0 && (
+                  <div className="border-b border-zinc-200 dark:border-zinc-800">
+                    <p className="px-3 py-1.5 text-[11px] font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wide">
+                      À confirmer
+                    </p>
+                    <ul>
+                      {clientConfirmations.map((c) => {
+                        const isProcessing = processingId === c.id;
+                        return (
+                          <li
+                            key={c.id}
+                            className="px-3 py-2.5 border-b border-zinc-100 dark:border-zinc-800/50 last:border-0 bg-amber-50/50 dark:bg-amber-950/20"
+                          >
+                            <p className="text-sm text-zinc-800 dark:text-zinc-200">
+                              Est-ce que <strong>{c.mentionedName}</strong>
+                              {c.possibleMatchName ? (
+                                <> = {c.possibleMatchName} ?</>
+                              ) : (
+                                <> — client existant ?</>
+                              )}
+                            </p>
+                            <div className="flex gap-2 mt-2">
+                              {c.possibleMatchClientId && (
+                                <Button
+                                  variant="primary"
+                                  size="xs"
+                                  onClick={() => handleConfirmClientUseExisting(c)}
+                                  disabled={isProcessing}
+                                >
+                                  Oui c'est le même
+                                </Button>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="xs"
+                                onClick={() => handleConfirmClientCreateNew(c)}
+                                disabled={isProcessing}
+                              >
+                                Non, crée le client
+                              </Button>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+                {clientConfirmations.length > 0 && (
+                  <div className="border-b border-zinc-200 dark:border-zinc-800">
+                    <p className="px-3 py-1.5 text-[11px] font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wide">
+                      À confirmer
+                    </p>
+                    <ul>
+                      {clientConfirmations.map((c) => {
+                        const isProcessing = processingId === c.id;
+                        const matchLabel = c.possibleMatchName
+                          ? ` = ${c.possibleMatchName} ?`
+                          : " ?";
+                        return (
+                          <li
+                            key={c.id}
+                            className="px-3 py-2.5 border-b border-zinc-100 dark:border-zinc-800/50 last:border-0 bg-amber-50/30 dark:bg-amber-950/20"
+                          >
+                            <p className="text-sm text-zinc-800 dark:text-zinc-200">
+                              Est-ce que <strong>{c.mentionedName}</strong>
+                              {matchLabel}
+                            </p>
+                            <div className="flex gap-2 mt-2">
+                              {c.possibleMatchClientId && (
+                                <Button
+                                  variant="primary"
+                                  size="xs"
+                                  onClick={() => handleConfirmClientUseExisting(c)}
+                                  disabled={isProcessing}
+                                >
+                                  Oui c&apos;est le même
+                                </Button>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="xs"
+                                onClick={() => handleConfirmClientCreateNew(c)}
+                                disabled={isProcessing}
+                              >
+                                Non, crée le client
+                              </Button>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+                {clientConfirmations.length > 0 && (
+                  <div className="border-b border-zinc-200 dark:border-zinc-800">
+                    <p className="px-3 py-1.5 text-[11px] font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wide">
+                      À confirmer
+                    </p>
+                    <ul>
+                      {clientConfirmations.map((c) => {
+                        const isProcessing = processingId === c.id;
+                        return (
+                          <li
+                            key={c.id}
+                            className="px-3 py-2.5 border-b border-zinc-100 dark:border-zinc-800/50 last:border-0"
+                          >
+                            <p className="text-sm text-zinc-800 dark:text-zinc-200">
+                              Est-ce que <strong>{c.mentionedName}</strong> ={" "}
+                              {c.possibleMatchName ?? "?"}
+                            </p>
+                            <div className="flex gap-2 mt-2">
+                              {c.possibleMatchClientId && (
+                                <Button
+                                  variant="primary"
+                                  size="xs"
+                                  onClick={() => handleConfirmClientUseExisting(c)}
+                                  disabled={isProcessing}
+                                >
+                                  Oui c&apos;est le même
+                                </Button>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="xs"
+                                onClick={() => handleConfirmClientCreateNew(c)}
+                                disabled={isProcessing}
+                              >
+                                Non, crée le client
+                              </Button>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+                {clientConfirmations.length > 0 && (
+                  <div className="border-b border-zinc-200 dark:border-zinc-800">
+                    <p className="px-3 py-1.5 text-[11px] font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wide">
+                      À confirmer
+                    </p>
+                    <ul>
+                      {clientConfirmations.map((c) => {
+                        const isProcessing = processingId === c.id;
+                        return (
+                          <li
+                            key={c.id}
+                            className="px-3 py-2.5 border-b border-zinc-100 dark:border-zinc-800/50 last:border-0"
+                          >
+                            <p className="text-sm text-zinc-800 dark:text-zinc-200">
+                              Est-ce que <strong>{c.mentionedName}</strong> = {c.possibleMatchName ?? "?"} ?
+                            </p>
+                            <div className="flex gap-2 mt-2">
+                              {c.possibleMatchClientId && (
+                                <Button
+                                  variant="primary"
+                                  size="xs"
+                                  onClick={() => handleConfirmClientUseExisting(c)}
+                                  disabled={isProcessing}
+                                >
+                                  Oui c&apos;est le même
+                                </Button>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="xs"
+                                onClick={() => handleConfirmClientCreateNew(c)}
+                                disabled={isProcessing}
+                              >
+                                Non, crée le client
+                              </Button>
+                            </div>
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
                 )}
