@@ -222,11 +222,11 @@ export function NotificationBell() {
                           <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5 truncate">
                             {e.errorMessage}
                           </p>
-                          {e.details?.stack && (
+                          {e.details?.stack != null ? (
                             <pre className="mt-1.5 text-[10px] text-zinc-500 dark:text-zinc-500 overflow-x-auto max-h-24 overflow-y-auto break-all whitespace-pre-wrap">
                               {String(e.details.stack)}
                             </pre>
-                          )}
+                          ) : null}
                           <p className="text-[11px] text-zinc-400 dark:text-zinc-600 mt-1">
                             {formatRelativeTime(e.createdAt)}
                           </p>
