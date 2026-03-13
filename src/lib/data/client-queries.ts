@@ -356,3 +356,34 @@ export async function fetchWebhookErrors(limit = 20): Promise<WebhookErrorRow[]>
     createdAt: (row.created_at as string) ?? '',
   }))
 }
+
+// ─── Client confirmations (agent demande "X = Y ?") ──────────────
+
+export type ClientConfirmationRow = {
+  id: string
+  mentionedName: string
+  possibleMatchClientId: string | null
+  possibleMatchName: string | null
+  fromEmail: string | null
+  subject: string | null
+  createdAt: string
+}
+
+export async function fetchClientConfirmations(limit = 20): Promise<ClientConfirmationRow[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('pending_client_confirmations')
+    .select('id, mentioned_name, possible_match_client_id, possible_match_name, from_email, subject, created_at')
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  if (error) return []
+  return (data ?? []).map((row) => ({
+    id: row.id as string,
+    mentionedName: (row.mentioned_name as string) ?? '',
+    possibleMatchClientId: (row.possible_match_client_id as string) ?? null,
+    possibleMatchName: (row.possible_match_name as string) ?? null,
+    fromEmail: (row.from_email as string) ?? null,
+    subject: (row.subject as string) ?? null,
+    createdAt: (row.created_at as string) ?? '',
+  }))
+}

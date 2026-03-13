@@ -7,6 +7,7 @@ import { useDocumentExtractionRealtime } from "@/hooks/useDocumentExtractionReal
 import { useEmailActivityRealtime } from "@/hooks/useEmailActivityRealtime";
 import { usePendingSuggestionsRealtime } from "@/hooks/usePendingSuggestionsRealtime";
 import { useWebhookErrorsRealtime } from "@/hooks/useWebhookErrorsRealtime";
+import { useClientConfirmationsRealtime } from "@/hooks/useClientConfirmationsRealtime";
 
 export function StoreProvider({ children, userName }: { children: React.ReactNode; userName?: string }) {
   const loadData = useStore((s) => s.loadData);
@@ -25,6 +26,7 @@ export function StoreProvider({ children, userName }: { children: React.ReactNod
   useEmailActivityRealtime();
   usePendingSuggestionsRealtime();
   useWebhookErrorsRealtime();
+  useClientConfirmationsRealtime();
 
   return (
     <>

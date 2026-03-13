@@ -97,6 +97,26 @@ const AGENCY_TOOLS = [
       required: ['clientId', 'name', 'content'],
     },
   },
+  {
+    name: 'ask_client_confirmation',
+    description:
+      'Si tu as un DOUTE sur l\'identification du client (ex: "Brutos" dans le mail vs "BRUTUS" en base), appelle cet outil AVANT suggest_contact/suggest_note. L\'utilisateur verra "Est-ce que X est Y ?" dans la cloche et pourra confirmer ou demander de créer le client. N\'appelle suggest_contact ni suggest_note dans ce cas — attends la confirmation.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        mentionedName: { type: 'string', description: 'Nom/entreprise mentionné dans le mail (ex: Brutos)' },
+        possibleMatchClientId: {
+          type: 'string',
+          description: 'UUID du client susceptible de correspondre (si trouvé dans le contexte), sinon laisser vide',
+        },
+        possibleMatchName: {
+          type: 'string',
+          description: 'Nom du client en base (ex: BRUTUS) — vide si aucun candidat',
+        },
+      },
+      required: ['mentionedName'],
+    },
+  },
 ]
 
 function isToolUseBlock(block: ContentBlock): block is ToolUseBlock {
@@ -380,14 +400,16 @@ RÈGLES :
 1. **create_client** : Si le mail mentionne un client/entreprise qui N'EXISTE PAS dans le contexte (nom, domaine email, société dans la signature), crée-le avec create_client. Tu peux aussi créer si l'utilisateur le demande explicitement.
 2. **create_project, create_product** : Si l'utilisateur demande explicitement, ou si le mail décrit clairement un projet/produit pour un client (nouveau ou existant), crée-les. Ordre : create_client (si nouveau) → create_project → create_product.
 3. **Identifie le client** : Cherche d'abord dans le contexte. Si une correspondance existe (même nom, domaine similaire), utilise cet ID. Sinon, crée le client.
-4. **suggest_contact** : Propose un contact pour CHAQUE personne mentionnée dans le mail (expéditeur, interlocuteurs, signatures). Cherche les emails dans tout le corps. L'email est OBLIGATOIRE si visible.
-5. **suggest_note** : En PLUS du contact, propose un RÉSUMÉ STRUCTURÉ en markdown des échanges. Format attendu :
+4. **OBLIGATION** : suggest_contact et suggest_note nécessitent un clientId. Tu dois TOUJOURS avoir un client associé. Si le mail concerne un nouveau client absent du contexte, crée-le AVANT d'appeler suggest_contact ou suggest_note. Ne JAMAIS utiliser un client existant "par défaut" quand le mail concerne clairement une autre entreprise.
+5. **suggest_contact** : Propose un contact pour CHAQUE personne mentionnée dans le mail (expéditeur, interlocuteurs, signatures). Cherche les emails dans tout le corps. L'email est OBLIGATOIRE si visible.
+6. **suggest_note** : En PLUS du contact, propose un RÉSUMÉ STRUCTURÉ en markdown des échanges. Format attendu :
    - **Contexte** : 1 phrase situant l'échange
    - **Points clés** : liste à puces des infos importantes (chiffres, noms, décisions)
    - **Actions / Prochaines étapes** : liste à puces des TODO ou livrables attendus
    Le contenu sera rendu en markdown dans l'app. Sois synthétique (8-15 lignes max).
 6. Ordre préférentiel : create_client (si nouveau) → create_project/create_product (si pertinent) → suggest_contact (expéditeur) → suggest_note (résumé).
 7. MÊME si le corps est court ou "(Corps non récupéré)", appelle AU MOINS suggest_note avec un résumé minimal basé sur le sujet et l'expéditeur.
+8. **ask_client_confirmation** : Si tu as un DOUTE (ex: "Brutos" dans le mail vs "BRUTUS" en base — orthographe, casse, variante), appelle ask_client_confirmation AVANT suggest_contact/suggest_note. L'utilisateur verra "Est-ce que Brutos = BRUTUS ?" et pourra confirmer ou demander de créer le client. N'appelle pas suggest_contact ni suggest_note dans ce cas — attends sa réponse.
 
 Exécute les actions. Sois concis.`
 
@@ -466,6 +488,7 @@ Exécute les actions. Sois concis.`
 
     const toolUses = lastMessage.content.filter(isToolUseBlock)
     const toolResults: Array<{ type: 'tool_result'; tool_use_id: string; content: string }> = []
+    let askedClientConfirmation = false
 
     for (const block of toolUses) {
       const input = block.input as Record<string, unknown>
@@ -573,6 +596,29 @@ Exécute les actions. Sois concis.`
             } else {
               suggestionsCreated++
               result = `Suggestion contact créée : ${name} — l'utilisateur validera via la cloche`
+            }
+          }
+        } else if (block.name === 'ask_client_confirmation') {
+          const mentionedName = String(input.mentionedName ?? '').trim()
+          const possibleMatchClientId = input.possibleMatchClientId ? String(input.possibleMatchClientId).trim() : null
+          const possibleMatchName = input.possibleMatchName ? String(input.possibleMatchName).trim() : null
+          if (!mentionedName) {
+            result = 'Erreur : mentionedName requis'
+          } else {
+            const { error: insertErr } = await (admin as any).from('pending_client_confirmations').insert({
+              user_id: userId,
+              mentioned_name: mentionedName,
+              possible_match_client_id: possibleMatchClientId,
+              possible_match_name: possibleMatchName,
+              from_email: from,
+              subject,
+              body: body.slice(0, 15000), // limite 15k chars
+            })
+            if (insertErr) {
+              result = `Erreur : ${insertErr.message}`
+            } else {
+              askedClientConfirmation = true
+              result = 'Confirmation demandée. En attente de réponse utilisateur dans la cloche.'
             }
           }
         } else {
