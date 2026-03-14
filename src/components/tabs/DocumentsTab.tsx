@@ -42,7 +42,7 @@ export function DocumentsTab({
         isPending={isPending}
       />
 
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-zinc-50 dark:bg-zinc-950">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 pb-24 bg-zinc-50 dark:bg-zinc-950">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
