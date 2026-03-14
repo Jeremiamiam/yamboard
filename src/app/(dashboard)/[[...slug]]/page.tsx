@@ -266,13 +266,21 @@ function HomeView() {
                           className="w-full text-left px-5 py-3 hover:bg-amber-100/40 dark:hover:bg-amber-950/20 transition-colors group"
                         >
                           <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0 flex-1">
+                            <div className="min-w-0 flex-1 flex items-start gap-2">
+                              {client?.color && (
+                                <span
+                                  className="w-2.5 h-2.5 rounded-full flex-shrink-0 mt-0.5"
+                                  style={{ background: client.color }}
+                                />
+                              )}
+                              <div className="min-w-0 flex-1">
                               <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate block">
                                 {client?.name ?? "—"}
                               </span>
                               <span className="text-xs text-zinc-400 dark:text-zinc-500 block mt-0.5">
                                 {p.name}
                               </span>
+                              </div>
                             </div>
                             <div className="flex flex-wrap gap-1 flex-shrink-0 mt-0.5">
                               {labels.map((label) => (
