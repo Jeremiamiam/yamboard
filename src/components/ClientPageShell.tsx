@@ -6,12 +6,11 @@ import type {
   Client,
   Project,
   BudgetProduct,
-  Document,
 } from "@/lib/types";
 import { updateClientAction, archiveClientAction, deleteClientAction, deleteDocumentAction } from "@/lib/store/actions";
 import { removeClientLogo } from "@/app/(dashboard)/actions/clients";
 import { useStore } from "@/lib/store";
-import { ClientMissionsSection, ClientTodosSection, ClientDocsSection } from "@/components/client";
+import { ClientMissionsSection, ClientTodosSection } from "@/components/client";
 import { ClientBreadcrumbNav } from "@/components/ClientBreadcrumbNav";
 import { EditMenu } from "@/components/EditMenu";
 import { Button } from "@/components/ui/Button";
@@ -23,7 +22,6 @@ type Props = {
   client: Client;
   projects: Project[];
   budgetByProject: Record<string, BudgetProduct[]>;
-  globalDocs?: Document[];
   clientId: string;
 };
 
@@ -31,7 +29,6 @@ export function ClientPageShell({
   client,
   projects,
   budgetByProject,
-  globalDocs = [],
   clientId,
 }: Props) {
   const navigateTo = useStore((s) => s.navigateTo);
@@ -164,14 +161,6 @@ export function ClientPageShell({
           }
         />
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 sm:space-y-8">
-          <ClientDocsSection
-            clientId={clientId}
-            clientColor={client.color}
-            globalDocs={globalDocs}
-            onDocClick={(doc) => setViewerDocId(doc.id)}
-            onDeleteDoc={(docId) => handleDeleteDoc(docId)}
-            isPendingDoc={isPendingDoc}
-          />
           <ClientTodosSection clientId={clientId} clientColor={client.color} />
           <ClientMissionsSection
             clientId={clientId}

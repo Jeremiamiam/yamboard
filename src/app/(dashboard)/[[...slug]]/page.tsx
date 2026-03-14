@@ -373,7 +373,6 @@ function ClientView({ clientId }: { clientId: string }) {
   const loaded = useStoreLoaded();
   const client = useClient(clientId);
   const projects = useClientProjects(clientId);
-  const globalDocs = useClientDocs(clientId);
   const budgetByProject = useBudgetProductsForClient(clientId);
   const navigateHome = useStore((s) => s.navigateHome);
 
@@ -389,7 +388,6 @@ function ClientView({ clientId }: { clientId: string }) {
       client={client}
       projects={projects}
       budgetByProject={budgetByProject}
-      globalDocs={globalDocs}
       clientId={clientId}
     />
   );

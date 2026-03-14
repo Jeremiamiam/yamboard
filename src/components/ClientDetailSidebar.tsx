@@ -87,23 +87,21 @@ export function ClientDetailSidebar({ clientId }: Props) {
   return (
     <>
       {detailOpen && (
-        <div className="fixed inset-0 z-30 bg-black/40 md:hidden" onClick={closeDetail} />
+        <div className="fixed inset-0 z-30 bg-black/40 md:hidden" onClick={closeDetail} aria-hidden />
       )}
       <aside
-        className={`fixed z-40 flex flex-col bg-zinc-50 dark:bg-zinc-950 transition-transform duration-200
-          inset-0 md:inset-auto
-          md:top-[calc(var(--nav-h)+var(--breadcrumb-h))] md:right-auto md:bottom-0 md:left-[var(--sidebar-w)]
-          md:border-l-0 md:border-r md:border-zinc-200 md:dark:border-zinc-800
+        className={`fixed z-40 flex flex-col bg-zinc-50 dark:bg-zinc-950 transition-transform duration-200 rounded-t-2xl
+          inset-x-0 bottom-0 top-[15%] md:inset-auto md:top-[calc(var(--nav-h)+var(--breadcrumb-h))] md:right-auto md:bottom-0 md:left-[var(--sidebar-w)] md:rounded-none
           w-full md:w-[var(--client-detail-sidebar-w)]
           ${detailOpen ? "translate-x-0" : "translate-x-full md:-translate-x-full"} md:!translate-x-0`}
       >
-        {/* Header mobile plein écran — nom client + fermer */}
+        {/* Header mobile plein écran — nom client + fermer (tap overlay pour fermer aussi) */}
         <div className="shrink-0 flex md:hidden items-center justify-between px-4 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950" style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}>
           <h2 className="text-lg font-semibold text-zinc-900 dark:text-white truncate flex-1 min-w-0">
             {client.name}
           </h2>
-          <Button variant="ghost" size="icon_md" onClick={closeDetail} aria-label="Fermer">
-            ✕
+          <Button variant="secondary" size="sm" onClick={closeDetail} aria-label="Fermer">
+            Fermer
           </Button>
         </div>
         {/* ── Sections scrollables ── */}
