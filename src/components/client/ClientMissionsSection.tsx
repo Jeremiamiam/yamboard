@@ -53,15 +53,18 @@ function ProjectCard({ project, products, clientId, clientColor }: ProjectCardPr
     <button
       onClick={() => navigateTo(clientId, project.id)}
       className={cn(
-        "text-left w-full group flex flex-col p-5 rounded-xl bg-white dark:bg-zinc-900 border transition-all cursor-pointer",
+        "relative text-left w-full group flex flex-col p-5 rounded-xl bg-white dark:bg-zinc-900 border transition-all cursor-pointer overflow-hidden",
         isSoldé
           ? "border-emerald-500/30 dark:border-emerald-500/30 ring-1 ring-emerald-500/20"
           : "border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700"
       )}
-      style={{
-        boxShadow: `inset 4px 0 0 0 ${clientColor}`,
-      }}
     >
+      {/* Barre couleur inset — rect droite, évite l'arrondi aux coins */}
+      <div
+        className="absolute left-0 top-4 bottom-4 w-1 shrink-0"
+        style={{ background: clientColor }}
+        aria-hidden
+      />
       <div className="flex items-start justify-between gap-2 mb-3">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <span className="text-base font-semibold text-zinc-800 dark:text-zinc-100 truncate">
