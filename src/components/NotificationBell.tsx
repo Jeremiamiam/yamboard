@@ -205,14 +205,20 @@ export function NotificationBell() {
       </Button>
 
       {open && (
-        <Surface variant="overlay" className="absolute right-0 top-full mt-1 w-80 max-h-[420px] overflow-hidden rounded-xl shadow-xl z-50 flex flex-col">
+        <Surface variant="overlay" className="z-50 flex flex-col overflow-hidden
+          fixed inset-0 top-[var(--nav-h)] md:inset-auto md:top-full md:right-0 md:mt-1 md:w-80 md:max-h-[420px] md:rounded-xl md:shadow-xl">
           <div className="shrink-0 px-3 py-2 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-2">
             <SectionHeader level="sublabel">Notifications</SectionHeader>
-            {items.length > 0 && (
-              <Button variant="ghost" size="xs" onClick={markAllRead}>
-                Tout marquer lu
+            <div className="flex items-center gap-2">
+              {items.length > 0 && (
+                <Button variant="ghost" size="xs" onClick={markAllRead}>
+                  Tout marquer lu
+                </Button>
+              )}
+              <Button variant="ghost" size="icon_sm" onClick={() => setOpen(false)} className="md:hidden" aria-label="Fermer">
+                ✕
               </Button>
-            )}
+            </div>
           </div>
           <div className="flex-1 overflow-y-auto min-h-0">
             {!hasContent ? (
