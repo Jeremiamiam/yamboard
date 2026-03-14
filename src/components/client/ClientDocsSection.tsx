@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Document } from "@/lib/types";
 import { AddDocForm } from "@/components/AddDocForm";
 import { DeleteMenu } from "@/components/DeleteMenu";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 
 type NavDocChipProps = {
   doc: Document;
@@ -58,7 +59,13 @@ export function ClientDocsSection({
   const [showAddDoc, setShowAddDoc] = useState(false);
 
   return (
-    <div className="px-6 pb-3 overflow-visible">
+    <section>
+      <SectionHeader level="sublabel" className="flex items-center gap-1.5 mb-2">
+        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+        Documents ({globalDocs.length})
+      </SectionHeader>
       <div className="flex items-center gap-2 overflow-visible">
         <div className="flex-1 min-w-0 overflow-x-auto py-3">
           <div className="flex items-center gap-2 flex-nowrap py-1">
@@ -94,6 +101,6 @@ export function ClientDocsSection({
           />
         </div>
       )}
-    </div>
+    </section>
   );
 }
