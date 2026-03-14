@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useTransition } from "react";
+import { useState, useTransition } from "react";
 import {
   PAYMENT_STAGE_LABEL,
   type Project,
@@ -9,7 +9,7 @@ import {
 } from "@/lib/types";
 import { createBudgetProductAction } from "@/lib/store/actions";
 import { useStore } from "@/lib/store";
-import { SectionHeader, Button, Surface, InputField, Progress, Badge, IconBox } from "@/components/ui";
+import { SectionHeader, Button, Surface, InputField, Badge, IconBox } from "@/components/ui";
 import { getContrastTextColor } from "@/lib/color-utils";
 import { cn } from "@/lib/cn";
 
@@ -26,29 +26,6 @@ export function BudgetsTab({
   selectedProduct?: BudgetProduct | null;
   onSelectProduct?: (product: BudgetProduct | null) => void;
 }) {
-  const { total, paid, remaining, sousTraitance, hasSubcontracts } = useMemo(() => {
-    // total = somme des montants du devis (étape Devis), fallback sur totalAmount
-    const t = budgetProducts.reduce((s, p) => s + (p.devis?.amount ?? p.totalAmount), 0);
-    const pd = budgetProducts.reduce((s, p) => {
-      let amt = 0;
-      if (p.acompte?.status === "paid") amt += p.acompte.amount ?? 0;
-      for (const av of p.avancements ?? []) {
-        if (av.status === "paid") amt += av.amount ?? 0;
-      }
-      if (p.solde?.status === "paid") amt += p.solde.amount ?? 0;
-      return s + amt;
-    }, 0);
-    // Sous-traitance = somme de TOUS les montants (payés + en attente) pour affichage "à toucher"
-    const st = budgetProducts.reduce(
-      (s, p) => s + (p.subcontracts ?? []).reduce((a, sub) => a + (sub.amount ?? 0), 0),
-      0
-    );
-    const hasSubcontracts = budgetProducts.some((p) => (p.subcontracts?.length ?? 0) > 0);
-    return { total: t, paid: pd, remaining: t - pd, sousTraitance: st, hasSubcontracts };
-  }, [budgetProducts]);
-
-  const pct = total > 0 ? Math.round((paid / total) * 100) : 0;
-
   const [showForm, setShowForm] = useState(false);
   const [newName, setNewName] = useState("");
   const [addError, setAddError] = useState<string | null>(null);
@@ -124,44 +101,6 @@ export function BudgetsTab({
           </Surface>
         )}
 
-        {/* Summary */}
-        {total > 0 && (
-          <Surface
-            variant="card"
-            padding="md"
-            className={cn(
-              "mb-6",
-              pct >= 100 && "border-emerald-500/40 dark:border-emerald-500/40 ring-1 ring-emerald-500/20"
-            )}
-          >
-            <div className={`grid gap-2 sm:gap-4 mb-4 ${hasSubcontracts ? "grid-cols-2 sm:grid-cols-5" : "grid-cols-3"}`}>
-              <SumCard label="Budget" value={`${total.toLocaleString("fr-FR")} €`} />
-              <SumCard label="Encaissé (sur devis validés)" value={`${paid.toLocaleString("fr-FR")} €`} highlight />
-              <SumCard label="Restant" value={`${remaining.toLocaleString("fr-FR")} €`} />
-              {hasSubcontracts && (
-                <>
-                  <SumCard label="Sous-traitance" value={`${sousTraitance.toLocaleString("fr-FR")} €`} />
-                  <SumCard label="À toucher (net)" value={`${(total - sousTraitance).toLocaleString("fr-FR")} €`} highlight />
-                </>
-              )}
-            </div>
-            <Progress
-              value={pct}
-              size="sm"
-              color={pct >= 100 ? "rgb(16 185 129)" : clientColor}
-            />
-            <p className="text-[11px] text-zinc-500 dark:text-zinc-600 mt-1.5 flex items-center gap-2">
-              {pct}% encaissé
-              {pct >= 100 && total > 0 && (
-                <span className="inline-flex items-center gap-1 text-emerald-500 font-semibold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                  Soldé
-                </span>
-              )}
-            </p>
-          </Surface>
-        )}
-
         {/* Products */}
         {budgetProducts.length === 0 && !showForm ? (
           <EmptyBudget onAdd={() => setShowForm(true)} />
@@ -184,25 +123,6 @@ export function BudgetsTab({
 }
 
 // ─── Sub-components ───────────────────────────────────────────
-
-function SumCard({
-  label,
-  value,
-  highlight,
-}: {
-  label: string;
-  value: string;
-  highlight?: boolean;
-}) {
-  return (
-    <div className="min-w-0">
-      <p className="text-[10px] sm:text-[11px] text-zinc-500 dark:text-zinc-600 uppercase tracking-wider mb-1 truncate">{label}</p>
-      <p className={`text-base sm:text-lg font-semibold truncate ${highlight ? "text-zinc-900 dark:text-white" : "text-zinc-600 dark:text-zinc-400"}`}>
-        {value}
-      </p>
-    </div>
-  );
-}
 
 function ProductCard({
   product,
