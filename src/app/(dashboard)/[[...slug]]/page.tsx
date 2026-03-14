@@ -79,8 +79,8 @@ function HomeView() {
 
   const allClients = clients;
 
-  // ── Compta résumé ───────────────────────────────────────────
-  const budgetByProject: Record<string, { total: number; paid: number }> = {};
+  // ── Compta résumé (aligné sur page Compta : encaissé net = paid - sous-traitance payée) ──
+  const budgetByProject: Record<string, { total: number; paid: number; sousTraitancePayee: number; sousTraitanceTotale: number }> = {};
   for (const p of projects) {
     const products = budgetProducts.filter((bp) => bp.projectId === p.id);
     const total = products.reduce((s, bp) => s + (bp.devis?.amount ?? bp.totalAmount), 0);
@@ -93,12 +93,24 @@ function HomeView() {
       if (bp.solde?.status === "paid") amt += bp.solde.amount ?? 0;
       return s + amt;
     }, 0);
-    budgetByProject[p.id] = { total, paid };
+    const sousTraitancePayee = products.reduce(
+      (s, bp) => s + (bp.subcontracts ?? []).filter((sub) => sub.status === "paid").reduce((a, sub) => a + (sub.amount ?? 0), 0),
+      0
+    );
+    const sousTraitanceTotale = products.reduce(
+      (s, bp) => s + (bp.subcontracts ?? []).reduce((a, sub) => a + (sub.amount ?? 0), 0),
+      0
+    );
+    budgetByProject[p.id] = { total, paid, sousTraitancePayee, sousTraitanceTotale };
   }
   const globalTotal = Object.values(budgetByProject).reduce((s, v) => s + v.total, 0);
   const globalPaid = Object.values(budgetByProject).reduce((s, v) => s + v.paid, 0);
-  const globalRemaining = globalTotal - globalPaid;
-  const paidPct = globalTotal > 0 ? Math.round((globalPaid / globalTotal) * 100) : 0;
+  const globalSousTraitancePayee = Object.values(budgetByProject).reduce((s, v) => s + v.sousTraitancePayee, 0);
+  const globalSousTraitanceTotale = Object.values(budgetByProject).reduce((s, v) => s + v.sousTraitanceTotale, 0);
+  const globalNetPaid = globalPaid - globalSousTraitancePayee;
+  const globalNetTotal = globalTotal - globalSousTraitanceTotale;
+  const globalRemaining = globalNetTotal - globalNetPaid;
+  const paidPct = globalNetTotal > 0 ? Math.round((globalNetPaid / globalNetTotal) * 100) : 0;
 
   // ── Potentiel ──────────────────────────────────────────────
   const potentielRows = allClients
@@ -175,8 +187,8 @@ function HomeView() {
                 <section className="rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 overflow-hidden px-5 py-4">
                   <SectionLabel>Trésorerie</SectionLabel>
                   <div className="flex items-baseline justify-between mt-2">
-                    <span className="text-sm text-zinc-500 dark:text-zinc-400">Encaissé (sur devis validés)</span>
-                    <span className="text-lg font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">{fmt(globalPaid)} €</span>
+                    <span className="text-sm text-zinc-500 dark:text-zinc-400">Encaissé net</span>
+                    <span className="text-lg font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">{fmt(globalNetPaid)} €</span>
                   </div>
                   {/* Barre de progression */}
                   <div className="mt-2 h-2 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
@@ -190,8 +202,8 @@ function HomeView() {
                     <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 tabular-nums">{fmt(globalRemaining)} €</span>
                   </div>
                   <div className="flex items-baseline justify-between mt-1 pt-2 border-t border-zinc-100 dark:border-zinc-800">
-                    <span className="text-xs text-zinc-400 dark:text-zinc-500">CA total</span>
-                    <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 tabular-nums">{fmt(globalTotal)} €</span>
+                    <span className="text-xs text-zinc-400 dark:text-zinc-500">Net agence</span>
+                    <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 tabular-nums">{fmt(globalNetTotal)} €</span>
                   </div>
                 </section>
               )}

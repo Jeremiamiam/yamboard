@@ -76,18 +76,28 @@ export function ProjectPageShell({
       if (p.solde?.status === "paid") amt += p.solde.amount ?? 0;
       return s + amt;
     }, 0);
-    const st = budgetProducts.reduce(
+    const stPayee = budgetProducts.reduce(
+      (s, p) => s + (p.subcontracts ?? []).filter((sub) => sub.status === "paid").reduce((a, sub) => a + (sub.amount ?? 0), 0),
+      0
+    );
+    const stTotale = budgetProducts.reduce(
       (s, p) => s + (p.subcontracts ?? []).reduce((a, sub) => a + (sub.amount ?? 0), 0),
       0
     );
     const hasSubcontracts = budgetProducts.some((p) => (p.subcontracts?.length ?? 0) > 0);
+    const netTotal = t - stTotale;
+    const netPaid = pd - stPayee;
+    const netRemaining = netTotal - netPaid;
     return {
       total: t,
       paid: pd,
-      remaining: t - pd,
-      sousTraitance: st,
+      remaining: hasSubcontracts ? netRemaining : t - pd,
+      sousTraitancePayee: stPayee,
+      sousTraitanceTotale: stTotale,
+      netPaid,
+      netTotal,
       hasSubcontracts,
-      pct: t > 0 ? Math.round((pd / t) * 100) : 0,
+      pct: (hasSubcontracts ? netTotal : t) > 0 ? Math.round(((hasSubcontracts ? netPaid : pd) / (hasSubcontracts ? netTotal : t)) * 100) : 0,
     };
   }, [budgetProducts]);
 
@@ -243,12 +253,16 @@ export function ProjectPageShell({
                   budgetSummary.hasSubcontracts ? "grid-cols-2 sm:grid-cols-5" : "grid-cols-3"
                 )}>
                   <SumCard label="Budget" value={`${budgetSummary.total.toLocaleString("fr-FR")} €`} />
-                  <SumCard label="Encaissé (sur devis validés)" value={`${budgetSummary.paid.toLocaleString("fr-FR")} €`} highlight />
+                  <SumCard
+                    label={budgetSummary.hasSubcontracts ? "Encaissé net" : "Encaissé (sur devis validés)"}
+                    value={`${(budgetSummary.hasSubcontracts ? budgetSummary.netPaid : budgetSummary.paid).toLocaleString("fr-FR")} €`}
+                    highlight
+                  />
                   <SumCard label="Restant" value={`${budgetSummary.remaining.toLocaleString("fr-FR")} €`} />
                   {budgetSummary.hasSubcontracts && (
                     <>
-                      <SumCard label="Sous-traitance" value={`${budgetSummary.sousTraitance.toLocaleString("fr-FR")} €`} />
-                      <SumCard label="À toucher (net)" value={`${(budgetSummary.total - budgetSummary.sousTraitance).toLocaleString("fr-FR")} €`} highlight />
+                      <SumCard label="Sous-traitance" value={`${budgetSummary.sousTraitancePayee.toLocaleString("fr-FR")} / ${budgetSummary.sousTraitanceTotale.toLocaleString("fr-FR")} €`} />
+                      <SumCard label="Net agence" value={`${budgetSummary.netTotal.toLocaleString("fr-FR")} €`} highlight />
                     </>
                   )}
                 </div>
