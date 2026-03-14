@@ -59,7 +59,7 @@ function ProjectCard({ project, products, clientId, clientColor }: ProjectCardPr
           : "border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700"
       )}
       style={{
-        backgroundImage: `linear-gradient(to right, ${clientColor}33, transparent)`,
+        backgroundImage: `linear-gradient(to right, ${clientColor}26 0%, transparent 50%)`,
       }}
     >
       <div className="flex items-start justify-between gap-2 mb-3">
