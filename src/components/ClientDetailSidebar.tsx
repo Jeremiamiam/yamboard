@@ -90,11 +90,10 @@ export function ClientDetailSidebar({ clientId }: Props) {
         <div className="fixed inset-0 z-30 bg-black/40 md:hidden" onClick={closeDetail} />
       )}
       <aside
-        className={`fixed bottom-0 z-40 flex flex-col border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 transition-transform duration-200 md:translate-x-0 ${
-          detailOpen ? "translate-x-0" : "-translate-x-full"
-        } md:!translate-x-0 w-[min(320px,85vw)] md:w-[var(--client-detail-sidebar-w)]`}
+        className={`fixed bottom-0 z-40 flex flex-col border-l md:border-l-0 md:border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 transition-transform duration-200 ${
+          detailOpen ? "translate-x-0" : "translate-x-full md:-translate-x-full"
+        } md:!translate-x-0 w-[min(320px,85vw)] md:w-[var(--client-detail-sidebar-w)] right-0 left-auto md:left-[var(--sidebar-w)] md:right-auto`}
         style={{
-          left: "var(--sidebar-w)",
           top: "calc(var(--nav-h) + var(--breadcrumb-h))",
         }}
       >

@@ -127,14 +127,14 @@ export function AgencyChatDrawer({
         aria-hidden
       />
       <div
-        className={`fixed bottom-[100px] right-6 z-[10000] h-[520px] flex flex-col bg-white dark:bg-zinc-950 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-2xl overflow-hidden transition-[width] duration-200 ${
-        showHistory ? "w-[580px]" : "w-[380px]"
-      } max-w-[calc(100vw-2rem)]`}
+        className={`fixed bottom-[100px] left-4 right-4 sm:left-auto sm:right-6 z-[10000] h-[520px] max-h-[min(520px,calc(100vh-7rem))] flex flex-col bg-white dark:bg-zinc-950 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-2xl overflow-hidden transition-[width] duration-200 ${
+        showHistory ? "sm:w-[580px]" : "sm:w-[380px]"
+      }`}
       style={{ boxShadow: "0 25px 50px -12px rgb(0 0 0 / 0.25), 0 0 0 1px rgb(0 0 0 / 0.05)" }}
     >
-      <div className="flex flex-1 min-h-0">
+      <div className="flex flex-1 min-h-0 flex-col sm:flex-row">
         {/* Zone principale : messages + input */}
-        <div className="flex flex-col flex-1 min-w-0">
+        <div className="flex flex-col flex-1 min-w-0 min-h-0">
           {/* Header compact — logo client + teinte couleur si contexte client */}
           <div
             className={`shrink-0 flex items-center justify-between px-4 py-3 border-b transition-colors ${!accentColor ? "border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950" : ""}`}
@@ -289,9 +289,9 @@ export function AgencyChatDrawer({
       </div>
         </div>
 
-        {/* Sidebar Historique — visible quand showHistory */}
+        {/* Sidebar Historique — visible quand showHistory, empilé sur mobile */}
         {hasConversations && showHistory && client && (
-          <aside className="shrink-0 w-[200px] border-l border-zinc-200 dark:border-zinc-800 flex flex-col bg-zinc-50/50 dark:bg-zinc-900/50">
+          <aside className="shrink-0 w-full sm:w-[200px] border-t sm:border-t-0 sm:border-l border-zinc-200 dark:border-zinc-800 flex flex-col bg-zinc-50/50 dark:bg-zinc-900/50 max-h-[40vh] sm:max-h-none">
             <div className="px-3 py-2 border-b border-zinc-200 dark:border-zinc-800">
               <SectionHeader level="sublabel">
                 Historique

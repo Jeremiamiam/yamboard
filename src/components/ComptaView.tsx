@@ -210,13 +210,15 @@ export function ComptaView() {
                   className="w-full py-3 px-4 group text-left"
                   onClick={() => navigateTo(client.id)}
                 >
-                  {/* Header row: avatar + name + totals */}
-                  <div className="flex items-center gap-3 mb-2">
-                    <ClientAvatar client={client} size="sm" rounded="lg" />
-                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200 group-hover:text-zinc-900 dark:group-hover:text-white truncate flex-1 min-w-0">
-                      {client.name}
-                    </span>
-                    <div className="flex items-baseline gap-3 shrink-0">
+                  {/* Header row: avatar + name + totals — empilé sur mobile */}
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 mb-2">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <ClientAvatar client={client} size="sm" rounded="lg" />
+                      <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200 group-hover:text-zinc-900 dark:group-hover:text-white truncate flex-1 min-w-0">
+                        {client.name}
+                      </span>
+                    </div>
+                    <div className="flex items-baseline gap-2 sm:gap-3 flex-wrap shrink-0">
                       {netTotal > 0 && (
                         <span className="text-xs tabular-nums text-zinc-600 dark:text-zinc-400">
                           {fmt(netPaid)} / {fmt(netTotal)} €
@@ -240,15 +242,15 @@ export function ComptaView() {
 
                   {/* Per-project lines */}
                   {segments.length > 0 && (
-                    <div className="space-y-1.5 pl-9">
+                    <div className="space-y-1.5 pl-9 min-w-0">
                       {segments.map((seg, i) => {
                         const segRatio = pct(seg.netPaid, seg.netTotal);
                         return (
-                          <div key={i} className="flex items-center gap-2">
-                            <span className="text-[10px] text-zinc-500 dark:text-zinc-500 truncate w-24 shrink-0">
+                          <div key={i} className="flex items-center gap-2 min-w-0">
+                            <span className="text-[10px] text-zinc-500 dark:text-zinc-500 truncate w-16 sm:w-24 shrink-0">
                               {seg.name}
                             </span>
-                            <div className="flex-1 h-1.5 rounded-full overflow-hidden bg-zinc-200 dark:bg-zinc-800/60">
+                            <div className="flex-1 min-w-0 h-1.5 rounded-full overflow-hidden bg-zinc-200 dark:bg-zinc-800/60">
                               <div
                                 className="h-full rounded-full transition-all"
                                 style={{ width: `${segRatio}%`, background: "rgb(16 185 129)" }}
