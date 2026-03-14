@@ -5,6 +5,7 @@ import { GlobalNav } from '@/components/GlobalNav'
 // Force dynamic pour éviter UnrecognizedActionError sur Netlify (cache client/serveur désynchronisé)
 export const dynamic = 'force-dynamic'
 import { AgencyChatFab } from '@/components/AgencyChatFab'
+import { DetailSidebarFab } from '@/components/DetailSidebarFab'
 import { StoreProvider } from '@/components/StoreProvider'
 import { ClientSidebarWrapper } from '@/components/ClientSidebarWrapper'
 
@@ -50,6 +51,7 @@ export default async function DashboardLayout({
         {children}
       </StoreProvider>
       <AgencyChatFab />
+      <DetailSidebarFab />
     </>
   )
 }
