@@ -31,6 +31,7 @@ export function ClientPageShell({
   client,
   projects,
   budgetByProject,
+  globalDocs = [],
   clientId,
 }: Props) {
   const navigateTo = useStore((s) => s.navigateTo);
@@ -166,7 +167,7 @@ export function ClientPageShell({
           <ClientDocsSection
             clientId={clientId}
             clientColor={client.color}
-            globalDocs={globalDocs ?? []}
+            globalDocs={globalDocs}
             onDocClick={(doc) => setViewerDocId(doc.id)}
             onDeleteDoc={(docId) => handleDeleteDoc(docId)}
             isPendingDoc={isPendingDoc}
