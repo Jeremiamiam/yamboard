@@ -78,7 +78,7 @@ export function DocumentViewer({
     <>
       <Backdrop onClose={onClose} className="bg-black/60" />
 
-      <Surface variant="overlay" className="fixed top-0 right-0 bottom-0 z-50 w-[70vw] min-w-[320px] flex flex-col border-l overflow-hidden">
+      <Surface variant="overlay" className="fixed inset-0 md:inset-auto md:top-0 md:right-0 md:bottom-0 md:left-auto z-50 w-full md:w-[70vw] md:min-w-[320px] flex flex-col md:border-l overflow-hidden">
         {/* Header */}
         <div className="shrink-0 flex items-start justify-between px-6 py-5 border-b border-zinc-200 dark:border-zinc-800">
           <div>
