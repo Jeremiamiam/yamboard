@@ -48,7 +48,7 @@ export function DocumentsTab({
           <div>
             <SectionHeader level="h3">Documents</SectionHeader>
             <p className="text-sm text-zinc-500 mt-0.5">
-              {projectDocs.length + clientDocs.length} document{(projectDocs.length + clientDocs.length) !== 1 ? "s" : ""} · {project.name}
+              {projectDocs.length + clientDocs.length} document{(projectDocs.length + clientDocs.length) !== 1 ? "s" : ""}
             </p>
           </div>
           <Button

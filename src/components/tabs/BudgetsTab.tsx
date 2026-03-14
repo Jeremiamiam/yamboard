@@ -78,7 +78,6 @@ export function BudgetsTab({
         <div className="flex items-center justify-between mb-6">
           <div>
             <SectionHeader level="h3">Produits</SectionHeader>
-            <p className="text-sm text-zinc-500 mt-0.5">{project.name}</p>
           </div>
           <Button
             variant="secondary"
