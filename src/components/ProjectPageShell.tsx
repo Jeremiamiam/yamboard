@@ -233,49 +233,54 @@ export function ProjectPageShell({
           }
         />
 
-        {/* ── Titre projet + résumé budget fusionnés ── */}
-        <header className="shrink-0 px-4 sm:px-6 py-4 sm:py-5 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 space-y-4">
-          <h1 className="text-2xl sm:text-3xl font-semibold text-zinc-900 dark:text-white truncate">
-            {project.name}
-          </h1>
-          {budgetSummary.total > 0 && (
-            <Surface
-              variant="card"
-              padding="md"
-              className={cn(
-                budgetSummary.pct >= 100 && "border-emerald-500/40 dark:border-emerald-500/40 ring-1 ring-emerald-500/20"
-              )}
-            >
-              <div className={cn(
-                "grid gap-2 sm:gap-4 mb-3",
-                budgetSummary.hasSubcontracts ? "grid-cols-2 sm:grid-cols-5" : "grid-cols-3"
-              )}>
-                <SumCard label="Budget" value={`${budgetSummary.total.toLocaleString("fr-FR")} €`} />
-                <SumCard label="Encaissé (sur devis validés)" value={`${budgetSummary.paid.toLocaleString("fr-FR")} €`} highlight />
-                <SumCard label="Restant" value={`${budgetSummary.remaining.toLocaleString("fr-FR")} €`} />
-                {budgetSummary.hasSubcontracts && (
-                  <>
-                    <SumCard label="Sous-traitance" value={`${budgetSummary.sousTraitance.toLocaleString("fr-FR")} €`} />
-                    <SumCard label="À toucher (net)" value={`${(budgetSummary.total - budgetSummary.sousTraitance).toLocaleString("fr-FR")} €`} highlight />
-                  </>
-                )}
-              </div>
-              <Progress
-                value={budgetSummary.pct}
-                size="sm"
-                color={budgetSummary.pct >= 100 ? "rgb(16 185 129)" : client.color}
-              />
-              <p className="text-[11px] text-zinc-500 dark:text-zinc-600 mt-1.5 flex items-center gap-2">
-                {budgetSummary.pct}% encaissé
-                {budgetSummary.pct >= 100 && (
-                  <span className="inline-flex items-center gap-1 text-emerald-500 font-semibold">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                    Soldé
-                  </span>
-                )}
-              </p>
-            </Surface>
-          )}
+        {/* ── Titre projet + résumé budget dans une seule card ── */}
+        <header className="shrink-0 px-4 sm:px-6 py-4 sm:py-5 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
+          <Surface
+            variant="card"
+            padding="md"
+            className={cn(
+              budgetSummary.total > 0 && budgetSummary.pct >= 100 && "border-emerald-500/40 dark:border-emerald-500/40 ring-1 ring-emerald-500/20"
+            )}
+          >
+            <h1 className={cn(
+              "text-xl sm:text-2xl font-semibold text-zinc-900 dark:text-white truncate",
+              budgetSummary.total > 0 && "mb-4"
+            )}>
+              {project.name}
+            </h1>
+            {budgetSummary.total > 0 && (
+              <>
+                <div className={cn(
+                  "grid gap-2 sm:gap-4 mb-3",
+                  budgetSummary.hasSubcontracts ? "grid-cols-2 sm:grid-cols-5" : "grid-cols-3"
+                )}>
+                  <SumCard label="Budget" value={`${budgetSummary.total.toLocaleString("fr-FR")} €`} />
+                  <SumCard label="Encaissé (sur devis validés)" value={`${budgetSummary.paid.toLocaleString("fr-FR")} €`} highlight />
+                  <SumCard label="Restant" value={`${budgetSummary.remaining.toLocaleString("fr-FR")} €`} />
+                  {budgetSummary.hasSubcontracts && (
+                    <>
+                      <SumCard label="Sous-traitance" value={`${budgetSummary.sousTraitance.toLocaleString("fr-FR")} €`} />
+                      <SumCard label="À toucher (net)" value={`${(budgetSummary.total - budgetSummary.sousTraitance).toLocaleString("fr-FR")} €`} highlight />
+                    </>
+                  )}
+                </div>
+                <Progress
+                  value={budgetSummary.pct}
+                  size="sm"
+                  color={budgetSummary.pct >= 100 ? "rgb(16 185 129)" : client.color}
+                />
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-600 mt-1.5 flex items-center gap-2">
+                  {budgetSummary.pct}% encaissé
+                  {budgetSummary.pct >= 100 && (
+                    <span className="inline-flex items-center gap-1 text-emerald-500 font-semibold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      Soldé
+                    </span>
+                  )}
+                </p>
+              </>
+            )}
+          </Surface>
         </header>
 
         {/* ── Desktop: split horizontal | Mobile: onglets plein écran ── */}
