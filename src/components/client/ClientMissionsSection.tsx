@@ -53,12 +53,14 @@ function ProjectCard({ project, products, clientId, clientColor }: ProjectCardPr
     <button
       onClick={() => navigateTo(clientId, project.id)}
       className={cn(
-        "text-left w-full group flex flex-col p-5 rounded-xl bg-white dark:bg-zinc-900 border transition-all cursor-pointer border-l-4",
+        "text-left w-full group flex flex-col p-5 rounded-xl bg-white dark:bg-zinc-900 border transition-all cursor-pointer",
         isSoldé
           ? "border-emerald-500/30 dark:border-emerald-500/30 ring-1 ring-emerald-500/20"
           : "border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700"
       )}
-      style={{ borderLeftColor: clientColor }}
+      style={{
+        backgroundImage: `linear-gradient(to right, ${clientColor}0a, transparent)`,
+      }}
     >
       <div className="flex items-start justify-between gap-2 mb-3">
         <div className="flex items-center gap-2 min-w-0 flex-1">
