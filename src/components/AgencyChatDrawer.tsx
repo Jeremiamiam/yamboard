@@ -46,6 +46,7 @@ export function AgencyChatDrawer({
     useConversations: hasConversations,
   });
   const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const autoCreatedRef = useRef<string | null>(null);
   const prevScopeRef = useRef<string | null>(null);
 
@@ -95,6 +96,14 @@ export function AgencyChatDrawer({
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
+
+  // Focus sur le textarea à l'ouverture ou au changement de conversation
+  useEffect(() => {
+    if (open && !(hasConversations && !activeConvId)) {
+      const t = setTimeout(() => inputRef.current?.focus(), 100);
+      return () => clearTimeout(t);
+    }
+  }, [open, hasConversations, activeConvId]);
 
   const accentColor = client?.color;
   const topBarStyle = accentColor
@@ -253,6 +262,7 @@ export function AgencyChatDrawer({
           style={accentColor ? { borderColor: `${accentColor}40`, boxShadow: `0 0 0 1px ${accentColor}30` } : undefined}
         >
           <textarea
+            ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
