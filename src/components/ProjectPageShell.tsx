@@ -12,6 +12,7 @@ import { EditMenu } from "@/components/EditMenu";
 import { projectHasLockedPotentiel } from "@/lib/budget-utils";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui";
+import { cn } from "@/lib/cn";
 
 type Props = {
   client: Client
@@ -53,6 +54,16 @@ export function ProjectPageShell({
   const project = propProject
   const potentielLocked = projectHasLockedPotentiel(budgetProducts, project.id);
   const [selectedProduct, setSelectedProduct] = useState<BudgetProduct | null>(null);
+  const [mobileTab, setMobileTab] = useState<"produits" | "documents">("produits");
+
+  const [isLg, setIsLg] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const update = () => setIsLg(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
 
   function handlePotentielSave() {
     setIsEditingPotentiel(false);
@@ -185,36 +196,93 @@ export function ProjectPageShell({
           }
         />
 
-        {/* ── Split: produits à gauche, produit ou documents à droite ── */}
-        <div className="flex-1 overflow-hidden flex flex-col lg:flex-row min-h-0">
-          <div className="flex-1 min-w-0 flex flex-col min-h-0 overflow-hidden lg:border-r border-b lg:border-b-0 border-zinc-200 dark:border-zinc-800">
-            <BudgetsTab
-              project={project}
-              clientColor={client.color}
-              budgetProducts={budgetProducts}
-              selectedProduct={selectedProduct}
-              onSelectProduct={setSelectedProduct}
-            />
+        {/* ── Desktop: split horizontal | Mobile: onglets plein écran ── */}
+        {isLg ? (
+          <div className="flex-1 overflow-hidden flex flex-row min-h-0">
+            <div className="flex-1 min-w-0 flex flex-col min-h-0 overflow-hidden border-r border-zinc-200 dark:border-zinc-800">
+              <BudgetsTab
+                project={project}
+                clientColor={client.color}
+                budgetProducts={budgetProducts}
+                selectedProduct={selectedProduct}
+                onSelectProduct={setSelectedProduct}
+              />
+            </div>
+            <div className="flex-1 min-w-0 flex flex-col min-h-0 overflow-hidden">
+              {selectedProduct ? (
+                <ProductDrawer
+                  product={selectedProduct}
+                  onClose={() => setSelectedProduct(null)}
+                  clientColor={client.color}
+                  variant="inline"
+                />
+              ) : (
+                <DocumentsTab
+                  project={project}
+                  clientId={clientId}
+                  clientColor={client.color}
+                  projectDocs={projectDocs}
+                  clientDocs={clientDocs}
+                />
+              )}
+            </div>
           </div>
-          <div className="flex-1 min-w-0 flex flex-col min-h-0 overflow-hidden">
-            {selectedProduct ? (
+        ) : (
+          <>
+            {/* Mobile: onglets Produits | Documents, fiche produit en overlay */}
+            <div className="shrink-0 flex border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
+              <button
+                onClick={() => setMobileTab("produits")}
+                className={cn(
+                  "flex-1 px-4 py-3 text-sm font-medium transition-colors",
+                  mobileTab === "produits"
+                    ? "text-zinc-900 dark:text-white border-b-2 border-zinc-900 dark:border-white"
+                    : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
+                )}
+              >
+                Produits
+              </button>
+              <button
+                onClick={() => setMobileTab("documents")}
+                className={cn(
+                  "flex-1 px-4 py-3 text-sm font-medium transition-colors",
+                  mobileTab === "documents"
+                    ? "text-zinc-900 dark:text-white border-b-2 border-zinc-900 dark:border-white"
+                    : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
+                )}
+              >
+                Documents
+              </button>
+            </div>
+            <div className="flex-1 min-h-0 overflow-hidden">
+              {mobileTab === "produits" ? (
+                <BudgetsTab
+                  project={project}
+                  clientColor={client.color}
+                  budgetProducts={budgetProducts}
+                  selectedProduct={selectedProduct}
+                  onSelectProduct={setSelectedProduct}
+                />
+              ) : (
+                <DocumentsTab
+                  project={project}
+                  clientId={clientId}
+                  clientColor={client.color}
+                  projectDocs={projectDocs}
+                  clientDocs={clientDocs}
+                />
+              )}
+            </div>
+            {selectedProduct && (
               <ProductDrawer
                 product={selectedProduct}
                 onClose={() => setSelectedProduct(null)}
                 clientColor={client.color}
-                variant="inline"
-              />
-            ) : (
-              <DocumentsTab
-                project={project}
-                clientId={clientId}
-                clientColor={client.color}
-                projectDocs={projectDocs}
-                clientDocs={clientDocs}
+                variant="drawer"
               />
             )}
-          </div>
-        </div>
+          </>
+        )}
       </div>
     </>
   );
