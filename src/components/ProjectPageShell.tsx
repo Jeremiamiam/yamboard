@@ -235,18 +235,9 @@ export function ProjectPageShell({
 
         {/* ── Titre projet + résumé budget fusionnés ── */}
         <header className="shrink-0 px-4 sm:px-6 py-4 sm:py-5 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 space-y-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-semibold text-zinc-900 dark:text-white truncate">
-              {project.name}
-            </h1>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5 flex items-center gap-1.5">
-              <span
-                className="w-2 h-2 rounded-full shrink-0"
-                style={{ background: client.color }}
-              />
-              {client.name}
-            </p>
-          </div>
+          <h1 className="text-2xl sm:text-3xl font-semibold text-zinc-900 dark:text-white truncate">
+            {project.name}
+          </h1>
           {budgetSummary.total > 0 && (
             <Surface
               variant="card"
